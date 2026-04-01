@@ -1,7 +1,7 @@
 
-  # OME - Deployments
+  # OpenShift Management Engine Prototype
 
-  This is a code bundle for OME - Deployments. The original project is available at https://www.figma.com/design/iNxDPuPCcQkyTexHp55ybt/OME---Deployments.
+  This is a code bundle for OpenShift Management Engine Prototype. The original project is available at https://www.figma.com/design/iNxDPuPCcQkyTexHp55ybt/OME---Deployments, though this project has had change since then. It was moved from Figma to the repo on April 1, 2026.
 
   ## Running the code
 
