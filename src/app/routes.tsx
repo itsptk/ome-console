@@ -16,7 +16,12 @@ import { DeploymentDrilldownPage } from "./pages/DeploymentDrilldownPage";
 import { ActivityDetailPage } from "./pages/ActivityDetailPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
-export const router = createBrowserRouter([
+const basename =
+  import.meta.env.BASE_URL === "/"
+    ? undefined
+    : import.meta.env.BASE_URL.replace(/\/$/, "");
+
+const routeTree = [
   {
     path: "/",
     Component: RootLayout,
@@ -38,4 +43,8 @@ export const router = createBrowserRouter([
       { path: "*", Component: NotFoundPage },
     ],
   },
-]);
+] as const;
+
+export const router = basename
+  ? createBrowserRouter(routeTree, { basename })
+  : createBrowserRouter(routeTree);
