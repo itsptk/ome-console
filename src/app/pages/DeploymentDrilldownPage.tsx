@@ -61,6 +61,8 @@ export function DeploymentDrilldownPage() {
   const ranAsValue = executionPolicy?.runAs || "Personal (Adi Cluster Admin)";
 
   // Mock deployment data
+  // Timeline: Deployment starts Mar 24 22:00, Phase 1 processes 10 canary clusters
+  // 4 succeed, 6 fail over ~2.5 hours, threshold hit at 00:20 on Mar 25
   const deployment = {
     id: "openshift-cluster-update-001",
     action: "OpenShift cluster update",
@@ -71,22 +73,22 @@ export function DeploymentDrilldownPage() {
     selector: "label:canary, env=prod",
     status: "Stopped by error threshold",
     statusColor: "#C9190B",
-    // 2-day timeline (full planned timeline)
+    // Timeline showing what was planned vs what actually happened
     startTime: new Date("2026-03-24T22:00:00Z"),
-    endTime: new Date("2026-03-26T18:00:00Z"), // Full timeline including all phases
-    safetyBrakeTime: new Date("2026-03-25T05:30:00Z"), // When safety brake actually triggered
+    endTime: new Date("2026-03-26T18:00:00Z"), // Full planned timeline
+    safetyBrakeTime: new Date("2026-03-25T00:20:00Z"), // When 6th failure triggered threshold
     // Phases
     phase1: {
       start: new Date("2026-03-24T22:05:00Z"),
-      end: new Date("2026-03-25T06:00:00Z"),
+      end: new Date("2026-03-25T00:20:00Z"), // Ended early due to threshold
       status: "failed",
       successCount: 4,
       failedCount: 6,
       totalCount: 10,
       failureRate: 60,
       failedClusters: [
-        { name: "cnfdf07", reason: "Connection refused" },
         { name: "cnfdf19", reason: "Ingress timeout" },
+        { name: "cnfdf07", reason: "Connection refused" },
         { name: "cnfdf23", reason: "Pod CrashLoopBackOff" },
         { name: "cnfdf31", reason: "Ingress timeout" },
         { name: "cnfdf42", reason: "Ingress timeout" },
@@ -95,12 +97,12 @@ export function DeploymentDrilldownPage() {
       successfulClusters: ["cnfdf12", "cnfdf28", "cnfdf33", "cnfdf45"],
     },
     soak: {
-      start: new Date("2026-03-25T06:00:00Z"),
-      end: new Date("2026-03-26T06:00:00Z"),
+      start: new Date("2026-03-25T00:20:00Z"), // Would have started after P1
+      end: new Date("2026-03-26T00:20:00Z"),   // 24h soak planned
       status: "cancelled",
     },
     phase2: {
-      start: new Date("2026-03-26T06:00:00Z"),
+      start: new Date("2026-03-26T00:20:00Z"), // Would have started after soak
       end: new Date("2026-03-26T18:00:00Z"),
       status: "cancelled",
       successCount: 0,
@@ -112,22 +114,57 @@ export function DeploymentDrilldownPage() {
     },
   };
 
-  // Mock timeline events
+  // Mock timeline events - chronologically ordered
+  // Phase 1 processes 10 clusters from 22:05 to 00:20 (when threshold hit)
+  // Mixed successes and failures, threshold triggers on 6th failure
   const allEvents: TimelineEvent[] = [
+    // Early successes
     {
       id: "evt-1",
-      timestamp: new Date("2026-03-25T23:10:00Z"),
+      timestamp: new Date("2026-03-24T22:15:00Z"),
       category: "infrastructure",
-      severity: "error",
-      title: "Error Threshold Triggered",
-      description:
-        "Deployment stopped due to 60% failure rate exceeding 50% threshold",
-      affectedResources: ["openshift-cluster-update-001"],
+      severity: "info",
+      title: "Cluster cnfdf12 - Upgrade successful",
+      description: "Successfully upgraded to OCP 4.17",
+      affectedResources: ["cnfdf12"],
       ranAs: ranAsValue,
     },
     {
       id: "evt-2",
-      timestamp: new Date("2026-03-25T23:10:00Z"),
+      timestamp: new Date("2026-03-24T22:25:00Z"),
+      category: "infrastructure",
+      severity: "info",
+      title: "Cluster cnfdf28 - Upgrade successful",
+      description: "Successfully upgraded to OCP 4.17",
+      affectedResources: ["cnfdf28"],
+      ranAs: ranAsValue,
+    },
+    // First failure
+    {
+      id: "evt-3",
+      timestamp: new Date("2026-03-24T22:35:00Z"),
+      category: "infrastructure",
+      severity: "error",
+      title: "Cluster cnfdf19 - Ingress timeout",
+      description: "Ingress controller failed to respond after 15 minutes",
+      affectedResources: ["cnfdf19"],
+      ranAs: ranAsValue,
+    },
+    // Another success
+    {
+      id: "evt-4",
+      timestamp: new Date("2026-03-24T22:50:00Z"),
+      category: "infrastructure",
+      severity: "info",
+      title: "Cluster cnfdf33 - Upgrade successful",
+      description: "Successfully upgraded to OCP 4.17",
+      affectedResources: ["cnfdf33"],
+      ranAs: ranAsValue,
+    },
+    // Second failure
+    {
+      id: "evt-5",
+      timestamp: new Date("2026-03-24T23:05:00Z"),
       category: "infrastructure",
       severity: "error",
       title: "Cluster cnfdf07 - Connection refused",
@@ -135,39 +172,52 @@ export function DeploymentDrilldownPage() {
       affectedResources: ["cnfdf07"],
       ranAs: ranAsValue,
     },
+    // Last success
     {
-      id: "evt-3",
-      timestamp: new Date("2026-03-25T08:30:00Z"),
+      id: "evt-6",
+      timestamp: new Date("2026-03-24T23:20:00Z"),
+      category: "infrastructure",
+      severity: "info",
+      title: "Cluster cnfdf45 - Upgrade successful",
+      description: "Successfully upgraded to OCP 4.17",
+      affectedResources: ["cnfdf45"],
+      ranAs: ranAsValue,
+    },
+    // Failures accelerating
+    {
+      id: "evt-7",
+      timestamp: new Date("2026-03-24T23:35:00Z"),
       category: "workload",
       severity: "error",
       title: "Cluster cnfdf23 - Pod CrashLoopBackOff",
-      description: "Application pod entering crash loop",
+      description: "Application pod entering crash loop after upgrade",
       affectedResources: ["cnfdf23"],
       ranAs: ranAsValue,
     },
     {
-      id: "evt-4",
-      timestamp: new Date("2026-03-25T07:15:00Z"),
+      id: "evt-8",
+      timestamp: new Date("2026-03-24T23:50:00Z"),
       category: "infrastructure",
       severity: "error",
       title: "Cluster cnfdf31 - Ingress timeout",
-      description: "Ingress controller timeout",
+      description: "Ingress controller timeout during health check",
       affectedResources: ["cnfdf31"],
       ranAs: ranAsValue,
     },
     {
-      id: "evt-5",
-      timestamp: new Date("2026-03-25T06:45:00Z"),
+      id: "evt-9",
+      timestamp: new Date("2026-03-25T00:05:00Z"),
       category: "infrastructure",
       severity: "error",
       title: "Cluster cnfdf42 - Ingress timeout",
-      description: "Ingress controller timeout",
+      description: "Ingress controller timeout during health check",
       affectedResources: ["cnfdf42"],
       ranAs: ranAsValue,
     },
+    // 6th failure - triggers threshold
     {
-      id: "evt-6",
-      timestamp: new Date("2026-03-25T05:20:00Z"),
+      id: "evt-10",
+      timestamp: new Date("2026-03-25T00:20:00Z"),
       category: "network",
       severity: "error",
       title: "Cluster cnfdf56 - Network policy conflict",
@@ -175,37 +225,16 @@ export function DeploymentDrilldownPage() {
       affectedResources: ["cnfdf56"],
       ranAs: ranAsValue,
     },
+    // Threshold event - same timestamp as 6th failure
     {
-      id: "evt-7",
-      timestamp: new Date("2026-03-24T22:45:00Z"),
+      id: "evt-11",
+      timestamp: new Date("2026-03-25T00:20:00Z"),
       category: "infrastructure",
       severity: "error",
-      title: "Cluster cnfdf19 - Ingress timeout",
+      title: "Error Threshold Triggered",
       description:
-        "Ingress controller failed to respond after 15 minutes",
-      affectedResources: ["cnfdf19"],
-      ranAs: ranAsValue,
-    },
-
-    // Some success events
-    {
-      id: "evt-8",
-      timestamp: new Date("2026-03-24T22:30:00Z"),
-      category: "infrastructure",
-      severity: "info",
-      title: "Cluster cnfdf12 - Upgrade successful",
-      description: "Successfully upgraded to version 4.16.2",
-      affectedResources: ["cnfdf12"],
-      ranAs: ranAsValue,
-    },
-    {
-      id: "evt-9",
-      timestamp: new Date("2026-03-24T21:45:00Z"),
-      category: "infrastructure",
-      severity: "info",
-      title: "Cluster cnfdf28 - Upgrade successful",
-      description: "Successfully upgraded to version 4.16.2",
-      affectedResources: ["cnfdf28"],
+        "Deployment stopped: 6/10 clusters failed (60%) exceeding 50% threshold",
+      affectedResources: ["openshift-cluster-update-001"],
       ranAs: ranAsValue,
     },
   ];

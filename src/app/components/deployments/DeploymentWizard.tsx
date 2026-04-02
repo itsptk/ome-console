@@ -1534,39 +1534,7 @@ function Step3Content({
         </SmallText>
 
         <div className="grid grid-cols-3 gap-3">
-          {/* Immediate */}
-          <button
-            onClick={() =>
-              setFormData({ ...formData, rolloutMethod: "immediate" })
-            }
-            className="p-4 border rounded text-left transition-colors hover:bg-secondary flex flex-col h-full"
-            style={{
-              borderRadius: "var(--radius)",
-              borderColor:
-                formData.rolloutMethod === "immediate"
-                  ? "var(--primary)"
-                  : "var(--border)",
-              backgroundColor:
-                formData.rolloutMethod === "immediate"
-                  ? "var(--secondary)"
-                  : "transparent",
-              borderWidth:
-                formData.rolloutMethod === "immediate" ? "2px" : "1px",
-            }}
-          >
-            <SmallText
-              style={{
-                fontWeight: "var(--font-weight-medium)",
-              }}
-            >
-              Immediate
-            </SmallText>
-            <TinyText muted className="mt-1">
-              All at once
-            </TinyText>
-          </button>
-
-          {/* Canary */}
+          {/* Canary - Lowest risk (default) */}
           <button
             onClick={() =>
               setFormData({ ...formData, rolloutMethod: "canary" })
@@ -1598,7 +1566,7 @@ function Step3Content({
             </TinyText>
           </button>
 
-          {/* Rolling */}
+          {/* Rolling - Medium risk */}
           <button
             onClick={() =>
               setFormData({ ...formData, rolloutMethod: "rolling" })
@@ -1627,6 +1595,38 @@ function Step3Content({
             </SmallText>
             <TinyText muted className="mt-1">
               Waves of X clusters
+            </TinyText>
+          </button>
+
+          {/* Immediate - Highest risk */}
+          <button
+            onClick={() =>
+              setFormData({ ...formData, rolloutMethod: "immediate" })
+            }
+            className="p-4 border rounded text-left transition-colors hover:bg-secondary flex flex-col h-full"
+            style={{
+              borderRadius: "var(--radius)",
+              borderColor:
+                formData.rolloutMethod === "immediate"
+                  ? "var(--primary)"
+                  : "var(--border)",
+              backgroundColor:
+                formData.rolloutMethod === "immediate"
+                  ? "var(--secondary)"
+                  : "transparent",
+              borderWidth:
+                formData.rolloutMethod === "immediate" ? "2px" : "1px",
+            }}
+          >
+            <SmallText
+              style={{
+                fontWeight: "var(--font-weight-medium)",
+              }}
+            >
+              Immediate
+            </SmallText>
+            <TinyText muted className="mt-1">
+              All at once
             </TinyText>
           </button>
         </div>
@@ -1978,13 +1978,16 @@ function Step3Content({
                       backgroundColor: "var(--card)",
                     }}
                   >
-                    <option value="0h">None (proceed immediately)</option>
+                    <option value="0">None (proceed immediately)</option>
+                    <option value="15m">15 minutes</option>
+                    <option value="30m">30 minutes</option>
                     <option value="1h">1 hour</option>
                     <option value="4h">4 hours</option>
                     <option value="12h">12 hours</option>
-                    <option value="24h">24 hours</option>
-                    <option value="48h">48 hours</option>
-                    <option value="72h">72 hours</option>
+                    <option value="24h">24 hours (1 day)</option>
+                    <option value="48h">48 hours (2 days)</option>
+                    <option value="72h">72 hours (3 days)</option>
+                    <option value="7d">7 days</option>
                   </select>
                   <TinyText muted className="mt-1">
                     Observation time after canary deployment before proceeding to general rollout
@@ -2144,30 +2147,31 @@ function Step3Content({
                   <TinyText muted className="mb-2">
                     Soak time between waves
                   </TinyText>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      value={formData.phase2SoakTime || "0"}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          phase2SoakTime: e.target.value,
-                        })
-                      }
-                      min="0"
-                      className="w-24 px-3 py-2 border rounded"
-                      style={{
-                        borderRadius: "var(--radius)",
-                        borderColor: "var(--border)",
-                        fontFamily: "var(--font-family-text)",
-                        fontSize: "var(--text-sm)",
-                        backgroundColor: "var(--card)",
-                      }}
-                    />
-                    <TinyText>minutes</TinyText>
-                  </div>
+                  <select
+                    value={formData.phase2SoakTime || "0"}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        phase2SoakTime: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded"
+                    style={{
+                      borderRadius: "var(--radius)",
+                      borderColor: "var(--border)",
+                      fontFamily: "var(--font-family-text)",
+                      fontSize: "var(--text-sm)",
+                      backgroundColor: "var(--card)",
+                    }}
+                  >
+                    <option value="0">None (continuous waves)</option>
+                    <option value="5m">5 minutes</option>
+                    <option value="15m">15 minutes</option>
+                    <option value="30m">30 minutes</option>
+                    <option value="1h">1 hour</option>
+                  </select>
                   <TinyText muted className="mt-1">
-                    Wait time after each wave completes before starting the next (0 = no wait)
+                    Wait time after each wave completes before starting the next
                   </TinyText>
                 </div>
 
@@ -2288,35 +2292,36 @@ function Step3Content({
                 </TinyText>
               </div>
 
-              {/* Soak time between batches */}
+              {/* Soak time between waves */}
               <div>
                 <TinyText muted className="mb-2">
                   Soak time between waves
                 </TinyText>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    value={formData.pacingSoakTime || "0"}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        pacingSoakTime: e.target.value,
-                      })
-                    }
-                    min="0"
-                    className="w-24 px-3 py-2 border rounded"
-                    style={{
-                      borderRadius: "var(--radius)",
-                      borderColor: "var(--border)",
-                      fontFamily: "var(--font-family-text)",
-                      fontSize: "var(--text-sm)",
-                      backgroundColor: "var(--card)",
-                    }}
-                  />
-                  <TinyText>minutes</TinyText>
-                </div>
+                <select
+                  value={formData.pacingSoakTime || "0"}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      pacingSoakTime: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border rounded"
+                  style={{
+                    borderRadius: "var(--radius)",
+                    borderColor: "var(--border)",
+                    fontFamily: "var(--font-family-text)",
+                    fontSize: "var(--text-sm)",
+                    backgroundColor: "var(--card)",
+                  }}
+                >
+                  <option value="0">None (continuous waves)</option>
+                  <option value="5m">5 minutes</option>
+                  <option value="15m">15 minutes</option>
+                  <option value="30m">30 minutes</option>
+                  <option value="1h">1 hour</option>
+                </select>
                 <TinyText muted className="mt-1">
-                  Wait time after each wave completes before starting the next (0 = no wait)
+                  Wait time after each wave completes before starting the next
                 </TinyText>
               </div>
 
@@ -2821,8 +2826,8 @@ function Step5Content({ formData }: { formData: any }) {
                 <TinyText muted>Soak time</TinyText>
                 <SmallText className="text-right">
                   {formData.pacingSoakTime === "0" || !formData.pacingSoakTime
-                    ? "No wait between waves"
-                    : `${formData.pacingSoakTime} min between waves`}
+                    ? "None (continuous)"
+                    : formData.pacingSoakTime}
                 </SmallText>
               </div>
               <div
@@ -2909,7 +2914,7 @@ function Step5Content({ formData }: { formData: any }) {
               >
                 <TinyText muted>Soak duration</TinyText>
                 <SmallText className="text-right">
-                  {formData.phase1Soak === "0h"
+                  {formData.phase1Soak === "0" || !formData.phase1Soak
                     ? "None (immediate)"
                     : formData.phase1Soak}
                 </SmallText>
@@ -2982,8 +2987,8 @@ function Step5Content({ formData }: { formData: any }) {
                 <TinyText muted>Soak time</TinyText>
                 <SmallText className="text-right">
                   {formData.phase2SoakTime === "0" || !formData.phase2SoakTime
-                    ? "No wait between waves"
-                    : `${formData.phase2SoakTime} min between waves`}
+                    ? "None (continuous)"
+                    : formData.phase2SoakTime}
                 </SmallText>
               </div>
 
@@ -3039,9 +3044,9 @@ function Step5Content({ formData }: { formData: any }) {
           </TinyText>
           <TinyText muted className="mt-1">
             {formData.rolloutMethod === "canary"
-              ? `This deployment will take approximately 5-7 days including soak times (${formData.phase1Soak} after Phase 1, during the configured schedule).`
+              ? `This deployment will take approximately 5-7 days including soak times (${formData.phase1Soak || "24h"} after Phase 1, during the configured schedule).`
               : formData.rolloutMethod === "rolling"
-                ? `This deployment will roll out ${formData.pacingBatchSize || "5"} clusters per wave${formData.pacingSoakTime && formData.pacingSoakTime !== "0" ? ` with ${formData.pacingSoakTime} min soak time between waves` : ""}.`
+                ? `This deployment will roll out ${formData.pacingBatchSize || "5"} clusters per wave${formData.pacingSoakTime && formData.pacingSoakTime !== "0" ? ` with ${formData.pacingSoakTime} soak between waves` : ""}.`
                 : "This deployment will update all clusters immediately."}
           </TinyText>
         </div>
