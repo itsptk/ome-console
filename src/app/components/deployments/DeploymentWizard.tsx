@@ -19,7 +19,7 @@ interface DeploymentWizardProps {
   onCancel: () => void;
 }
 
-type ChangeType = "update" | "operator" | "policy" | "vm-image";
+type ChangeType = "update" | "install" | "apply" | "delete" | "create";
 
 type ChangeOption = {
   id: string;
@@ -40,89 +40,123 @@ type SelectedChange = {
   targetVersion?: string;
 };
 
+// Action-based configurations with verbs (Update, Install, Apply, Delete, Create)
 const availableChanges: ChangeOption[] = [
-  // Updates
+  // Platform Updates
   {
-    id: "update-4.15-4.16",
+    id: "update-ocp-4.17",
     type: "update",
-    category: "Updates",
-    name: "OpenShift Cluster Update",
+    category: "Update",
+    name: "Update OpenShift 4.16 → 4.17",
     description:
-      "OpenShift platform update including security patches",
-    requiresVersion: true,
+      "Platform update with security patches and new features",
+    requiresVersion: false,
     compatibleWith: [
-      "operator-cert-manager",
-      "operator-logging",
+      "install-cert-manager",
+      "apply-network-policy",
     ],
   },
   {
-    id: "update-etcd",
+    id: "update-ocp-4.18",
     type: "update",
-    category: "Updates",
-    name: "etcd Update",
-    description: "Update etcd to latest stable version",
-    requiresVersion: false,
-  },
-  // Operators
-  {
-    id: "operator-cert-manager",
-    type: "operator",
-    category: "Operators",
-    name: "cert-manager Operator",
-    description: "Automated certificate management",
-    requiresVersion: false,
-    compatibleWith: ["update-4.15-4.16"],
-  },
-  {
-    id: "operator-logging",
-    type: "operator",
-    category: "Operators",
-    name: "Cluster Logging Operator",
-    description: "Centralized logging solution",
-    requiresVersion: false,
-    compatibleWith: ["update-4.15-4.16"],
-  },
-  {
-    id: "operator-service-mesh",
-    type: "operator",
-    category: "Operators",
-    name: "Service Mesh Operator",
-    description: "Istio-based service mesh",
-    requiresVersion: false,
-  },
-  // Policies
-  {
-    id: "policy-network",
-    type: "policy",
-    category: "Policies",
-    name: "Network Policy",
-    description: "Enforce pod network isolation rules",
-    requiresVersion: false,
-  },
-  {
-    id: "policy-pod-security",
-    type: "policy",
-    category: "Policies",
-    name: "Pod Security Policy",
-    description: "Define security context constraints",
-    requiresVersion: false,
-  },
-  // VM Images
-  {
-    id: "vm-rhel9",
-    type: "vm-image",
-    category: "VM Images",
-    name: "RHEL 9.2 Base Image",
+    category: "Update",
+    name: "Update OpenShift 4.17 → 4.18",
     description:
-      "Red Hat Enterprise Linux 9.2 virtual machine image",
+      "Latest stable release with performance improvements",
     requiresVersion: false,
   },
   {
-    id: "vm-windows",
-    type: "vm-image",
-    category: "VM Images",
-    name: "Windows Server 2022",
-    description: "Windows Server 2022 datacenter edition",
+    id: "update-etcd-3.5.12",
+    type: "update",
+    category: "Update",
+    name: "Update etcd 3.5.9 → 3.5.12",
+    description: "Critical stability and security fixes",
+    requiresVersion: false,
+  },
+  // Install actions
+  {
+    id: "install-cert-manager",
+    type: "install",
+    category: "Install",
+    name: "Install cert-manager v1.14",
+    description: "Automated X.509 certificate management",
+    requiresVersion: false,
+    compatibleWith: ["update-ocp-4.17"],
+  },
+  {
+    id: "install-logging-operator",
+    type: "install",
+    category: "Install",
+    name: "Install Cluster Logging Operator v5.8",
+    description: "Deploy centralized log aggregation",
+    requiresVersion: false,
+  },
+  {
+    id: "install-service-mesh",
+    type: "install",
+    category: "Install",
+    name: "Install Service Mesh Operator v2.5",
+    description: "Istio-based traffic management and observability",
+    requiresVersion: false,
+  },
+  // Apply configurations
+  {
+    id: "apply-network-policy",
+    type: "apply",
+    category: "Apply",
+    name: "Apply NetworkPolicy: deny-external",
+    description: "Block external ingress to non-public namespaces",
+    requiresVersion: false,
+    compatibleWith: ["update-ocp-4.17"],
+  },
+  {
+    id: "apply-pod-security",
+    type: "apply",
+    category: "Apply",
+    name: "Apply PodSecurityPolicy: restricted",
+    description: "Enforce restricted security context constraints",
+    requiresVersion: false,
+  },
+  {
+    id: "apply-resource-quota",
+    type: "apply",
+    category: "Apply",
+    name: "Apply ResourceQuota: prod-limits",
+    description: "Set CPU/memory limits for production namespaces",
+    requiresVersion: false,
+  },
+  // Delete/Remove actions
+  {
+    id: "delete-deprecated-api",
+    type: "delete",
+    category: "Delete",
+    name: "Delete deprecated v1beta1 APIs",
+    description: "Remove deprecated API versions before upgrade",
+    requiresVersion: false,
+  },
+  {
+    id: "delete-orphaned-pvcs",
+    type: "delete",
+    category: "Delete",
+    name: "Delete orphaned PersistentVolumeClaims",
+    description: "Clean up unbound storage claims",
+    requiresVersion: false,
+  },
+  // Create actions
+  {
+    id: "create-monitoring-stack",
+    type: "create",
+    category: "Create",
+    name: "Create monitoring stack config",
+    description: "Deploy Prometheus, Grafana, and AlertManager",
+    requiresVersion: false,
+  },
+  {
+    id: "create-backup-schedule",
+    type: "create",
+    category: "Create",
+    name: "Create etcd backup schedule",
+    description: "Configure daily automated etcd snapshots",
     requiresVersion: false,
   },
 ];
@@ -339,7 +373,7 @@ export function DeploymentWizard({
                 </h4>
                 <TinyText muted className="mt-1">
                   {currentStep === 1 &&
-                    "Select the changes to deploy across your fleet"}
+                    "Choose an action: Update, Install, Apply, Delete, or Create"}
                   {currentStep === 2 &&
                     "Define which clusters to target and deployment strategy"}
                   {currentStep === 3 &&
