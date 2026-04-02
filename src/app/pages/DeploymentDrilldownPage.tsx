@@ -937,11 +937,140 @@ export function DeploymentDrilldownPage() {
               </div>
             </div>
 
-            {/* Timeline Track */}
+            {/* Legend */}
+            <div
+              className="flex items-center gap-6 mb-4 pb-3"
+              style={{ borderBottom: "1px solid var(--border)" }}
+            >
+              <div className="flex items-center gap-2">
+                <div
+                  className="size-3 rounded-full"
+                  style={{ backgroundColor: "#3E8635" }}
+                />
+                <TinyText muted>Success</TinyText>
+              </div>
+              <div className="flex items-center gap-2">
+                <div
+                  className="size-3 rounded-full"
+                  style={{ backgroundColor: "#C9190B" }}
+                />
+                <TinyText muted>Failure</TinyText>
+              </div>
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-4 h-0.5"
+                  style={{ backgroundColor: "#C9190B" }}
+                />
+                <TinyText muted>Error threshold</TinyText>
+              </div>
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-4 h-3 rounded-sm"
+                  style={{ backgroundColor: "#0066CC" }}
+                />
+                <TinyText muted>Canary</TinyText>
+              </div>
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-4 h-3 rounded-sm border border-dashed"
+                  style={{
+                    borderColor: "#0066CC",
+                    backgroundColor: "rgba(0, 102, 204, 0.1)",
+                  }}
+                />
+                <TinyText muted>Soak</TinyText>
+              </div>
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-4 h-3 rounded-sm"
+                  style={{ backgroundColor: "#8A8D90" }}
+                />
+                <TinyText muted>Fleet</TinyText>
+              </div>
+            </div>
+
+            {/* Timeline Track - Swimlane Layout */}
             <div
               className="relative"
-              style={{ height: "120px" }}
+              style={{ height: "120px", marginLeft: "65px" }}
             >
+              {/* Swimlane Labels */}
+              <div
+                className="absolute"
+                style={{
+                  left: "-60px",
+                  top: "0",
+                  width: "55px",
+                  height: "100%",
+                }}
+              >
+                <TinyText
+                  muted
+                  style={{
+                    position: "absolute",
+                    top: "6px",
+                    right: "0",
+                    fontSize: "10px",
+                    textAlign: "right",
+                  }}
+                >
+                  Phases
+                </TinyText>
+                <TinyText
+                  muted
+                  style={{
+                    position: "absolute",
+                    top: "46px",
+                    right: "0",
+                    fontSize: "10px",
+                    textAlign: "right",
+                  }}
+                >
+                  Success
+                </TinyText>
+                <TinyText
+                  muted
+                  style={{
+                    position: "absolute",
+                    top: "86px",
+                    right: "0",
+                    fontSize: "10px",
+                    textAlign: "right",
+                  }}
+                >
+                  Failures
+                </TinyText>
+              </div>
+
+              {/* Swimlane Dividers */}
+              <div
+                className="absolute w-full"
+                style={{
+                  top: "32px",
+                  height: "1px",
+                  backgroundColor: "var(--border)",
+                  opacity: 0.5,
+                }}
+              />
+              <div
+                className="absolute w-full"
+                style={{
+                  top: "72px",
+                  height: "1px",
+                  backgroundColor: "var(--border)",
+                  opacity: 0.5,
+                }}
+              />
+              <div
+                className="absolute w-full"
+                style={{
+                  top: "112px",
+                  height: "1px",
+                  backgroundColor: "var(--border)",
+                  opacity: 0.5,
+                }}
+              />
+
               {/* Maintenance Window - Light background */}
               {(() => {
                 const { start, end } = getVisibleTimeWindow();
@@ -981,19 +1110,10 @@ export function DeploymentDrilldownPage() {
                       top: "0",
                       height: "100%",
                       backgroundColor:
-                        "rgba(210, 210, 210, 0.15)",
+                        "rgba(210, 210, 210, 0.08)",
                       borderRadius: "var(--radius)",
                     }}
-                  >
-                    <div className="flex items-center justify-center h-full">
-                      <TinyText
-                        muted
-                        style={{ fontSize: "11px" }}
-                      >
-                        Maintenance Window
-                      </TinyText>
-                    </div>
-                  </div>
+                  />
                 );
               })()}
 
@@ -1032,8 +1152,8 @@ export function DeploymentDrilldownPage() {
                     style={{
                       left: `${leftPercent}%`,
                       width: `${widthPercent}%`,
-                      top: "20px",
-                      height: "24px",
+                      top: "6px",
+                      height: "20px",
                       backgroundColor: "#0066CC",
                       borderRadius: "var(--radius)",
                       border: "2px solid #0066CC",
@@ -1045,7 +1165,7 @@ export function DeploymentDrilldownPage() {
                           color: "white",
                           fontWeight:
                             "var(--font-weight-semibold)",
-                          fontSize: "11px",
+                          fontSize: "10px",
                         }}
                       >
                         Canary
@@ -1093,8 +1213,8 @@ export function DeploymentDrilldownPage() {
                     style={{
                       left: `${leftPercent}%`,
                       width: `${widthPercent}%`,
-                      top: "20px",
-                      height: "24px",
+                      top: "6px",
+                      height: "20px",
                       borderColor: isCancelled ? "var(--muted-foreground)" : "#0066CC",
                       backgroundColor: isCancelled ? "rgba(128, 128, 128, 0.1)" : "rgba(0, 102, 204, 0.1)",
                       borderRadius: "var(--radius)",
@@ -1103,7 +1223,7 @@ export function DeploymentDrilldownPage() {
                   >
                     <div className="flex items-center justify-center h-full gap-1">
                       {isCancelled && (
-                        <svg className="size-3" fill="none" viewBox="0 0 12 12" style={{ color: "var(--muted-foreground)" }}>
+                        <svg className="size-2.5" fill="none" viewBox="0 0 12 12" style={{ color: "var(--muted-foreground)" }}>
                           <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
@@ -1111,7 +1231,7 @@ export function DeploymentDrilldownPage() {
                         style={{
                           color: isCancelled ? "var(--muted-foreground)" : "#0066CC",
                           fontWeight: "var(--font-weight-semibold)",
-                          fontSize: "11px",
+                          fontSize: "10px",
                           textDecoration: isCancelled ? "line-through" : "none",
                         }}
                       >
@@ -1159,8 +1279,8 @@ export function DeploymentDrilldownPage() {
                     style={{
                       left: `${leftPercent}%`,
                       width: `${widthPercent}%`,
-                      top: "20px",
-                      height: "24px",
+                      top: "6px",
+                      height: "20px",
                       backgroundColor: isCancelled ? "transparent" : "#8A8D90",
                       borderRadius: "var(--radius)",
                       border: isCancelled ? "2px dashed var(--muted-foreground)" : "2px solid #8A8D90",
@@ -1169,7 +1289,7 @@ export function DeploymentDrilldownPage() {
                   >
                     <div className="flex items-center justify-center h-full gap-1">
                       {isCancelled && (
-                        <svg className="size-3" fill="none" viewBox="0 0 12 12" style={{ color: "var(--muted-foreground)" }}>
+                        <svg className="size-2.5" fill="none" viewBox="0 0 12 12" style={{ color: "var(--muted-foreground)" }}>
                           <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
@@ -1177,7 +1297,7 @@ export function DeploymentDrilldownPage() {
                         style={{
                           color: isCancelled ? "var(--muted-foreground)" : "white",
                           fontWeight: "var(--font-weight-semibold)",
-                          fontSize: "11px",
+                          fontSize: "10px",
                           textDecoration: isCancelled ? "line-through" : "none",
                         }}
                       >
@@ -1188,7 +1308,60 @@ export function DeploymentDrilldownPage() {
                 );
               })()}
 
-              {/* Error Events - Red dots */}
+              {/* Success Events - Green dots (middle swimlane) */}
+              {allEvents
+                .filter(
+                  (e) =>
+                    e.severity === "info" &&
+                    isVisible(e.timestamp),
+                )
+                .map((event) => {
+                  const position = getVisiblePosition(
+                    event.timestamp,
+                  );
+                  return (
+                    <div
+                      key={event.id}
+                      className="absolute cursor-pointer transition-transform hover:scale-125"
+                      style={{
+                        left: `${position * 100}%`,
+                        top: "48px",
+                        transform: "translateX(-50%)",
+                      }}
+                      onMouseEnter={(e) => {
+                        setHoveredEvent(event);
+                        const rect =
+                          e.currentTarget.getBoundingClientRect();
+                        setPopoverPosition({
+                          x: rect.left,
+                          y: rect.top - 10,
+                        });
+                      }}
+                      onMouseLeave={() => setHoveredEvent(null)}
+                      onClick={() => {
+                        const windowStart = new Date(
+                          event.timestamp.getTime() -
+                            7.5 * 60 * 1000,
+                        );
+                        const windowEnd = new Date(
+                          event.timestamp.getTime() +
+                            7.5 * 60 * 1000,
+                        );
+                        setSelectedTimeWindow({
+                          start: windowStart,
+                          end: windowEnd,
+                        });
+                      }}
+                    >
+                      <div
+                        className="size-3 rounded-full"
+                        style={{ backgroundColor: "#3E8635" }}
+                      />
+                    </div>
+                  );
+                })}
+
+              {/* Error Events - Red dots (bottom swimlane) */}
               {allEvents
                 .filter(
                   (e) =>
@@ -1205,7 +1378,7 @@ export function DeploymentDrilldownPage() {
                       className="absolute cursor-pointer transition-transform hover:scale-125"
                       style={{
                         left: `${position * 100}%`,
-                        top: "60px",
+                        top: "88px",
                         transform: "translateX(-50%)",
                       }}
                       onMouseEnter={(e) => {
@@ -1219,7 +1392,6 @@ export function DeploymentDrilldownPage() {
                       }}
                       onMouseLeave={() => setHoveredEvent(null)}
                       onClick={() => {
-                        // Set 15-minute window
                         const windowStart = new Date(
                           event.timestamp.getTime() -
                             7.5 * 60 * 1000,
@@ -1338,7 +1510,12 @@ export function DeploymentDrilldownPage() {
             <div className="flex items-start gap-2 mb-2">
               <div
                 className="size-2 rounded-full mt-1 flex-shrink-0"
-                style={{ backgroundColor: "#C9190B" }}
+                style={{
+                  backgroundColor:
+                    hoveredEvent.severity === "error"
+                      ? "#C9190B"
+                      : "#3E8635",
+                }}
               />
               <div className="flex-1">
                 <SmallText
