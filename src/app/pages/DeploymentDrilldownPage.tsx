@@ -342,11 +342,42 @@ export function DeploymentDrilldownPage() {
     const p1Start = getTimelinePosition(deployment.phase1.start);
     const p1End = getTimelinePosition(deployment.phase1.end);
     const p1Width = p1End - p1Start;
-    // Add some padding
     const paddedWidth = p1Width * 1.2;
     const newZoom = Math.min(4, Math.max(1, 1 / paddedWidth));
     const viewportWidth = 1 / newZoom;
     const targetLeft = p1Start - (viewportWidth - p1Width) / 2;
+    const maxScroll = 1 - viewportWidth;
+    const newScrollPosition = maxScroll > 0 ? Math.max(0, Math.min(1, targetLeft / maxScroll)) : 0;
+    setZoomLevel(newZoom);
+    setScrollPosition(newScrollPosition);
+  };
+
+  // Zoom to show Soak phase
+  const zoomToSoak = () => {
+    if (!deployment.soak) return;
+    const soakStart = getTimelinePosition(deployment.soak.start);
+    const soakEnd = deployment.soak.end ? getTimelinePosition(deployment.soak.end) : soakStart + 0.1;
+    const soakWidth = soakEnd - soakStart;
+    const paddedWidth = soakWidth * 1.2;
+    const newZoom = Math.min(4, Math.max(1, 1 / paddedWidth));
+    const viewportWidth = 1 / newZoom;
+    const targetLeft = soakStart - (viewportWidth - soakWidth) / 2;
+    const maxScroll = 1 - viewportWidth;
+    const newScrollPosition = maxScroll > 0 ? Math.max(0, Math.min(1, targetLeft / maxScroll)) : 0;
+    setZoomLevel(newZoom);
+    setScrollPosition(newScrollPosition);
+  };
+
+  // Zoom to show Phase 2 (Fleet rollout)
+  const zoomToPhase2 = () => {
+    if (!deployment.phase2) return;
+    const p2Start = getTimelinePosition(deployment.phase2.start);
+    const p2End = deployment.phase2.end ? getTimelinePosition(deployment.phase2.end) : p2Start + 0.2;
+    const p2Width = p2End - p2Start;
+    const paddedWidth = p2Width * 1.2;
+    const newZoom = Math.min(4, Math.max(1, 1 / paddedWidth));
+    const viewportWidth = 1 / newZoom;
+    const targetLeft = p2Start - (viewportWidth - p2Width) / 2;
     const maxScroll = 1 - viewportWidth;
     const newScrollPosition = maxScroll > 0 ? Math.max(0, Math.min(1, targetLeft / maxScroll)) : 0;
     setZoomLevel(newZoom);
@@ -783,244 +814,213 @@ export function DeploymentDrilldownPage() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <SectionTitle>Diagnostic Timeline</SectionTitle>
-          <div className="flex items-center gap-4">
-            {/* Quick Zoom Presets */}
-            <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
+            {/* Dynamic Zoom Presets - based on deployment data */}
+            <TinyText muted style={{ fontSize: "10px" }}>Jump to:</TinyText>
+            <button
+              onClick={zoomToFitAll}
+              className="px-1.5 py-0.5 rounded text-xs hover:bg-secondary transition-colors"
+              style={{
+                borderRadius: "var(--radius)",
+                color: zoomLevel === 1 ? "var(--primary)" : "var(--muted-foreground)",
+                fontWeight: zoomLevel === 1 ? 600 : 400,
+              }}
+              title="Fit all (F)"
+            >
+              All
+            </button>
+            {deployment.phase1 && (
               <button
-                onClick={zoomToFitAll}
-                className="px-2 py-1 border rounded text-xs hover:bg-secondary transition-colors"
+                onClick={zoomToPhase1}
+                className="px-1.5 py-0.5 rounded text-xs hover:bg-secondary transition-colors"
                 style={{
-                  borderColor: "var(--border)",
                   borderRadius: "var(--radius)",
-                  color: zoomLevel === 1 ? "var(--primary)" : "inherit",
-                  fontWeight: zoomLevel === 1 ? 600 : 400,
+                  color: "var(--muted-foreground)",
                 }}
-                title="Fit all (F)"
+                title="Focus on Canary phase"
               >
-                Fit all
+                Canary
               </button>
+            )}
+            {deployment.soak && deployment.soak.status !== "cancelled" && (
+              <button
+                onClick={zoomToSoak}
+                className="px-1.5 py-0.5 rounded text-xs hover:bg-secondary transition-colors"
+                style={{
+                  borderRadius: "var(--radius)",
+                  color: "var(--muted-foreground)",
+                }}
+                title="Focus on Soak phase"
+              >
+                Soak
+              </button>
+            )}
+            {deployment.phase2 && deployment.phase2.status !== "cancelled" && (
+              <button
+                onClick={zoomToPhase2}
+                className="px-1.5 py-0.5 rounded text-xs hover:bg-secondary transition-colors"
+                style={{
+                  borderRadius: "var(--radius)",
+                  color: "var(--muted-foreground)",
+                }}
+                title="Focus on Fleet rollout phase"
+              >
+                Fleet
+              </button>
+            )}
+            {deployment.safetyBrakeTime && (
               <button
                 onClick={zoomToThreshold}
-                className="px-2 py-1 border rounded text-xs hover:bg-secondary transition-colors"
+                className="px-1.5 py-0.5 rounded text-xs hover:bg-secondary transition-colors"
                 style={{
-                  borderColor: "var(--border)",
                   borderRadius: "var(--radius)",
+                  color: "#C9190B",
                 }}
                 title="Focus on threshold (T)"
               >
                 Threshold
               </button>
-              <button
-                onClick={zoomToPhase1}
-                className="px-2 py-1 border rounded text-xs hover:bg-secondary transition-colors"
-                style={{
-                  borderColor: "var(--border)",
-                  borderRadius: "var(--radius)",
-                }}
-                title="Focus on Phase 1"
-              >
-                Phase 1
-              </button>
-            </div>
+            )}
             
-            <div className="w-px h-4" style={{ backgroundColor: "var(--border)" }} />
+            <div className="w-px h-3 mx-1" style={{ backgroundColor: "var(--border)" }} />
             
-            {/* Manual Zoom */}
-            <div className="flex items-center gap-2">
-              <TinyText muted>Zoom:</TinyText>
+            {/* Compact Zoom Controls */}
+            <div className="flex items-center">
               <button
-                onClick={() =>
-                  setZoomLevel(Math.max(1, zoomLevel - 0.5))
-                }
-                className="p-1.5 border rounded hover:bg-secondary transition-colors"
-                style={{
-                  borderColor: "var(--border)",
-                  borderRadius: "var(--radius)",
-                }}
+                onClick={() => setZoomLevel(Math.max(1, zoomLevel - 0.5))}
+                className="p-1 hover:bg-secondary transition-colors rounded"
                 title="Zoom out (-)"
               >
-                <svg
-                  className="size-4"
-                  fill="none"
-                  viewBox="0 0 16 16"
-                >
-                  <path
-                    d="M4 8H12"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
+                <svg className="size-3.5" fill="none" viewBox="0 0 16 16" style={{ color: "var(--muted-foreground)" }}>
+                  <path d="M4 8H12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
               </button>
-              <SmallText
+              <TinyText
                 style={{
                   fontWeight: "var(--font-weight-medium)",
-                  minWidth: "40px",
+                  minWidth: "28px",
                   textAlign: "center",
+                  fontSize: "10px",
                 }}
               >
                 {zoomLevel}x
-              </SmallText>
+              </TinyText>
               <button
-                onClick={() =>
-                  setZoomLevel(Math.min(4, zoomLevel + 0.5))
-                }
-                className="p-1.5 border rounded hover:bg-secondary transition-colors"
-                style={{
-                  borderColor: "var(--border)",
-                  borderRadius: "var(--radius)",
-                }}
+                onClick={() => setZoomLevel(Math.min(4, zoomLevel + 0.5))}
+                className="p-1 hover:bg-secondary transition-colors rounded"
                 title="Zoom in (+)"
               >
-                <svg
-                  className="size-4"
-                  fill="none"
-                  viewBox="0 0 16 16"
-                >
-                  <path
-                    d="M8 4V12M4 8H12"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
+                <svg className="size-3.5" fill="none" viewBox="0 0 16 16" style={{ color: "var(--muted-foreground)" }}>
+                  <path d="M8 4V12M4 8H12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Timeline Controls */}
-        <div
-          className="border rounded-lg p-4 mb-4"
-          style={{
-            borderColor: "var(--border)",
-            borderRadius: "var(--radius)",
-            backgroundColor: "var(--background)",
-          }}
-        >
-          <div className="flex items-center gap-3 mb-3">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                <svg
-                  className="size-4"
-                  fill="none"
-                  viewBox="0 0 16 16"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  <path
-                    d="M7 12C9.76142 12 12 9.76142 12 7C12 4.23858 9.76142 2 7 2C4.23858 2 2 4.23858 2 7C2 9.76142 4.23858 12 7 12Z"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="1.33333"
-                  />
-                  <path
-                    d="M14 14L10.5 10.5"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="1.33333"
-                  />
-                </svg>
-              </div>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search events and logs..."
-                className="w-full pl-9 pr-4 py-2 border rounded"
-                style={{
-                  borderRadius: "var(--radius)",
-                  borderColor: "var(--border)",
-                  fontFamily: "var(--font-family-text)",
-                  fontSize: "var(--text-sm)",
-                  color: "var(--foreground)",
-                  backgroundColor: "var(--background)",
-                }}
-              />
+        {/* Timeline Controls - Compact inline */}
+        <div className="flex items-center gap-3 mb-4">
+          {/* Search */}
+          <div className="relative" style={{ width: "240px" }}>
+            <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+              <svg
+                className="size-3.5"
+                fill="none"
+                viewBox="0 0 16 16"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                <path
+                  d="M7 12C9.76142 12 12 9.76142 12 7C12 4.23858 9.76142 2 7 2C4.23858 2 2 4.23858 2 7C2 9.76142 4.23858 12 7 12Z"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.33333"
+                />
+                <path
+                  d="M14 14L10.5 10.5"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.33333"
+                />
+              </svg>
             </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search events..."
+              className="w-full pl-8 pr-3 py-1.5 border rounded text-xs"
+              style={{
+                borderRadius: "var(--radius)",
+                borderColor: "var(--border)",
+                fontFamily: "var(--font-family-text)",
+                color: "var(--foreground)",
+                backgroundColor: "var(--background)",
+              }}
+            />
+          </div>
 
-            {/* Category Filters */}
-            <div className="flex items-center gap-2">
-              <TinyText muted>Filter:</TinyText>
-              {(
-                [
-                  "infrastructure",
-                  "workload",
-                  "network",
-                  "storage",
-                ] as EventCategory[]
-              ).map((category) => (
+          <div className="w-px h-4" style={{ backgroundColor: "var(--border)" }} />
+
+          {/* Compact Category Chips */}
+          <div className="flex items-center gap-1">
+            {(
+              [
+                "infrastructure",
+                "workload",
+                "network",
+                "storage",
+              ] as EventCategory[]
+            ).map((category) => {
+              const isSelected = selectedCategories.includes(category);
+              const shortLabel = category.slice(0, 5);
+              return (
                 <button
                   key={category}
                   onClick={() => toggleCategory(category)}
-                  className="px-3 py-1.5 border rounded transition-colors"
+                  className="px-2 py-0.5 rounded transition-colors text-xs"
                   style={{
-                    borderRadius: "var(--radius)",
-                    borderColor: selectedCategories.includes(
-                      category,
-                    )
-                      ? "var(--primary)"
-                      : "var(--border)",
-                    backgroundColor:
-                      selectedCategories.includes(category)
-                        ? "var(--primary)"
-                        : "var(--background)",
-                    color: selectedCategories.includes(category)
-                      ? "var(--primary-foreground)"
-                      : "var(--foreground)",
+                    borderRadius: "9999px",
+                    backgroundColor: isSelected ? "var(--primary)" : "var(--secondary)",
+                    color: isSelected ? "var(--primary-foreground)" : "var(--muted-foreground)",
+                    fontWeight: isSelected ? 500 : 400,
                   }}
+                  title={category}
                 >
-                  <TinyText
-                    style={{
-                      fontWeight: "var(--font-weight-medium)",
-                      color: "inherit",
-                    }}
-                  >
-                    {category}
-                  </TinyText>
+                  {shortLabel}
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
 
-          {/* Selected Time Window */}
+          {/* Selected Time Window - inline */}
           {selectedTimeWindow && (
-            <div
-              className="flex items-center gap-2 pt-3"
-              style={{ borderTop: "1px solid var(--border)" }}
-            >
-              <TinyText muted>Selected window:</TinyText>
-              <div
-                className="px-2.5 py-1 rounded"
-                style={{
-                  backgroundColor: "var(--secondary)",
-                  borderRadius: "calc(var(--radius) - 2px)",
-                }}
-              >
+            <>
+              <div className="w-px h-4" style={{ backgroundColor: "var(--border)" }} />
+              <div className="flex items-center gap-1.5">
                 <TinyText
                   style={{
-                    fontWeight: "var(--font-weight-medium)",
+                    fontSize: "10px",
+                    backgroundColor: "var(--secondary)",
+                    padding: "2px 6px",
+                    borderRadius: "9999px",
                   }}
                 >
-                  {formatDate(selectedTimeWindow.start)} -{" "}
-                  {formatDate(selectedTimeWindow.end)}
+                  {formatDate(selectedTimeWindow.start)} – {formatDate(selectedTimeWindow.end)}
                 </TinyText>
+                <button
+                  onClick={() => setSelectedTimeWindow(null)}
+                  className="text-xs hover:bg-secondary rounded p-0.5"
+                  style={{ color: "var(--muted-foreground)" }}
+                  title="Clear selection"
+                >
+                  <svg className="size-3" fill="none" viewBox="0 0 12 12">
+                    <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </button>
               </div>
-              <button
-                onClick={() => setSelectedTimeWindow(null)}
-                className="ml-2"
-                style={{
-                  fontFamily: "var(--font-family-text)",
-                  fontSize: "var(--text-xs)",
-                  color: "var(--primary)",
-                  fontWeight: "var(--font-weight-medium)",
-                }}
-              >
-                Clear selection
-              </button>
-            </div>
+            </>
           )}
         </div>
 
