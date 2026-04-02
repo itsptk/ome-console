@@ -963,7 +963,7 @@ export function DeploymentDrilldownPage() {
 
           <div className="w-px h-4" style={{ backgroundColor: "var(--border)" }} />
 
-          {/* Compact Category Chips */}
+          {/* Category Chips */}
           <div className="flex items-center gap-1">
             {(
               [
@@ -974,21 +974,19 @@ export function DeploymentDrilldownPage() {
               ] as EventCategory[]
             ).map((category) => {
               const isSelected = selectedCategories.includes(category);
-              const shortLabel = category.slice(0, 5);
               return (
                 <button
                   key={category}
                   onClick={() => toggleCategory(category)}
-                  className="px-2 py-0.5 rounded transition-colors text-xs"
+                  className="px-2 py-0.5 rounded transition-colors text-xs capitalize"
                   style={{
                     borderRadius: "9999px",
                     backgroundColor: isSelected ? "var(--primary)" : "var(--secondary)",
                     color: isSelected ? "var(--primary-foreground)" : "var(--muted-foreground)",
                     fontWeight: isSelected ? 500 : 400,
                   }}
-                  title={category}
                 >
-                  {shortLabel}
+                  {category}
                 </button>
               );
             })}
