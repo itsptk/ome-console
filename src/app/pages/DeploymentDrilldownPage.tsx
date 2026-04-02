@@ -64,7 +64,7 @@ export function DeploymentDrilldownPage() {
   const deployment = {
     id: "openshift-cluster-update-001",
     action: "OpenShift cluster update",
-    changeTargets: "OCP 4.16 → 4.17",
+    actionTargets: "OCP 4.16 → 4.17",
     admin: "user-01",
     created: new Date("2026-03-24T22:00:00Z"),
     affectedClusters: 40,
@@ -341,7 +341,7 @@ export function DeploymentDrilldownPage() {
                 display: "block",
               }}
             >
-              {deployment.changeTargets}
+              {deployment.actionTargets}
             </SmallText>
             <div className="flex items-center gap-3">
               <StatusLabel variant="danger">

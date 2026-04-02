@@ -37,7 +37,7 @@ type Activity = {
   status: ActivityStatus;
   statusColor: string;
   resource: string;
-  changeTargets?: string; // e.g., "OCP 4.17 → 4.18"
+  actionTargets?: string; // e.g., "OCP 4.17 → 4.18"
   progressType: "canary" | "simple";
   canaryProgress?: {
     p1: {
@@ -105,7 +105,7 @@ export function ActivityStreamScreen({
     status: "waiting",
     statusColor: "#3E8635", // Green - nothing wrong, waiting as expected
     resource: "env=prod (40)",
-    changeTargets: "OCP 4.17 → 4.18",
+    actionTargets: "OCP 4.17 → 4.18",
     progressType: "canary",
     canaryProgress: {
       p1: { current: 0, total: 10, status: "pending" },
@@ -126,7 +126,7 @@ export function ActivityStreamScreen({
       status: "stopped",
       statusColor: "#C9190B",
       resource: "label:canary (40)",
-      changeTargets: "OCP 4.16 → 4.17",
+      actionTargets: "OCP 4.16 → 4.17",
       progressType: "canary",
       canaryProgress: {
         p1: {
@@ -153,7 +153,7 @@ export function ActivityStreamScreen({
       status: "running",
       statusColor: "#0066CC",
       resource: "region:us-north (50)",
-      changeTargets: "PCI-DSS v3.2 → v4.0",
+      actionTargets: "PCI-DSS v3.2 → v4.0",
       progressType: "simple",
       simpleProgress: {
         current: 10,
@@ -169,7 +169,7 @@ export function ActivityStreamScreen({
       status: "soaking",
       statusColor: "#3E8635", // Green - nothing wrong, soaking as expected
       resource: "region:eu-west (25)",
-      changeTargets: "ESXi 7.0 → 8.0",
+      actionTargets: "ESXi 7.0 → 8.0",
       progressType: "canary",
       canaryProgress: {
         p1: { current: 5, total: 5, status: "complete" },
@@ -185,7 +185,7 @@ export function ActivityStreamScreen({
       status: "active",
       statusColor: "#3E8635",
       resource: "env=prod (100)",
-      changeTargets: "CVE-2026-1234 fix",
+      actionTargets: "CVE-2026-1234 fix",
       progressType: "simple",
       simpleProgress: { current: 15, total: 100, unit: "done" },
       created: "Mar 24, 2026 20:00",
@@ -1268,7 +1268,7 @@ export function ActivityStreamScreen({
                     color: "var(--muted-foreground)",
                   }}
                 >
-                  Change Targets
+                  Action Targets
                 </SmallText>
               </th>
               <th
@@ -1386,7 +1386,7 @@ export function ActivityStreamScreen({
                       fontSize: "var(--text-xs)",
                     }}
                   >
-                    {activity.changeTargets || "—"}
+                    {activity.actionTargets || "—"}
                   </SmallText>
                 </td>
                 <td className="px-4 py-3">
