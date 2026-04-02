@@ -810,10 +810,10 @@ export function DeploymentDrilldownPage() {
         </div>
       </div>
 
-      {/* Interactive Timeline */}
+      {/* Deployment Timeline */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
-          <SectionTitle>Diagnostic Timeline</SectionTitle>
+          <SectionTitle>Deployment Timeline</SectionTitle>
           <div className="flex items-center gap-2">
             {/* Dynamic Zoom Presets - based on deployment data */}
             <TinyText muted style={{ fontSize: "10px" }}>Jump to:</TinyText>
@@ -863,9 +863,9 @@ export function DeploymentDrilldownPage() {
                   borderRadius: "var(--radius)",
                   color: "var(--muted-foreground)",
                 }}
-                title="Focus on Fleet rollout phase"
+                title="Focus on full rollout phase"
               >
-                Fleet
+                Rollout
               </button>
             )}
             {deployment.safetyBrakeTime && (
@@ -1109,53 +1109,54 @@ export function DeploymentDrilldownPage() {
 
             {/* Legend */}
             <div
-              className="flex items-center gap-6 mb-4 pb-3"
+              className="flex flex-wrap items-center gap-4 mb-4 pb-3"
               style={{ borderBottom: "1px solid var(--border)" }}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <div
-                  className="size-3 rounded-full"
+                  className="size-2.5 rounded-full"
                   style={{ backgroundColor: "#3E8635" }}
                 />
-                <TinyText muted>Success</TinyText>
+                <TinyText muted style={{ fontSize: "11px" }}>Successful</TinyText>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <div
-                  className="size-3 rounded-full"
+                  className="size-2.5 rounded-full"
                   style={{ backgroundColor: "#C9190B" }}
                 />
-                <TinyText muted>Failure</TinyText>
+                <TinyText muted style={{ fontSize: "11px" }}>Failed</TinyText>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <div
-                  className="w-4 h-0.5"
+                  className="w-3 h-0.5"
                   style={{ backgroundColor: "#C9190B" }}
                 />
-                <TinyText muted>Error threshold</TinyText>
+                <TinyText muted style={{ fontSize: "11px" }}>Threshold</TinyText>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="w-px h-3" style={{ backgroundColor: "var(--border)" }} />
+              <div className="flex items-center gap-1.5">
                 <div
-                  className="w-4 h-3 rounded-sm"
+                  className="w-3 h-2.5 rounded-sm"
                   style={{ backgroundColor: "#0066CC" }}
                 />
-                <TinyText muted>Canary</TinyText>
+                <TinyText muted style={{ fontSize: "11px" }}>Canary</TinyText>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <div
-                  className="w-4 h-3 rounded-sm border border-dashed"
+                  className="w-3 h-2.5 rounded-sm border border-dashed"
                   style={{
                     borderColor: "#0066CC",
                     backgroundColor: "rgba(0, 102, 204, 0.1)",
                   }}
                 />
-                <TinyText muted>Soak</TinyText>
+                <TinyText muted style={{ fontSize: "11px" }}>Soak</TinyText>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <div
-                  className="w-4 h-3 rounded-sm"
+                  className="w-3 h-2.5 rounded-sm"
                   style={{ backgroundColor: "#8A8D90" }}
                 />
-                <TinyText muted>Fleet</TinyText>
+                <TinyText muted style={{ fontSize: "11px" }}>Full rollout</TinyText>
               </div>
             </div>
 
@@ -1199,9 +1200,9 @@ export function DeploymentDrilldownPage() {
               <div
                 className="absolute"
                 style={{
-                  left: "-60px",
+                  left: "-62px",
                   top: "0",
-                  width: "55px",
+                  width: "58px",
                   height: "100%",
                 }}
               >
@@ -1209,9 +1210,9 @@ export function DeploymentDrilldownPage() {
                   muted
                   style={{
                     position: "absolute",
-                    top: "6px",
+                    top: "8px",
                     right: "0",
-                    fontSize: "10px",
+                    fontSize: "11px",
                     textAlign: "right",
                   }}
                 >
@@ -1221,25 +1222,25 @@ export function DeploymentDrilldownPage() {
                   muted
                   style={{
                     position: "absolute",
-                    top: "46px",
+                    top: "44px",
                     right: "0",
-                    fontSize: "10px",
+                    fontSize: "11px",
                     textAlign: "right",
                   }}
                 >
-                  Success
+                  Completed
                 </TinyText>
                 <TinyText
                   muted
                   style={{
                     position: "absolute",
-                    top: "86px",
+                    top: "84px",
                     right: "0",
-                    fontSize: "10px",
+                    fontSize: "11px",
                     textAlign: "right",
                   }}
                 >
-                  Failures
+                  Errors
                 </TinyText>
               </div>
 
@@ -1408,7 +1409,7 @@ export function DeploymentDrilldownPage() {
                             Status: {deployment.phase1.status === "failed" ? "Failed" : "Complete"}
                           </TinyText>
                         </div>
-                        <TinyText muted style={{ fontSize: "9px", marginTop: "4px", display: "block" }}>
+                        <TinyText muted style={{ fontSize: "10px", marginTop: "4px", display: "block" }}>
                           Click to zoom
                         </TinyText>
                       </div>
@@ -1586,7 +1587,7 @@ export function DeploymentDrilldownPage() {
                           textDecoration: isCancelled ? "line-through" : "none",
                         }}
                       >
-                        Fleet
+                        Rollout
                       </TinyText>
                     </div>
                     {hoveredPhase === "phase2" && (
@@ -1604,7 +1605,7 @@ export function DeploymentDrilldownPage() {
                         }}
                       >
                         <TinyText style={{ fontWeight: 600, fontSize: "11px" }}>
-                          Fleet Rollout (Phase 2)
+                          Full Rollout
                         </TinyText>
                         <div className="flex flex-col gap-0.5 mt-1">
                           <TinyText muted style={{ fontSize: "10px" }}>
@@ -1692,8 +1693,8 @@ export function DeploymentDrilldownPage() {
                       <div
                         className="rounded-full relative"
                         style={{
-                          width: isCluster ? "18px" : "12px",
-                          height: isCluster ? "18px" : "12px",
+                          width: isCluster ? "20px" : "10px",
+                          height: isCluster ? "20px" : "10px",
                           backgroundColor: "#3E8635",
                           boxShadow: isHighlighted ? "0 0 0 3px rgba(62, 134, 53, 0.3)" : "none",
                         }}
@@ -1701,7 +1702,7 @@ export function DeploymentDrilldownPage() {
                         {isCluster && (
                           <span
                             className="absolute inset-0 flex items-center justify-center text-white"
-                            style={{ fontSize: "9px", fontWeight: 600 }}
+                            style={{ fontSize: "10px", fontWeight: 600 }}
                           >
                             {cluster.events.length}
                           </span>
@@ -1775,8 +1776,8 @@ export function DeploymentDrilldownPage() {
                       <div
                         className="rounded-full relative"
                         style={{
-                          width: isCluster ? "18px" : "12px",
-                          height: isCluster ? "18px" : "12px",
+                          width: isCluster ? "20px" : "10px",
+                          height: isCluster ? "20px" : "10px",
                           backgroundColor: "#C9190B",
                           boxShadow: isHighlighted ? "0 0 0 3px rgba(201, 25, 11, 0.3)" : "none",
                         }}
@@ -1784,7 +1785,7 @@ export function DeploymentDrilldownPage() {
                         {isCluster && (
                           <span
                             className="absolute inset-0 flex items-center justify-center text-white"
-                            style={{ fontSize: "9px", fontWeight: 600 }}
+                            style={{ fontSize: "10px", fontWeight: 600 }}
                           >
                             {cluster.events.length}
                           </span>
@@ -1795,7 +1796,7 @@ export function DeploymentDrilldownPage() {
                 });
               })()}
 
-              {/* Safety Brake Marker */}
+              {/* Threshold Marker */}
               {isVisible(deployment.safetyBrakeTime) && (
                 <div
                   className="absolute"
@@ -1804,6 +1805,7 @@ export function DeploymentDrilldownPage() {
                     top: "0",
                     height: "100%",
                     transform: "translateX(-50%)",
+                    zIndex: 25,
                   }}
                 >
                   <div
@@ -1811,8 +1813,11 @@ export function DeploymentDrilldownPage() {
                     style={{ backgroundColor: "#C9190B" }}
                   />
                   <div
-                    className="absolute -top-8 -left-16 px-2.5 py-1 rounded whitespace-nowrap"
+                    className="absolute px-2 py-0.5 rounded whitespace-nowrap"
                     style={{
+                      top: "50%",
+                      left: "6px",
+                      transform: "translateY(-50%)",
                       backgroundColor: "#C9190B",
                       borderRadius: "var(--radius)",
                     }}
@@ -1820,12 +1825,11 @@ export function DeploymentDrilldownPage() {
                     <TinyText
                       style={{
                         color: "white",
-                        fontWeight:
-                          "var(--font-weight-semibold)",
-                        fontSize: "11px",
+                        fontWeight: "var(--font-weight-medium)",
+                        fontSize: "10px",
                       }}
                     >
-                      Error Threshold Reached
+                      Threshold
                     </TinyText>
                   </div>
                 </div>
@@ -1857,7 +1861,7 @@ export function DeploymentDrilldownPage() {
                       boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                     }}
                   >
-                    <TinyText style={{ fontSize: "10px", fontWeight: 500 }}>
+                    <TinyText style={{ fontSize: "11px", fontWeight: 500 }}>
                       {cursorTime.time.toLocaleString("en-US", {
                         month: "short",
                         day: "numeric",
@@ -1869,14 +1873,14 @@ export function DeploymentDrilldownPage() {
                       const tally = getRunningTally(cursorTime.time);
                       return (
                         <div className="flex gap-2 mt-0.5">
-                          <TinyText style={{ fontSize: "9px", color: "#3E8635" }}>
+                          <TinyText style={{ fontSize: "10px", color: "#3E8635", fontWeight: 500 }}>
                             {tally.successes} ✓
                           </TinyText>
-                          <TinyText style={{ fontSize: "9px", color: "#C9190B" }}>
+                          <TinyText style={{ fontSize: "10px", color: "#C9190B", fontWeight: 500 }}>
                             {tally.failures} ✗
                           </TinyText>
                           {tally.pending > 0 && (
-                            <TinyText muted style={{ fontSize: "9px" }}>
+                            <TinyText muted style={{ fontSize: "10px" }}>
                               {tally.pending} pending
                             </TinyText>
                           )}
@@ -1891,11 +1895,11 @@ export function DeploymentDrilldownPage() {
             {/* Mini-map Navigator */}
             <div className="mt-6">
               <div className="flex items-center justify-between mb-2">
-                <TinyText muted style={{ fontSize: "10px" }}>
-                  Overview — {zoomLevel === 1 ? "showing full timeline" : "drag viewport to navigate"}
+                <TinyText muted style={{ fontSize: "11px" }}>
+                  Overview {zoomLevel > 1 && "— drag to navigate"}
                 </TinyText>
-                <TinyText muted style={{ fontSize: "10px" }}>
-                  Click events for details
+                <TinyText muted style={{ fontSize: "11px" }}>
+                  Scroll to zoom · Click events for details
                 </TinyText>
               </div>
               <div
