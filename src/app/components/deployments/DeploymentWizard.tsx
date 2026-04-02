@@ -143,6 +143,7 @@ export function DeploymentWizard({
     scheduleEndTime: "02:00",
     phase1Count: "10",
     phase1Batch: "3",
+    phase1MaxParallel: "5",
     phase1Priority: "label:canary",
     phase1Soak: "24h",
     phase1RespectSchedule: true,
@@ -1679,20 +1680,48 @@ function Step3Content({
                   </div>
                 </div>
 
-                <div>
-                  <TinyText muted className="mb-2">
-                    Priority by label selector
-                  </TinyText>
-                  <TextInput
-                    value={formData.phase1Priority}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        phase1Priority: e.target.value,
-                      })
-                    }
-                    placeholder="e.g., label:canary"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <TinyText muted className="mb-2">
+                      Max concurrency
+                    </TinyText>
+                    <input
+                      type="number"
+                      value={formData.phase1MaxParallel}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          phase1MaxParallel: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border rounded"
+                      style={{
+                        borderRadius: "var(--radius)",
+                        borderColor: "var(--border)",
+                        fontFamily: "var(--font-family-text)",
+                        fontSize: "var(--text-sm)",
+                        backgroundColor: "var(--card)",
+                      }}
+                    />
+                    <TinyText muted className="mt-1">
+                      Max clusters updating in parallel
+                    </TinyText>
+                  </div>
+                  <div>
+                    <TinyText muted className="mb-2">
+                      Priority by label selector
+                    </TinyText>
+                    <TextInput
+                      value={formData.phase1Priority}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          phase1Priority: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., label:canary"
+                    />
+                  </div>
                 </div>
 
                 {/* Soak Duration */}
@@ -1783,6 +1812,9 @@ function Step3Content({
                     />
                     <TinyText>%</TinyText>
                   </div>
+                  <TinyText muted className="mt-1">
+                    If {formData.phase1SafetyBrake}% of canary clusters fail, the deployment stops
+                  </TinyText>
                 </div>
               </div>
             )}
@@ -2411,6 +2443,18 @@ function Step5Content({ formData }: { formData: any }) {
                 <TinyText muted>Batch size</TinyText>
                 <SmallText className="text-right">
                   {formData.phase1Batch} clusters at a time
+                </SmallText>
+              </div>
+
+              <div
+                className="flex items-start justify-between py-2"
+                style={{
+                  borderBottom: "1px solid var(--border)",
+                }}
+              >
+                <TinyText muted>Max concurrency</TinyText>
+                <SmallText className="text-right">
+                  {formData.phase1MaxParallel} clusters in parallel
                 </SmallText>
               </div>
 
