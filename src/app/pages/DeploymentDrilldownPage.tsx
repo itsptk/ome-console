@@ -249,29 +249,25 @@ export function DeploymentDrilldownPage() {
     },
   ];
 
-  // Filter events
-  const filteredEvents = allEvents.filter((event) => {
-    const categoryMatch = selectedCategories.includes(
-      event.category,
-    );
-    const searchMatch =
-      searchQuery === "" ||
-      event.title
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      event.description
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
+  // Filter and sort events (most recent first)
+  const filteredEvents = allEvents
+    .filter((event) => {
+      const categoryMatch = selectedCategories.includes(event.category);
+      const searchMatch =
+        searchQuery === "" ||
+        event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-    let timeMatch = true;
-    if (selectedTimeWindow) {
-      timeMatch =
-        event.timestamp >= selectedTimeWindow.start &&
-        event.timestamp <= selectedTimeWindow.end;
-    }
+      let timeMatch = true;
+      if (selectedTimeWindow) {
+        timeMatch =
+          event.timestamp >= selectedTimeWindow.start &&
+          event.timestamp <= selectedTimeWindow.end;
+      }
 
-    return categoryMatch && searchMatch && timeMatch;
-  });
+      return categoryMatch && searchMatch && timeMatch;
+    })
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
   const toggleCategory = (category: EventCategory) => {
     setSelectedCategories((prev) =>
