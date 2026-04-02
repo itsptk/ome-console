@@ -97,12 +97,12 @@ export function DeploymentDrilldownPage() {
     soak: {
       start: new Date("2026-03-25T06:00:00Z"),
       end: new Date("2026-03-26T06:00:00Z"),
-      status: "pending",
+      status: "cancelled",
     },
     phase2: {
       start: new Date("2026-03-26T06:00:00Z"),
       end: new Date("2026-03-26T18:00:00Z"),
-      status: "pending",
+      status: "cancelled",
       successCount: 0,
       totalCount: 30,
     },
@@ -549,12 +549,14 @@ export function DeploymentDrilldownPage() {
             borderColor: "var(--border)",
             borderRadius: "var(--radius)",
             backgroundColor: "var(--card)",
+            opacity: 0.6,
           }}
         >
           <div className="mb-3">
             <SmallText
               style={{
                 fontWeight: "var(--font-weight-semibold)",
+                color: "var(--muted-foreground)",
               }}
             >
               Soak Period
@@ -568,10 +570,10 @@ export function DeploymentDrilldownPage() {
             </TinyText>
           </div>
 
-          <StatusLabel variant="warning">Pending</StatusLabel>
+          <StatusLabel variant="warning">Cancelled</StatusLabel>
 
           <div className="mt-3">
-            <TinyText muted>Waiting for P1 completion</TinyText>
+            <TinyText muted>Auto-cancelled due to Canary failure</TinyText>
           </div>
         </div>
 
@@ -582,12 +584,14 @@ export function DeploymentDrilldownPage() {
             borderColor: "var(--border)",
             borderRadius: "var(--radius)",
             backgroundColor: "var(--card)",
+            opacity: 0.6,
           }}
         >
           <div className="mb-3">
             <SmallText
               style={{
                 fontWeight: "var(--font-weight-semibold)",
+                color: "var(--muted-foreground)",
               }}
             >
               Phase 2: Fleet rollout
@@ -1022,7 +1026,7 @@ export function DeploymentDrilldownPage() {
                 );
               })()}
 
-              {/* Soak */}
+              {/* Soak - Cancelled */}
               {(() => {
                 const { start, end } = getVisibleTimeWindow();
                 const soakStart = deployment.soak.start;
@@ -1052,6 +1056,8 @@ export function DeploymentDrilldownPage() {
                     windowDuration) *
                   100;
 
+                const isCancelled = deployment.soak.status === "cancelled";
+
                 return (
                   <div
                     className="absolute rounded border-2 border-dashed"
@@ -1060,18 +1066,24 @@ export function DeploymentDrilldownPage() {
                       width: `${widthPercent}%`,
                       top: "20px",
                       height: "24px",
-                      borderColor: "#0066CC",
-                      backgroundColor: "rgba(0, 102, 204, 0.1)",
+                      borderColor: isCancelled ? "var(--muted-foreground)" : "#0066CC",
+                      backgroundColor: isCancelled ? "rgba(128, 128, 128, 0.1)" : "rgba(0, 102, 204, 0.1)",
                       borderRadius: "var(--radius)",
+                      opacity: isCancelled ? 0.5 : 1,
                     }}
                   >
-                    <div className="flex items-center justify-center h-full">
+                    <div className="flex items-center justify-center h-full gap-1">
+                      {isCancelled && (
+                        <svg className="size-3" fill="none" viewBox="0 0 12 12" style={{ color: "var(--muted-foreground)" }}>
+                          <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
                       <TinyText
                         style={{
-                          color: "#0066CC",
-                          fontWeight:
-                            "var(--font-weight-semibold)",
+                          color: isCancelled ? "var(--muted-foreground)" : "#0066CC",
+                          fontWeight: "var(--font-weight-semibold)",
                           fontSize: "11px",
+                          textDecoration: isCancelled ? "line-through" : "none",
                         }}
                       >
                         Soak
@@ -1081,7 +1093,7 @@ export function DeploymentDrilldownPage() {
                 );
               })()}
 
-              {/* Phase 2 */}
+              {/* Phase 2 - Cancelled */}
               {(() => {
                 const { start, end } = getVisibleTimeWindow();
                 const p2Start = deployment.phase2.start;
@@ -1110,6 +1122,8 @@ export function DeploymentDrilldownPage() {
                     windowDuration) *
                   100;
 
+                const isCancelled = deployment.phase2.status === "cancelled";
+
                 return (
                   <div
                     className="absolute rounded"
@@ -1118,18 +1132,24 @@ export function DeploymentDrilldownPage() {
                       width: `${widthPercent}%`,
                       top: "20px",
                       height: "24px",
-                      backgroundColor: "#8A8D90",
+                      backgroundColor: isCancelled ? "transparent" : "#8A8D90",
                       borderRadius: "var(--radius)",
-                      border: "2px solid #8A8D90",
+                      border: isCancelled ? "2px dashed var(--muted-foreground)" : "2px solid #8A8D90",
+                      opacity: isCancelled ? 0.5 : 1,
                     }}
                   >
-                    <div className="flex items-center justify-center h-full">
+                    <div className="flex items-center justify-center h-full gap-1">
+                      {isCancelled && (
+                        <svg className="size-3" fill="none" viewBox="0 0 12 12" style={{ color: "var(--muted-foreground)" }}>
+                          <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
                       <TinyText
                         style={{
-                          color: "white",
-                          fontWeight:
-                            "var(--font-weight-semibold)",
+                          color: isCancelled ? "var(--muted-foreground)" : "white",
+                          fontWeight: "var(--font-weight-semibold)",
                           fontSize: "11px",
+                          textDecoration: isCancelled ? "line-through" : "none",
                         }}
                       >
                         Fleet
