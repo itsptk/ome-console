@@ -1033,77 +1033,51 @@ export function DeploymentDrilldownPage() {
           }}
         >
           <div className="p-6">
-            {/* Timeline Header - Time Axis */}
-            <div className="mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <TinyText
-                  style={{
-                    fontWeight: "var(--font-weight-medium)",
-                  }}
-                >
-                  {formatDate(getVisibleTimeWindow().start)}
-                </TinyText>
-                <TinyText muted>
-                  {zoomLevel > 1
-                    ? `Zoomed ${zoomLevel}x`
-                    : "Full view (2 days)"}
-                </TinyText>
-                <TinyText
-                  style={{
-                    fontWeight: "var(--font-weight-medium)",
-                  }}
-                >
-                  {formatDate(getVisibleTimeWindow().end)}
-                </TinyText>
-              </div>
-
-              {/* Time ruler */}
+            {/* Time Axis */}
+            <div className="mb-6">
+              {/* Time ruler with tick marks */}
               <div
-                className="relative h-8"
+                className="relative"
                 style={{
-                  borderBottom: "2px solid var(--border)",
+                  height: "20px",
+                  borderBottom: "1px solid var(--border)",
                 }}
               >
-                {/* Day markers - show based on visible window */}
-                {[0, 0.25, 0.5, 0.75, 1].map(
-                  (position, idx) => {
-                    const { start, end } =
-                      getVisibleTimeWindow();
-                    const visibleDuration =
-                      end.getTime() - start.getTime();
-                    const time = new Date(
-                      start.getTime() +
-                        position * visibleDuration,
-                    );
-                    return (
+                {[0, 0.25, 0.5, 0.75, 1].map((position, idx) => {
+                  const { start, end } = getVisibleTimeWindow();
+                  const visibleDuration = end.getTime() - start.getTime();
+                  const time = new Date(start.getTime() + position * visibleDuration);
+                  return (
+                    <div
+                      key={idx}
+                      className="absolute bottom-0"
+                      style={{ left: `${position * 100}%` }}
+                    >
                       <div
-                        key={idx}
-                        className="absolute"
-                        style={{ left: `${position * 100}%` }}
+                        className="w-px h-2"
+                        style={{ backgroundColor: "var(--border)" }}
+                      />
+                      <TinyText
+                        muted
+                        className="absolute whitespace-nowrap"
+                        style={{
+                          fontSize: "10px",
+                          bottom: "10px",
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                        }}
                       >
-                        <div
-                          className="w-px h-3"
-                          style={{
-                            backgroundColor: "var(--border)",
-                          }}
-                        />
-                        <TinyText
-                          muted
-                          className="absolute -translate-x-1/2 mt-1"
-                          style={{ fontSize: "10px" }}
-                        >
-                          {time.toLocaleString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: false,
-                          })}
-                        </TinyText>
-                      </div>
-                    );
-                  },
-                )}
+                        {time.toLocaleString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: false,
+                        })}
+                      </TinyText>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
