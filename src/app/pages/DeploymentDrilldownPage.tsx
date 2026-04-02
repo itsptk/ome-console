@@ -1431,29 +1431,27 @@ export function DeploymentDrilldownPage() {
                       width: `${widthPercent}%`,
                       top: "6px",
                       height: "20px",
-                      borderColor: isCancelled ? "var(--muted-foreground)" : "#0066CC",
-                      backgroundColor: isCancelled ? "rgba(128, 128, 128, 0.1)" : "rgba(0, 102, 204, 0.1)",
+                      borderColor: isCancelled ? "#F0AB00" : "#0066CC",
+                      backgroundColor: isCancelled ? "rgba(240, 171, 0, 0.1)" : "rgba(0, 102, 204, 0.1)",
                       borderRadius: "var(--radius)",
-                      opacity: isCancelled ? 0.5 : 1,
                     }}
                     onMouseEnter={() => setHoveredPhase("soak")}
                     onMouseLeave={() => setHoveredPhase(null)}
                   >
                     <div className="flex items-center justify-center h-full gap-1">
                       {isCancelled && (
-                        <svg className="size-2.5" fill="none" viewBox="0 0 12 12" style={{ color: "var(--muted-foreground)" }}>
+                        <svg className="size-2.5" fill="none" viewBox="0 0 12 12" style={{ color: "#F0AB00" }}>
                           <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
                       <TinyText
                         style={{
-                          color: isCancelled ? "var(--muted-foreground)" : "#0066CC",
+                          color: isCancelled ? "#F0AB00" : "#0066CC",
                           fontWeight: "var(--font-weight-semibold)",
                           fontSize: "10px",
-                          textDecoration: isCancelled ? "line-through" : "none",
                         }}
                       >
-                        Soak
+                        {isCancelled ? "Cancelled" : "Soak"}
                       </TinyText>
                     </div>
                     {hoveredPhase === "soak" && (
@@ -1535,29 +1533,27 @@ export function DeploymentDrilldownPage() {
                       width: `${widthPercent}%`,
                       top: "6px",
                       height: "20px",
-                      backgroundColor: isCancelled ? "transparent" : "#8A8D90",
+                      backgroundColor: isCancelled ? "rgba(240, 171, 0, 0.1)" : "#8A8D90",
                       borderRadius: "var(--radius)",
-                      border: isCancelled ? "2px dashed var(--muted-foreground)" : "2px solid #8A8D90",
-                      opacity: isCancelled ? 0.5 : 1,
+                      border: isCancelled ? "2px dashed #F0AB00" : "2px solid #8A8D90",
                     }}
                     onMouseEnter={() => setHoveredPhase("phase2")}
                     onMouseLeave={() => setHoveredPhase(null)}
                   >
                     <div className="flex items-center justify-center h-full gap-1">
                       {isCancelled && (
-                        <svg className="size-2.5" fill="none" viewBox="0 0 12 12" style={{ color: "var(--muted-foreground)" }}>
+                        <svg className="size-2.5" fill="none" viewBox="0 0 12 12" style={{ color: "#F0AB00" }}>
                           <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
                       <TinyText
                         style={{
-                          color: isCancelled ? "var(--muted-foreground)" : "white",
+                          color: isCancelled ? "#F0AB00" : "white",
                           fontWeight: "var(--font-weight-semibold)",
                           fontSize: "10px",
-                          textDecoration: isCancelled ? "line-through" : "none",
                         }}
                       >
-                        Rollout
+                        {isCancelled ? "Cancelled" : "Rollout"}
                       </TinyText>
                     </div>
                     {hoveredPhase === "phase2" && (
@@ -1923,9 +1919,8 @@ export function DeploymentDrilldownPage() {
                           width: `${soakWidth * 100}%`,
                           top: "8px",
                           height: "8px",
-                          borderColor: deployment.soak.status === "cancelled" ? "var(--muted-foreground)" : "#0066CC",
-                          backgroundColor: deployment.soak.status === "cancelled" ? "transparent" : "rgba(0, 102, 204, 0.2)",
-                          opacity: deployment.soak.status === "cancelled" ? 0.4 : 1,
+                          borderColor: deployment.soak.status === "cancelled" ? "#F0AB00" : "#0066CC",
+                          backgroundColor: deployment.soak.status === "cancelled" ? "rgba(240, 171, 0, 0.15)" : "rgba(0, 102, 204, 0.2)",
                         }}
                       />
                       {/* Phase 2 */}
@@ -1936,9 +1931,8 @@ export function DeploymentDrilldownPage() {
                           width: `${p2Width * 100}%`,
                           top: "8px",
                           height: "8px",
-                          backgroundColor: deployment.phase2.status === "cancelled" ? "transparent" : "#8A8D90",
-                          border: deployment.phase2.status === "cancelled" ? "1px dashed var(--muted-foreground)" : "none",
-                          opacity: deployment.phase2.status === "cancelled" ? 0.4 : 1,
+                          backgroundColor: deployment.phase2.status === "cancelled" ? "rgba(240, 171, 0, 0.15)" : "#8A8D90",
+                          border: deployment.phase2.status === "cancelled" ? "1px dashed #F0AB00" : "none",
                         }}
                       />
                     </>
