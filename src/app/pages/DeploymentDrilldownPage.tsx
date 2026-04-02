@@ -1636,8 +1636,8 @@ export function DeploymentDrilldownPage() {
                       className="absolute cursor-pointer transition-all"
                       style={{
                         left: `${cluster.position * 100}%`,
-                        top: "48px",
-                        transform: `translateX(-50%) ${isHighlighted ? "scale(1.5)" : "scale(1)"}`,
+                        top: "52px",
+                        transform: `translate(-50%, -50%) ${isHighlighted ? "scale(1.5)" : "scale(1)"}`,
                         zIndex: isHighlighted ? 15 : 10,
                       }}
                       onMouseEnter={(e) => {
@@ -1719,8 +1719,8 @@ export function DeploymentDrilldownPage() {
                       className="absolute cursor-pointer transition-all"
                       style={{
                         left: `${cluster.position * 100}%`,
-                        top: "88px",
-                        transform: `translateX(-50%) ${isHighlighted ? "scale(1.5)" : "scale(1)"}`,
+                        top: "92px",
+                        transform: `translate(-50%, -50%) ${isHighlighted ? "scale(1.5)" : "scale(1)"}`,
                         zIndex: isHighlighted ? 15 : 10,
                       }}
                       onMouseEnter={(e) => {
