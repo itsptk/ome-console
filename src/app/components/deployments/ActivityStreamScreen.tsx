@@ -47,13 +47,13 @@ type Activity = {
       failedCount?: number;
     };
     soak: {
-      status: "active" | "pending" | "complete";
+      status: "active" | "pending" | "complete" | "cancelled";
       remaining?: string;
     };
     p2: {
       current: number;
       total: number;
-      status: "active" | "pending" | "complete";
+      status: "active" | "pending" | "complete" | "cancelled";
     };
   };
   simpleProgress?: {
@@ -135,8 +135,8 @@ export function ActivityStreamScreen({
           status: "failed",
           failedCount: 6,
         },
-        soak: { status: "pending" },
-        p2: { current: 0, total: 30, status: "pending" },
+        soak: { status: "cancelled" },
+        p2: { current: 0, total: 30, status: "cancelled" },
       },
       note: "Ingress timeout",
       created: "Mar 26, 2026 22:00",
@@ -151,7 +151,7 @@ export function ActivityStreamScreen({
       id: "security-policy-002",
       action: "Security Policy",
       status: "running",
-      statusColor: "#0066CC",
+      statusColor: "#3E8635", // Green - active/in-progress
       resource: "region:us-north (50)",
       actionTargets: "PCI-DSS v3.2 → v4.0",
       progressType: "simple",
@@ -227,17 +227,14 @@ export function ActivityStreamScreen({
   const getStatusLabel = (status: ActivityStatus): string => {
     switch (status) {
       case "stopped":
-        return "Stopped due to error threshold";
-      case "running":
-        return "Running";
-      case "soaking":
-        return "Soaking";
-      case "active":
-        return "Active";
+        return "Failed";
       case "completed":
-        return "Completed";
+        return "Complete";
+      case "running":
+      case "soaking":
+      case "active":
       case "waiting":
-        return "Waiting on scheduled execution window";
+        return "In Progress";
       default:
         return status;
     }
@@ -273,19 +270,15 @@ export function ActivityStreamScreen({
   ): "danger" | "info" | "warning" | "success" => {
     switch (status) {
       case "stopped":
-        return "danger";
+        return "danger"; // Red - failed/error state
       case "running":
-        return "info";
       case "soaking":
-        return "success"; // Nothing wrong - deployment is progressing normally
       case "active":
-        return "success";
       case "completed":
-        return "success";
       case "waiting":
-        return "success"; // Nothing wrong - waiting on schedule as expected
+        return "success"; // Green - all active/in-progress states
       default:
-        return "info";
+        return "success";
     }
   };
 
@@ -348,7 +341,7 @@ export function ActivityStreamScreen({
         updated[0] = {
           ...updated[0],
           status: "running",
-          statusColor: "#0066CC",
+          statusColor: "#3E8635", // Green - active/in-progress
           note: undefined,
           canaryProgress: {
             p1: { current: 2, total: 10, status: "active" },
@@ -1575,21 +1568,23 @@ function CanaryProgressStepper({
       failedCount?: number;
     };
     soak: {
-      status: "active" | "pending" | "complete";
+      status: "active" | "pending" | "complete" | "cancelled";
       remaining?: string;
     };
     p2: {
       current: number;
       total: number;
-      status: "active" | "pending" | "complete";
+      status: "active" | "pending" | "complete" | "cancelled";
     };
   };
 }) {
-  const getStepColor = (status: string, isFailed?: boolean) => {
-    if (isFailed) return "#C9190B";
-    if (status === "complete") return "#3E8635";
-    if (status === "active") return "#0066CC";
-    return "var(--muted-foreground)";
+  const getStepColor = (status: string, isFailed?: boolean, isCancelled?: boolean) => {
+    if (isFailed) return "#C9190B"; // Red - failed
+    if (isCancelled) return "var(--muted-foreground)"; // Grey - cancelled
+    if (status === "complete") return "#3E8635"; // Green
+    if (status === "active") return "#3E8635"; // Green - active is also green
+    if (status === "cancelled") return "var(--muted-foreground)"; // Grey - cancelled
+    return "var(--muted-foreground)"; // Pending
   };
 
   const p1Failed = progress.p1.status === "failed";
@@ -1678,7 +1673,7 @@ function CanaryProgressStepper({
             style={{
               borderColor: getStepColor(progress.soak.status),
               backgroundColor:
-                progress.soak.status !== "pending"
+                progress.soak.status !== "pending" && progress.soak.status !== "cancelled"
                   ? getStepColor(progress.soak.status)
                   : "transparent",
             }}
@@ -1705,6 +1700,22 @@ function CanaryProgressStepper({
                 style={{ backgroundColor: "white" }}
               />
             )}
+            {progress.soak.status === "cancelled" && (
+              <svg
+                className="size-3"
+                fill="none"
+                viewBox="0 0 12 12"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                <path
+                  d="M9 3L3 9M3 3L9 9"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
           </div>
           <TinyText
             style={{
@@ -1712,7 +1723,7 @@ function CanaryProgressStepper({
               color: getStepColor(progress.soak.status),
             }}
           >
-            Soak
+            {progress.soak.status === "cancelled" ? "Cancelled" : "Soak"}
           </TinyText>
         </div>
 
@@ -1734,7 +1745,7 @@ function CanaryProgressStepper({
             style={{
               borderColor: getStepColor(progress.p2.status),
               backgroundColor:
-                progress.p2.status !== "pending"
+                progress.p2.status !== "pending" && progress.p2.status !== "cancelled"
                   ? getStepColor(progress.p2.status)
                   : "transparent",
             }}
@@ -1761,6 +1772,22 @@ function CanaryProgressStepper({
                 style={{ backgroundColor: "white" }}
               />
             )}
+            {progress.p2.status === "cancelled" && (
+              <svg
+                className="size-3"
+                fill="none"
+                viewBox="0 0 12 12"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                <path
+                  d="M9 3L3 9M3 3L9 9"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
           </div>
           <TinyText
             style={{
@@ -1768,7 +1795,7 @@ function CanaryProgressStepper({
               color: getStepColor(progress.p2.status),
             }}
           >
-            P2
+            {progress.p2.status === "cancelled" ? "Cancelled" : "P2"}
           </TinyText>
         </div>
       </div>
@@ -1788,9 +1815,13 @@ function CanaryProgressStepper({
             `, Soak: ${progress.soak.remaining} remaining`}
           {progress.soak.status === "pending" &&
             ", Soak: Pending"}
+          {progress.soak.status === "cancelled" &&
+            " → Soak: Cancelled"}
           {progress.p2.status === "pending" && ", Fleet: Pending"}
           {progress.p2.status === "active" &&
             `, Fleet: ${progress.p2.current}/${progress.p2.total}`}
+          {progress.p2.status === "cancelled" &&
+            " → Fleet: Cancelled"}
         </TinyText>
       </div>
     </div>
