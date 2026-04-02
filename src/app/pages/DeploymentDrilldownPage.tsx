@@ -343,9 +343,41 @@ export function DeploymentDrilldownPage() {
             >
               {deployment.changeTargets}
             </SmallText>
-            <StatusLabel variant="danger">
-              {deployment.status}
-            </StatusLabel>
+            <div className="flex items-center gap-3">
+              <StatusLabel variant="danger">
+                {deployment.status}
+              </StatusLabel>
+              {/* Post-failure actions */}
+              <div className="flex items-center gap-2 ml-4">
+                <button
+                  onClick={() => {
+                    // Would trigger restart confirmation
+                    console.log("Restart deployment");
+                  }}
+                  className="px-3 py-1.5 text-sm font-medium rounded transition-colors"
+                  style={{
+                    backgroundColor: "#0066CC",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  ↻ Restart
+                </button>
+                <button
+                  onClick={() => {
+                    // Would trigger cancel confirmation
+                    console.log("Cancel deployment");
+                  }}
+                  className="px-3 py-1.5 text-sm font-medium rounded transition-colors"
+                  style={{
+                    backgroundColor: "transparent",
+                    color: "#C9190B",
+                    border: "1px solid #C9190B",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -565,10 +597,25 @@ export function DeploymentDrilldownPage() {
             </TinyText>
           </div>
 
-          <StatusLabel variant="warning">Pending</StatusLabel>
+          <StatusLabel variant="warning">Cancelled</StatusLabel>
 
           <div className="mt-3">
-            <TinyText muted>Not started</TinyText>
+            <TinyText muted>Auto-cancelled due to Canary failure</TinyText>
+          </div>
+
+          <div
+            className="mt-3 pt-3"
+            style={{ borderTop: "1px solid var(--border)" }}
+          >
+            <TinyText
+              style={{
+                color: "var(--muted-foreground)",
+                fontStyle: "italic",
+              }}
+            >
+              0 of {deployment.phase2.totalCount} clusters were affected. Use Restart to
+              retry from Phase 1, or Cancel to abort entirely.
+            </TinyText>
           </div>
         </div>
       </div>

@@ -180,8 +180,8 @@ export function DeploymentWizard({
   const steps = [
     {
       number: 1,
-      label: "Change package",
-      name: "change-package",
+      label: "Action", // Action verb: Update, Delete, Create, etc.
+      name: "action",
     },
     {
       number: 2,
@@ -2296,7 +2296,7 @@ function Step5Content({ formData }: { formData: any }) {
 
   return (
     <div className="space-y-6">
-      {/* Change Package Section */}
+      {/* Action Section */}
       <div
         className="p-6 border rounded"
         style={{
@@ -2309,7 +2309,7 @@ function Step5Content({ formData }: { formData: any }) {
           style={{ fontWeight: "var(--font-weight-medium)" }}
           className="mb-4"
         >
-          Change package
+          Action
         </SmallText>
 
         <div className="space-y-3">

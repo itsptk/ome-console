@@ -103,7 +103,7 @@ export function ActivityStreamScreen({
     id: "fleet-upgrade-new",
     action: "OpenShift cluster update",
     status: "waiting",
-    statusColor: "#F0AB00",
+    statusColor: "#3E8635", // Green - nothing wrong, waiting as expected
     resource: "env=prod (40)",
     changeTargets: "OCP 4.17 → 4.18",
     progressType: "canary",
@@ -167,7 +167,7 @@ export function ActivityStreamScreen({
       id: "vm-migration-003",
       action: "VM Migration",
       status: "soaking",
-      statusColor: "#F0AB00",
+      statusColor: "#3E8635", // Green - nothing wrong, soaking as expected
       resource: "region:eu-west (25)",
       changeTargets: "ESXi 7.0 → 8.0",
       progressType: "canary",
@@ -243,6 +243,31 @@ export function ActivityStreamScreen({
     }
   };
 
+  // Sort priority: errors/stopped first, then by status urgency
+  const getStatusPriority = (status: ActivityStatus): number => {
+    switch (status) {
+      case "stopped":
+        return 0; // Errors at top
+      case "running":
+        return 1;
+      case "active":
+        return 2;
+      case "soaking":
+        return 3;
+      case "waiting":
+        return 4;
+      case "completed":
+        return 5;
+      default:
+        return 6;
+    }
+  };
+
+  // Sorted activities - errors first
+  const sortedActivities = [...activities].sort(
+    (a, b) => getStatusPriority(a.status) - getStatusPriority(b.status),
+  );
+
   const getStatusVariant = (
     status: ActivityStatus,
   ): "danger" | "info" | "warning" | "success" => {
@@ -252,13 +277,13 @@ export function ActivityStreamScreen({
       case "running":
         return "info";
       case "soaking":
-        return "warning";
+        return "success"; // Nothing wrong - deployment is progressing normally
       case "active":
         return "success";
       case "completed":
         return "success";
       case "waiting":
-        return "warning";
+        return "success"; // Nothing wrong - waiting on schedule as expected
       default:
         return "info";
     }
@@ -1324,7 +1349,7 @@ export function ActivityStreamScreen({
             </tr>
           </thead>
           <tbody>
-            {activities.map((activity) => (
+            {sortedActivities.map((activity) => (
               <tr
                 key={activity.id}
                 onClick={() => handleRowClick(activity)}
