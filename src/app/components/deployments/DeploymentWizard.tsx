@@ -1859,7 +1859,32 @@ function Step3Content({
                       }}
                     />
                   </div>
-                  <div></div>
+                  <div>
+                    <TinyText muted className="mb-2">
+                      Max concurrency
+                    </TinyText>
+                    <input
+                      type="number"
+                      value={formData.phase2MaxParallel}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          phase2MaxParallel: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border rounded"
+                      style={{
+                        borderRadius: "var(--radius)",
+                        borderColor: "var(--border)",
+                        fontFamily: "var(--font-family-text)",
+                        fontSize: "var(--text-sm)",
+                        backgroundColor: "var(--card)",
+                      }}
+                    />
+                    <TinyText muted className="mt-1">
+                      Max clusters updating in parallel
+                    </TinyText>
+                  </div>
                 </div>
 
                 {/* Stop on Failure Toggle */}
@@ -2466,6 +2491,18 @@ function Step5Content({ formData }: { formData: any }) {
                 <TinyText muted>Batch size</TinyText>
                 <SmallText className="text-right">
                   {formData.phase2Batch} clusters at a time
+                </SmallText>
+              </div>
+
+              <div
+                className="flex items-start justify-between py-2"
+                style={{
+                  borderBottom: "1px solid var(--border)",
+                }}
+              >
+                <TinyText muted>Max concurrency</TinyText>
+                <SmallText className="text-right">
+                  {formData.phase2MaxParallel} clusters in parallel
                 </SmallText>
               </div>
 

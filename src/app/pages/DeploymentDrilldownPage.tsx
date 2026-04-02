@@ -64,6 +64,7 @@ export function DeploymentDrilldownPage() {
   const deployment = {
     id: "openshift-cluster-update-001",
     action: "OpenShift cluster update",
+    changeTargets: "OCP 4.16 → 4.17",
     admin: "user-01",
     created: new Date("2026-03-24T22:00:00Z"),
     affectedClusters: 40,
@@ -83,6 +84,15 @@ export function DeploymentDrilldownPage() {
       failedCount: 6,
       totalCount: 10,
       failureRate: 60,
+      failedClusters: [
+        { name: "cnfdf07", reason: "Connection refused" },
+        { name: "cnfdf19", reason: "Ingress timeout" },
+        { name: "cnfdf23", reason: "Pod CrashLoopBackOff" },
+        { name: "cnfdf31", reason: "Ingress timeout" },
+        { name: "cnfdf42", reason: "Ingress timeout" },
+        { name: "cnfdf56", reason: "Network policy conflict" },
+      ],
+      successfulClusters: ["cnfdf12", "cnfdf28", "cnfdf33", "cnfdf45"],
     },
     soak: {
       start: new Date("2026-03-25T06:00:00Z"),
@@ -321,9 +331,18 @@ export function DeploymentDrilldownPage() {
       <div className="mb-6">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <PageTitle className="mb-2">
+            <PageTitle className="mb-1">
               {deployment.action}
             </PageTitle>
+            <SmallText
+              className="mb-2 font-mono"
+              style={{
+                color: "var(--muted-foreground)",
+                display: "block",
+              }}
+            >
+              {deployment.changeTargets}
+            </SmallText>
             <StatusLabel variant="danger">
               {deployment.status}
             </StatusLabel>
@@ -402,7 +421,7 @@ export function DeploymentDrilldownPage() {
                   color: "#C9190B",
                 }}
               >
-                Phase 1 - Failed
+                Phase 1: Canary - Failed
               </SmallText>
               <TinyText muted className="mt-0.5">
                 {formatDate(deployment.phase1.start)} -{" "}
@@ -450,6 +469,43 @@ export function DeploymentDrilldownPage() {
               >
                 ⚠ Exceeded 50% error threshold
               </TinyText>
+            </div>
+
+            {/* Failed Clusters List */}
+            <div
+              className="mt-3 pt-3"
+              style={{ borderTop: "1px solid var(--border)" }}
+            >
+              <TinyText
+                style={{
+                  fontWeight: "var(--font-weight-medium)",
+                  marginBottom: "8px",
+                  display: "block",
+                }}
+              >
+                Failed clusters
+              </TinyText>
+              <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                {deployment.phase1.failedClusters.map((cluster) => (
+                  <div
+                    key={cluster.name}
+                    className="flex items-center justify-between text-xs"
+                  >
+                    <span
+                      className="font-mono px-1.5 py-0.5 rounded"
+                      style={{
+                        backgroundColor: "rgba(201, 25, 11, 0.1)",
+                        color: "#C9190B",
+                      }}
+                    >
+                      {cluster.name}
+                    </span>
+                    <TinyText muted className="truncate ml-2">
+                      {cluster.reason}
+                    </TinyText>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -502,7 +558,7 @@ export function DeploymentDrilldownPage() {
                 fontWeight: "var(--font-weight-semibold)",
               }}
             >
-              Phase 2
+              Phase 2: Fleet rollout
             </SmallText>
             <TinyText muted className="mt-0.5">
               {deployment.phase2.totalCount} clusters
@@ -912,7 +968,7 @@ export function DeploymentDrilldownPage() {
                           fontSize: "11px",
                         }}
                       >
-                        Phase 1
+                        Canary
                       </TinyText>
                     </div>
                   </div>
@@ -1029,7 +1085,7 @@ export function DeploymentDrilldownPage() {
                           fontSize: "11px",
                         }}
                       >
-                        Phase 2
+                        Fleet
                       </TinyText>
                     </div>
                   </div>

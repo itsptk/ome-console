@@ -37,6 +37,7 @@ type Activity = {
   status: ActivityStatus;
   statusColor: string;
   resource: string;
+  changeTargets?: string; // e.g., "OCP 4.17 → 4.18"
   progressType: "canary" | "simple";
   canaryProgress?: {
     p1: {
@@ -104,6 +105,7 @@ export function ActivityStreamScreen({
     status: "waiting",
     statusColor: "#F0AB00",
     resource: "env=prod (40)",
+    changeTargets: "OCP 4.17 → 4.18",
     progressType: "canary",
     canaryProgress: {
       p1: { current: 0, total: 10, status: "pending" },
@@ -124,6 +126,7 @@ export function ActivityStreamScreen({
       status: "stopped",
       statusColor: "#C9190B",
       resource: "label:canary (40)",
+      changeTargets: "OCP 4.16 → 4.17",
       progressType: "canary",
       canaryProgress: {
         p1: {
@@ -150,6 +153,7 @@ export function ActivityStreamScreen({
       status: "running",
       statusColor: "#0066CC",
       resource: "region:us-north (50)",
+      changeTargets: "PCI-DSS v3.2 → v4.0",
       progressType: "simple",
       simpleProgress: {
         current: 10,
@@ -165,6 +169,7 @@ export function ActivityStreamScreen({
       status: "soaking",
       statusColor: "#F0AB00",
       resource: "region:eu-west (25)",
+      changeTargets: "ESXi 7.0 → 8.0",
       progressType: "canary",
       canaryProgress: {
         p1: { current: 5, total: 5, status: "complete" },
@@ -180,6 +185,7 @@ export function ActivityStreamScreen({
       status: "active",
       statusColor: "#3E8635",
       resource: "env=prod (100)",
+      changeTargets: "CVE-2026-1234 fix",
       progressType: "simple",
       simpleProgress: { current: 15, total: 100, unit: "done" },
       created: "Mar 24, 2026 20:00",
@@ -1237,6 +1243,21 @@ export function ActivityStreamScreen({
                     color: "var(--muted-foreground)",
                   }}
                 >
+                  Change Targets
+                </SmallText>
+              </th>
+              <th
+                className="text-left px-4 py-3"
+                style={{
+                  borderBottom: "1px solid var(--border)",
+                }}
+              >
+                <SmallText
+                  style={{
+                    fontWeight: "var(--font-weight-medium)",
+                    color: "var(--muted-foreground)",
+                  }}
+                >
                   Status
                 </SmallText>
               </th>
@@ -1330,6 +1351,17 @@ export function ActivityStreamScreen({
                     }}
                   >
                     {activity.action}
+                  </SmallText>
+                </td>
+                <td className="px-4 py-3">
+                  <SmallText
+                    className="font-mono"
+                    style={{
+                      color: "var(--muted-foreground)",
+                      fontSize: "var(--text-xs)",
+                    }}
+                  >
+                    {activity.changeTargets || "—"}
                   </SmallText>
                 </td>
                 <td className="px-4 py-3">
@@ -1720,20 +1752,20 @@ function CanaryProgressStepper({
       <div>
         <TinyText muted>
           {p1Failed &&
-            `P1: ${progress.p1.failedCount}/${progress.p1.total} Failed`}
+            `Canary: ${progress.p1.failedCount}/${progress.p1.total} Failed`}
           {progress.p1.status === "complete" &&
             !p1Failed &&
-            `P1: Complete`}
+            `Canary: Complete`}
           {progress.p1.status === "active" &&
-            `P1: ${progress.p1.current}/${progress.p1.total}`}
+            `Canary: ${progress.p1.current}/${progress.p1.total}`}
           {progress.soak.status === "active" &&
             progress.soak.remaining &&
             `, Soak: ${progress.soak.remaining} remaining`}
           {progress.soak.status === "pending" &&
             ", Soak: Pending"}
-          {progress.p2.status === "pending" && ", P2: Pending"}
+          {progress.p2.status === "pending" && ", Fleet: Pending"}
           {progress.p2.status === "active" &&
-            `, P2: ${progress.p2.current}/${progress.p2.total}`}
+            `, Fleet: ${progress.p2.current}/${progress.p2.total}`}
         </TinyText>
       </div>
     </div>
