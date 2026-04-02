@@ -752,7 +752,7 @@ export function DeploymentDrilldownPage() {
             </TinyText>
           </div>
 
-          <StatusLabel variant="warning">Cancelled</StatusLabel>
+          <StatusLabel variant="cancelled">Cancelled</StatusLabel>
 
           <div className="mt-3">
             <TinyText muted>Auto-cancelled due to Canary failure</TinyText>
@@ -783,7 +783,7 @@ export function DeploymentDrilldownPage() {
             </TinyText>
           </div>
 
-          <StatusLabel variant="warning">Cancelled</StatusLabel>
+          <StatusLabel variant="cancelled">Cancelled</StatusLabel>
 
           <div className="mt-3">
             <TinyText muted>Auto-cancelled due to Canary failure</TinyText>
@@ -1431,8 +1431,8 @@ export function DeploymentDrilldownPage() {
                       width: `${widthPercent}%`,
                       top: "6px",
                       height: "20px",
-                      borderColor: isCancelled ? "#F0AB00" : "#0066CC",
-                      backgroundColor: isCancelled ? "rgba(240, 171, 0, 0.1)" : "rgba(0, 102, 204, 0.1)",
+                      borderColor: isCancelled ? "#6A6E73" : "#0066CC",
+                      backgroundColor: isCancelled ? "rgba(106, 110, 115, 0.1)" : "rgba(0, 102, 204, 0.1)",
                       borderRadius: "var(--radius)",
                     }}
                     onMouseEnter={() => setHoveredPhase("soak")}
@@ -1440,13 +1440,13 @@ export function DeploymentDrilldownPage() {
                   >
                     <div className="flex items-center justify-center h-full gap-1">
                       {isCancelled && (
-                        <svg className="size-2.5" fill="none" viewBox="0 0 12 12" style={{ color: "#F0AB00" }}>
+                        <svg className="size-2.5" fill="none" viewBox="0 0 12 12" style={{ color: "#6A6E73" }}>
                           <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
                       <TinyText
                         style={{
-                          color: isCancelled ? "#F0AB00" : "#0066CC",
+                          color: isCancelled ? "#6A6E73" : "#0066CC",
                           fontWeight: "var(--font-weight-semibold)",
                           fontSize: "10px",
                         }}
@@ -1533,22 +1533,22 @@ export function DeploymentDrilldownPage() {
                       width: `${widthPercent}%`,
                       top: "6px",
                       height: "20px",
-                      backgroundColor: isCancelled ? "rgba(240, 171, 0, 0.1)" : "#8A8D90",
+                      backgroundColor: isCancelled ? "rgba(106, 110, 115, 0.1)" : "#8A8D90",
                       borderRadius: "var(--radius)",
-                      border: isCancelled ? "2px dashed #F0AB00" : "2px solid #8A8D90",
+                      border: isCancelled ? "2px dashed #6A6E73" : "2px solid #8A8D90",
                     }}
                     onMouseEnter={() => setHoveredPhase("phase2")}
                     onMouseLeave={() => setHoveredPhase(null)}
                   >
                     <div className="flex items-center justify-center h-full gap-1">
                       {isCancelled && (
-                        <svg className="size-2.5" fill="none" viewBox="0 0 12 12" style={{ color: "#F0AB00" }}>
+                        <svg className="size-2.5" fill="none" viewBox="0 0 12 12" style={{ color: "#6A6E73" }}>
                           <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
                       <TinyText
                         style={{
-                          color: isCancelled ? "#F0AB00" : "white",
+                          color: isCancelled ? "#6A6E73" : "white",
                           fontWeight: "var(--font-weight-semibold)",
                           fontSize: "10px",
                         }}
@@ -1919,8 +1919,8 @@ export function DeploymentDrilldownPage() {
                           width: `${soakWidth * 100}%`,
                           top: "8px",
                           height: "8px",
-                          borderColor: deployment.soak.status === "cancelled" ? "#F0AB00" : "#0066CC",
-                          backgroundColor: deployment.soak.status === "cancelled" ? "rgba(240, 171, 0, 0.15)" : "rgba(0, 102, 204, 0.2)",
+                          borderColor: deployment.soak.status === "cancelled" ? "#6A6E73" : "#0066CC",
+                          backgroundColor: deployment.soak.status === "cancelled" ? "rgba(106, 110, 115, 0.15)" : "rgba(0, 102, 204, 0.2)",
                         }}
                       />
                       {/* Phase 2 */}
@@ -1931,8 +1931,8 @@ export function DeploymentDrilldownPage() {
                           width: `${p2Width * 100}%`,
                           top: "8px",
                           height: "8px",
-                          backgroundColor: deployment.phase2.status === "cancelled" ? "rgba(240, 171, 0, 0.15)" : "#8A8D90",
-                          border: deployment.phase2.status === "cancelled" ? "1px dashed #F0AB00" : "none",
+                          backgroundColor: deployment.phase2.status === "cancelled" ? "rgba(106, 110, 115, 0.15)" : "#8A8D90",
+                          border: deployment.phase2.status === "cancelled" ? "1px dashed #6A6E73" : "none",
                         }}
                       />
                     </>
@@ -2277,7 +2277,7 @@ function StatusLabel({
   variant,
   children,
 }: {
-  variant: "danger" | "info" | "warning" | "success";
+  variant: "danger" | "info" | "warning" | "success" | "cancelled";
   children: React.ReactNode;
 }) {
   const variantStyles = {
@@ -2301,6 +2301,11 @@ function StatusLabel({
       borderColor: "#3E8635",
       backgroundColor: "rgba(62, 134, 53, 0.05)",
     },
+    cancelled: {
+      color: "#6A6E73",
+      borderColor: "#6A6E73",
+      backgroundColor: "rgba(106, 110, 115, 0.05)",
+    },
   };
 
   const style = variantStyles[variant];
@@ -2314,10 +2319,16 @@ function StatusLabel({
         borderRadius: "calc(var(--radius) - 2px)",
       }}
     >
-      <div
-        className="size-2 rounded-full flex-shrink-0"
-        style={{ backgroundColor: style.color }}
-      />
+      {variant === "cancelled" ? (
+        <svg className="size-3 flex-shrink-0" fill="none" viewBox="0 0 12 12" style={{ color: style.color }}>
+          <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <div
+          className="size-2 rounded-full flex-shrink-0"
+          style={{ backgroundColor: style.color }}
+        />
+      )}
       <TinyText
         style={{
           color: style.color,
