@@ -53,12 +53,22 @@ export function DeploymentDrilldownPage() {
     x: 0,
     y: 0,
   });
+  const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null);
+  const [cursorTime, setCursorTime] = useState<{ time: Date; x: number } | null>(null);
+  const [hoveredPhase, setHoveredPhase] = useState<string | null>(null);
 
   const timelineRef = useRef<HTMLDivElement>(null);
+  const timelineTrackRef = useRef<HTMLDivElement>(null);
 
   // Get execution policy from location state, default to "Personal (Adi Cluster Admin)" if not provided
   const executionPolicy = (location.state as any)?.executionPolicy;
   const ranAsValue = executionPolicy?.runAs || "Personal (Adi Cluster Admin)";
+
+  // Zoom preset functions (defined early, uses deployment data below)
+  const zoomToFitAll = () => {
+    setZoomLevel(1);
+    setScrollPosition(0);
+  };
 
   // Mock deployment data
   // Timeline: Deployment starts Mar 24 22:00, Phase 1 processes 10 canary clusters
@@ -314,6 +324,99 @@ export function DeploymentDrilldownPage() {
     return date >= start && date <= end;
   };
 
+  // Zoom to show area around the safety brake/threshold
+  const zoomToThreshold = () => {
+    const thresholdPosition = getTimelinePosition(deployment.safetyBrakeTime);
+    const newZoom = 3; // 3x zoom
+    const viewportWidth = 1 / newZoom;
+    // Center on threshold
+    const targetLeft = thresholdPosition - viewportWidth / 2;
+    const maxScroll = 1 - viewportWidth;
+    const newScrollPosition = Math.max(0, Math.min(1, targetLeft / maxScroll));
+    setZoomLevel(newZoom);
+    setScrollPosition(newScrollPosition);
+  };
+
+  // Zoom to show Phase 1 only
+  const zoomToPhase1 = () => {
+    const p1Start = getTimelinePosition(deployment.phase1.start);
+    const p1End = getTimelinePosition(deployment.phase1.end);
+    const p1Width = p1End - p1Start;
+    // Add some padding
+    const paddedWidth = p1Width * 1.2;
+    const newZoom = Math.min(4, Math.max(1, 1 / paddedWidth));
+    const viewportWidth = 1 / newZoom;
+    const targetLeft = p1Start - (viewportWidth - p1Width) / 2;
+    const maxScroll = 1 - viewportWidth;
+    const newScrollPosition = maxScroll > 0 ? Math.max(0, Math.min(1, targetLeft / maxScroll)) : 0;
+    setZoomLevel(newZoom);
+    setScrollPosition(newScrollPosition);
+  };
+
+  // Get running tally at a specific time
+  const getRunningTally = (time: Date) => {
+    let successes = 0;
+    let failures = 0;
+    allEvents.forEach((event) => {
+      if (event.timestamp <= time) {
+        if (event.severity === "info") successes++;
+        else if (event.severity === "error" && !event.title.includes("Threshold")) failures++;
+      }
+    });
+    const pending = deployment.phase1.totalCount - successes - failures;
+    return { successes, failures, pending: Math.max(0, pending) };
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
+      switch (e.key) {
+        case "+":
+        case "=":
+          e.preventDefault();
+          setZoomLevel((z) => Math.min(4, z + 0.5));
+          break;
+        case "-":
+        case "_":
+          e.preventDefault();
+          setZoomLevel((z) => Math.max(1, z - 0.5));
+          break;
+        case "ArrowLeft":
+          if (zoomLevel > 1) {
+            e.preventDefault();
+            setScrollPosition((p) => Math.max(0, p - 0.1));
+          }
+          break;
+        case "ArrowRight":
+          if (zoomLevel > 1) {
+            e.preventDefault();
+            setScrollPosition((p) => Math.min(1, p + 0.1));
+          }
+          break;
+        case "f":
+        case "F":
+          if (!e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            zoomToFitAll();
+          }
+          break;
+        case "t":
+        case "T":
+          if (!e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            zoomToThreshold();
+          }
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [zoomLevel]);
+
   const formatDate = (date: Date) => {
     return date.toLocaleString("en-US", {
       month: "short",
@@ -547,25 +650,48 @@ export function DeploymentDrilldownPage() {
                 Failed clusters
               </TinyText>
               <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                {deployment.phase1.failedClusters.map((cluster) => (
-                  <div
-                    key={cluster.name}
-                    className="flex items-center justify-between text-xs"
-                  >
-                    <span
-                      className="font-mono px-1.5 py-0.5 rounded"
-                      style={{
-                        backgroundColor: "rgba(201, 25, 11, 0.1)",
-                        color: "#C9190B",
+                {deployment.phase1.failedClusters.map((cluster) => {
+                  // Find the corresponding event for this cluster
+                  const clusterEvent = allEvents.find((e) =>
+                    e.title.includes(cluster.name) && e.severity === "error"
+                  );
+                  return (
+                    <div
+                      key={cluster.name}
+                      className="flex items-center justify-between text-xs cursor-pointer hover:bg-secondary rounded transition-colors p-1 -m-1"
+                      onClick={() => {
+                        if (clusterEvent) {
+                          // Highlight the event
+                          setHighlightedEventId(clusterEvent.id);
+                          setTimeout(() => setHighlightedEventId(null), 2000);
+                          // Scroll timeline to show this event
+                          const pos = getTimelinePosition(clusterEvent.timestamp);
+                          const viewportWidth = 1 / zoomLevel;
+                          const targetLeft = pos - viewportWidth / 2;
+                          const maxScroll = 1 - viewportWidth;
+                          if (maxScroll > 0) {
+                            setScrollPosition(Math.max(0, Math.min(1, targetLeft / maxScroll)));
+                          }
+                        }
                       }}
+                      onMouseEnter={() => clusterEvent && setHighlightedEventId(clusterEvent.id)}
+                      onMouseLeave={() => setHighlightedEventId(null)}
                     >
-                      {cluster.name}
-                    </span>
-                    <TinyText muted className="truncate ml-2">
-                      {cluster.reason}
-                    </TinyText>
-                  </div>
-                ))}
+                      <span
+                        className="font-mono px-1.5 py-0.5 rounded"
+                        style={{
+                          backgroundColor: "rgba(201, 25, 11, 0.1)",
+                          color: "#C9190B",
+                        }}
+                      >
+                        {cluster.name}
+                      </span>
+                      <TinyText muted className="truncate ml-2">
+                        {cluster.reason}
+                      </TinyText>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -657,63 +783,109 @@ export function DeploymentDrilldownPage() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <SectionTitle>Diagnostic Timeline</SectionTitle>
-          <div className="flex items-center gap-2">
-            <TinyText muted>Zoom:</TinyText>
-            <button
-              onClick={() =>
-                setZoomLevel(Math.max(1, zoomLevel - 0.5))
-              }
-              className="p-1.5 border rounded hover:bg-secondary transition-colors"
-              style={{
-                borderColor: "var(--border)",
-                borderRadius: "var(--radius)",
-              }}
-            >
-              <svg
-                className="size-4"
-                fill="none"
-                viewBox="0 0 16 16"
+          <div className="flex items-center gap-4">
+            {/* Quick Zoom Presets */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={zoomToFitAll}
+                className="px-2 py-1 border rounded text-xs hover:bg-secondary transition-colors"
+                style={{
+                  borderColor: "var(--border)",
+                  borderRadius: "var(--radius)",
+                  color: zoomLevel === 1 ? "var(--primary)" : "inherit",
+                  fontWeight: zoomLevel === 1 ? 600 : 400,
+                }}
+                title="Fit all (F)"
               >
-                <path
-                  d="M4 8H12"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-            <SmallText
-              style={{
-                fontWeight: "var(--font-weight-medium)",
-                minWidth: "40px",
-                textAlign: "center",
-              }}
-            >
-              {zoomLevel}x
-            </SmallText>
-            <button
-              onClick={() =>
-                setZoomLevel(Math.min(4, zoomLevel + 0.5))
-              }
-              className="p-1.5 border rounded hover:bg-secondary transition-colors"
-              style={{
-                borderColor: "var(--border)",
-                borderRadius: "var(--radius)",
-              }}
-            >
-              <svg
-                className="size-4"
-                fill="none"
-                viewBox="0 0 16 16"
+                Fit all
+              </button>
+              <button
+                onClick={zoomToThreshold}
+                className="px-2 py-1 border rounded text-xs hover:bg-secondary transition-colors"
+                style={{
+                  borderColor: "var(--border)",
+                  borderRadius: "var(--radius)",
+                }}
+                title="Focus on threshold (T)"
               >
-                <path
-                  d="M8 4V12M4 8H12"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
+                Threshold
+              </button>
+              <button
+                onClick={zoomToPhase1}
+                className="px-2 py-1 border rounded text-xs hover:bg-secondary transition-colors"
+                style={{
+                  borderColor: "var(--border)",
+                  borderRadius: "var(--radius)",
+                }}
+                title="Focus on Phase 1"
+              >
+                Phase 1
+              </button>
+            </div>
+            
+            <div className="w-px h-4" style={{ backgroundColor: "var(--border)" }} />
+            
+            {/* Manual Zoom */}
+            <div className="flex items-center gap-2">
+              <TinyText muted>Zoom:</TinyText>
+              <button
+                onClick={() =>
+                  setZoomLevel(Math.max(1, zoomLevel - 0.5))
+                }
+                className="p-1.5 border rounded hover:bg-secondary transition-colors"
+                style={{
+                  borderColor: "var(--border)",
+                  borderRadius: "var(--radius)",
+                }}
+                title="Zoom out (-)"
+              >
+                <svg
+                  className="size-4"
+                  fill="none"
+                  viewBox="0 0 16 16"
+                >
+                  <path
+                    d="M4 8H12"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+              <SmallText
+                style={{
+                  fontWeight: "var(--font-weight-medium)",
+                  minWidth: "40px",
+                  textAlign: "center",
+                }}
+              >
+                {zoomLevel}x
+              </SmallText>
+              <button
+                onClick={() =>
+                  setZoomLevel(Math.min(4, zoomLevel + 0.5))
+                }
+                className="p-1.5 border rounded hover:bg-secondary transition-colors"
+                style={{
+                  borderColor: "var(--border)",
+                  borderRadius: "var(--radius)",
+                }}
+                title="Zoom in (+)"
+              >
+                <svg
+                  className="size-4"
+                  fill="none"
+                  viewBox="0 0 16 16"
+                >
+                  <path
+                    d="M8 4V12M4 8H12"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -991,8 +1163,18 @@ export function DeploymentDrilldownPage() {
 
             {/* Timeline Track - Swimlane Layout */}
             <div
-              className="relative"
+              ref={timelineTrackRef}
+              className="relative cursor-crosshair"
               style={{ height: "120px", marginLeft: "65px" }}
+              onMouseMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const xPercent = x / rect.width;
+                const { start, end } = getVisibleTimeWindow();
+                const timeAtCursor = new Date(start.getTime() + xPercent * (end.getTime() - start.getTime()));
+                setCursorTime({ time: timeAtCursor, x });
+              }}
+              onMouseLeave={() => setCursorTime(null)}
               onWheel={(e) => {
                 e.preventDefault();
                 const delta = e.deltaY > 0 ? -0.5 : 0.5;
@@ -1167,9 +1349,14 @@ export function DeploymentDrilldownPage() {
                     windowDuration) *
                   100;
 
+                const durationMs = p1End.getTime() - p1Start.getTime();
+                const hours = Math.floor(durationMs / (1000 * 60 * 60));
+                const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+                const durationStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
                 return (
                   <div
-                    className="absolute rounded"
+                    className="absolute rounded cursor-pointer"
                     style={{
                       left: `${leftPercent}%`,
                       width: `${widthPercent}%`,
@@ -1179,6 +1366,9 @@ export function DeploymentDrilldownPage() {
                       borderRadius: "var(--radius)",
                       border: "2px solid #0066CC",
                     }}
+                    onMouseEnter={() => setHoveredPhase("phase1")}
+                    onMouseLeave={() => setHoveredPhase(null)}
+                    onClick={zoomToPhase1}
                   >
                     <div className="flex items-center justify-center h-full">
                       <TinyText
@@ -1192,6 +1382,39 @@ export function DeploymentDrilldownPage() {
                         Canary
                       </TinyText>
                     </div>
+                    {hoveredPhase === "phase1" && (
+                      <div
+                        className="absolute z-30 px-3 py-2 rounded whitespace-nowrap"
+                        style={{
+                          top: "100%",
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          marginTop: "4px",
+                          backgroundColor: "var(--background)",
+                          border: "1px solid var(--border)",
+                          borderRadius: "var(--radius)",
+                          boxShadow: "0 4px 8px rgba(0,0,0,0.15)",
+                        }}
+                      >
+                        <TinyText style={{ fontWeight: 600, fontSize: "11px" }}>
+                          Canary Phase
+                        </TinyText>
+                        <div className="flex flex-col gap-0.5 mt-1">
+                          <TinyText muted style={{ fontSize: "10px" }}>
+                            Duration: {durationStr}
+                          </TinyText>
+                          <TinyText muted style={{ fontSize: "10px" }}>
+                            Clusters: {deployment.phase1.totalCount} ({deployment.phase1.successCount} ✓, {deployment.phase1.failedCount} ✗)
+                          </TinyText>
+                          <TinyText muted style={{ fontSize: "10px" }}>
+                            Status: {deployment.phase1.status === "failed" ? "Failed" : "Complete"}
+                          </TinyText>
+                        </div>
+                        <TinyText muted style={{ fontSize: "9px", marginTop: "4px", display: "block" }}>
+                          Click to zoom
+                        </TinyText>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -1227,10 +1450,13 @@ export function DeploymentDrilldownPage() {
                   100;
 
                 const isCancelled = deployment.soak.status === "cancelled";
+                const soakDurationMs = deployment.soak.end.getTime() - deployment.soak.start.getTime();
+                const soakHours = Math.floor(soakDurationMs / (1000 * 60 * 60));
+                const soakDurationStr = `${soakHours}h`;
 
                 return (
                   <div
-                    className="absolute rounded border-2 border-dashed"
+                    className="absolute rounded border-2 border-dashed cursor-pointer"
                     style={{
                       left: `${leftPercent}%`,
                       width: `${widthPercent}%`,
@@ -1241,6 +1467,8 @@ export function DeploymentDrilldownPage() {
                       borderRadius: "var(--radius)",
                       opacity: isCancelled ? 0.5 : 1,
                     }}
+                    onMouseEnter={() => setHoveredPhase("soak")}
+                    onMouseLeave={() => setHoveredPhase(null)}
                   >
                     <div className="flex items-center justify-center h-full gap-1">
                       {isCancelled && (
@@ -1259,6 +1487,38 @@ export function DeploymentDrilldownPage() {
                         Soak
                       </TinyText>
                     </div>
+                    {hoveredPhase === "soak" && (
+                      <div
+                        className="absolute z-30 px-3 py-2 rounded whitespace-nowrap"
+                        style={{
+                          top: "100%",
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          marginTop: "4px",
+                          backgroundColor: "var(--background)",
+                          border: "1px solid var(--border)",
+                          borderRadius: "var(--radius)",
+                          boxShadow: "0 4px 8px rgba(0,0,0,0.15)",
+                        }}
+                      >
+                        <TinyText style={{ fontWeight: 600, fontSize: "11px" }}>
+                          Soak Period
+                        </TinyText>
+                        <div className="flex flex-col gap-0.5 mt-1">
+                          <TinyText muted style={{ fontSize: "10px" }}>
+                            Planned: {soakDurationStr}
+                          </TinyText>
+                          <TinyText muted style={{ fontSize: "10px" }}>
+                            Status: {isCancelled ? "Cancelled" : "Pending"}
+                          </TinyText>
+                          {isCancelled && (
+                            <TinyText muted style={{ fontSize: "10px" }}>
+                              Reason: Canary phase failed
+                            </TinyText>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -1293,10 +1553,14 @@ export function DeploymentDrilldownPage() {
                   100;
 
                 const isCancelled = deployment.phase2.status === "cancelled";
+                const p2DurationMs = deployment.phase2.end.getTime() - deployment.phase2.start.getTime();
+                const p2Hours = Math.floor(p2DurationMs / (1000 * 60 * 60));
+                const p2Minutes = Math.floor((p2DurationMs % (1000 * 60 * 60)) / (1000 * 60));
+                const p2DurationStr = p2Hours > 0 ? `${p2Hours}h ${p2Minutes}m` : `${p2Minutes}m`;
 
                 return (
                   <div
-                    className="absolute rounded"
+                    className="absolute rounded cursor-pointer"
                     style={{
                       left: `${leftPercent}%`,
                       width: `${widthPercent}%`,
@@ -1307,6 +1571,8 @@ export function DeploymentDrilldownPage() {
                       border: isCancelled ? "2px dashed var(--muted-foreground)" : "2px solid #8A8D90",
                       opacity: isCancelled ? 0.5 : 1,
                     }}
+                    onMouseEnter={() => setHoveredPhase("phase2")}
+                    onMouseLeave={() => setHoveredPhase(null)}
                   >
                     <div className="flex items-center justify-center h-full gap-1">
                       {isCancelled && (
@@ -1325,115 +1591,211 @@ export function DeploymentDrilldownPage() {
                         Fleet
                       </TinyText>
                     </div>
+                    {hoveredPhase === "phase2" && (
+                      <div
+                        className="absolute z-30 px-3 py-2 rounded whitespace-nowrap"
+                        style={{
+                          top: "100%",
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          marginTop: "4px",
+                          backgroundColor: "var(--background)",
+                          border: "1px solid var(--border)",
+                          borderRadius: "var(--radius)",
+                          boxShadow: "0 4px 8px rgba(0,0,0,0.15)",
+                        }}
+                      >
+                        <TinyText style={{ fontWeight: 600, fontSize: "11px" }}>
+                          Fleet Rollout (Phase 2)
+                        </TinyText>
+                        <div className="flex flex-col gap-0.5 mt-1">
+                          <TinyText muted style={{ fontSize: "10px" }}>
+                            Planned: {p2DurationStr}
+                          </TinyText>
+                          <TinyText muted style={{ fontSize: "10px" }}>
+                            Clusters: {deployment.phase2.totalCount}
+                          </TinyText>
+                          <TinyText muted style={{ fontSize: "10px" }}>
+                            Status: {isCancelled ? "Cancelled" : "Pending"}
+                          </TinyText>
+                          {isCancelled && (
+                            <TinyText muted style={{ fontSize: "10px" }}>
+                              Reason: Canary phase failed
+                            </TinyText>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
 
-              {/* Success Events - Green dots (middle swimlane) */}
-              {allEvents
-                .filter(
-                  (e) =>
-                    e.severity === "info" &&
-                    isVisible(e.timestamp),
-                )
-                .map((event) => {
-                  const position = getVisiblePosition(
-                    event.timestamp,
+              {/* Success Events - Green dots (middle swimlane) with clustering */}
+              {(() => {
+                const successEvents = allEvents.filter(
+                  (e) => e.severity === "info" && isVisible(e.timestamp)
+                );
+                
+                // Cluster events that are too close together (within 3% of visible width)
+                const clusterThreshold = 0.03;
+                const clusters: { events: TimelineEvent[]; position: number }[] = [];
+                
+                successEvents.forEach((event) => {
+                  const pos = getVisiblePosition(event.timestamp);
+                  const existingCluster = clusters.find(
+                    (c) => Math.abs(c.position - pos) < clusterThreshold
                   );
-                  return (
-                    <div
-                      key={event.id}
-                      className="absolute cursor-pointer transition-transform hover:scale-125"
-                      style={{
-                        left: `${position * 100}%`,
-                        top: "48px",
-                        transform: "translateX(-50%)",
-                      }}
-                      onMouseEnter={(e) => {
-                        setHoveredEvent(event);
-                        const rect =
-                          e.currentTarget.getBoundingClientRect();
-                        setPopoverPosition({
-                          x: rect.left,
-                          y: rect.top - 10,
-                        });
-                      }}
-                      onMouseLeave={() => setHoveredEvent(null)}
-                      onClick={() => {
-                        const windowStart = new Date(
-                          event.timestamp.getTime() -
-                            7.5 * 60 * 1000,
-                        );
-                        const windowEnd = new Date(
-                          event.timestamp.getTime() +
-                            7.5 * 60 * 1000,
-                        );
-                        setSelectedTimeWindow({
-                          start: windowStart,
-                          end: windowEnd,
-                        });
-                      }}
-                    >
-                      <div
-                        className="size-3 rounded-full"
-                        style={{ backgroundColor: "#3E8635" }}
-                      />
-                    </div>
-                  );
-                })}
+                  if (existingCluster) {
+                    existingCluster.events.push(event);
+                    existingCluster.position = (existingCluster.position * (existingCluster.events.length - 1) + pos) / existingCluster.events.length;
+                  } else {
+                    clusters.push({ events: [event], position: pos });
+                  }
+                });
 
-              {/* Error Events - Red dots (bottom swimlane) */}
-              {allEvents
-                .filter(
-                  (e) =>
-                    e.severity === "error" &&
-                    isVisible(e.timestamp),
-                )
-                .map((event) => {
-                  const position = getVisiblePosition(
-                    event.timestamp,
-                  );
+                return clusters.map((cluster, idx) => {
+                  const isCluster = cluster.events.length > 1;
+                  const isHighlighted = cluster.events.some((e) => e.id === highlightedEventId);
+                  
                   return (
                     <div
-                      key={event.id}
-                      className="absolute cursor-pointer transition-transform hover:scale-125"
+                      key={`success-cluster-${idx}`}
+                      className="absolute cursor-pointer transition-all"
                       style={{
-                        left: `${position * 100}%`,
-                        top: "88px",
-                        transform: "translateX(-50%)",
+                        left: `${cluster.position * 100}%`,
+                        top: "48px",
+                        transform: `translateX(-50%) ${isHighlighted ? "scale(1.5)" : "scale(1)"}`,
+                        zIndex: isHighlighted ? 15 : 10,
                       }}
                       onMouseEnter={(e) => {
-                        setHoveredEvent(event);
-                        const rect =
-                          e.currentTarget.getBoundingClientRect();
-                        setPopoverPosition({
-                          x: rect.left,
-                          y: rect.top - 10,
-                        });
+                        if (cluster.events.length === 1) {
+                          setHoveredEvent(cluster.events[0]);
+                        } else {
+                          setHoveredEvent({
+                            ...cluster.events[0],
+                            title: `${cluster.events.length} successful updates`,
+                            description: cluster.events.map((ev) => ev.title.replace("Cluster ", "").replace(" - Upgrade successful", "")).join(", "),
+                          });
+                        }
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setPopoverPosition({ x: rect.left, y: rect.top - 10 });
                       }}
                       onMouseLeave={() => setHoveredEvent(null)}
                       onClick={() => {
-                        const windowStart = new Date(
-                          event.timestamp.getTime() -
-                            7.5 * 60 * 1000,
-                        );
-                        const windowEnd = new Date(
-                          event.timestamp.getTime() +
-                            7.5 * 60 * 1000,
-                        );
+                        const times = cluster.events.map((e) => e.timestamp.getTime());
+                        const minTime = Math.min(...times);
+                        const maxTime = Math.max(...times);
                         setSelectedTimeWindow({
-                          start: windowStart,
-                          end: windowEnd,
+                          start: new Date(minTime - 5 * 60 * 1000),
+                          end: new Date(maxTime + 5 * 60 * 1000),
                         });
                       }}
                     >
                       <div
-                        className="size-3 rounded-full"
-                        style={{ backgroundColor: "#C9190B" }}
-                      />
+                        className="rounded-full relative"
+                        style={{
+                          width: isCluster ? "18px" : "12px",
+                          height: isCluster ? "18px" : "12px",
+                          backgroundColor: "#3E8635",
+                          boxShadow: isHighlighted ? "0 0 0 3px rgba(62, 134, 53, 0.3)" : "none",
+                        }}
+                      >
+                        {isCluster && (
+                          <span
+                            className="absolute inset-0 flex items-center justify-center text-white"
+                            style={{ fontSize: "9px", fontWeight: 600 }}
+                          >
+                            {cluster.events.length}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   );
-                })}
+                });
+              })()}
+
+              {/* Error Events - Red dots (bottom swimlane) with clustering */}
+              {(() => {
+                const errorEvents = allEvents.filter(
+                  (e) => e.severity === "error" && isVisible(e.timestamp) && !e.title.includes("Threshold")
+                );
+                
+                const clusterThreshold = 0.03;
+                const clusters: { events: TimelineEvent[]; position: number }[] = [];
+                
+                errorEvents.forEach((event) => {
+                  const pos = getVisiblePosition(event.timestamp);
+                  const existingCluster = clusters.find(
+                    (c) => Math.abs(c.position - pos) < clusterThreshold
+                  );
+                  if (existingCluster) {
+                    existingCluster.events.push(event);
+                    existingCluster.position = (existingCluster.position * (existingCluster.events.length - 1) + pos) / existingCluster.events.length;
+                  } else {
+                    clusters.push({ events: [event], position: pos });
+                  }
+                });
+
+                return clusters.map((cluster, idx) => {
+                  const isCluster = cluster.events.length > 1;
+                  const isHighlighted = cluster.events.some((e) => e.id === highlightedEventId);
+                  
+                  return (
+                    <div
+                      key={`error-cluster-${idx}`}
+                      className="absolute cursor-pointer transition-all"
+                      style={{
+                        left: `${cluster.position * 100}%`,
+                        top: "88px",
+                        transform: `translateX(-50%) ${isHighlighted ? "scale(1.5)" : "scale(1)"}`,
+                        zIndex: isHighlighted ? 15 : 10,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (cluster.events.length === 1) {
+                          setHoveredEvent(cluster.events[0]);
+                        } else {
+                          setHoveredEvent({
+                            ...cluster.events[0],
+                            title: `${cluster.events.length} failures`,
+                            description: cluster.events.map((ev) => ev.title.split(" - ")[0]).join(", "),
+                          });
+                        }
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setPopoverPosition({ x: rect.left, y: rect.top - 10 });
+                      }}
+                      onMouseLeave={() => setHoveredEvent(null)}
+                      onClick={() => {
+                        const times = cluster.events.map((e) => e.timestamp.getTime());
+                        const minTime = Math.min(...times);
+                        const maxTime = Math.max(...times);
+                        setSelectedTimeWindow({
+                          start: new Date(minTime - 5 * 60 * 1000),
+                          end: new Date(maxTime + 5 * 60 * 1000),
+                        });
+                      }}
+                    >
+                      <div
+                        className="rounded-full relative"
+                        style={{
+                          width: isCluster ? "18px" : "12px",
+                          height: isCluster ? "18px" : "12px",
+                          backgroundColor: "#C9190B",
+                          boxShadow: isHighlighted ? "0 0 0 3px rgba(201, 25, 11, 0.3)" : "none",
+                        }}
+                      >
+                        {isCluster && (
+                          <span
+                            className="absolute inset-0 flex items-center justify-center text-white"
+                            style={{ fontSize: "9px", fontWeight: 600 }}
+                          >
+                            {cluster.events.length}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
 
               {/* Safety Brake Marker */}
               {isVisible(deployment.safetyBrakeTime) && (
@@ -1467,6 +1829,62 @@ export function DeploymentDrilldownPage() {
                     >
                       Error Threshold Reached
                     </TinyText>
+                  </div>
+                </div>
+              )}
+
+              {/* Cursor Time Indicator */}
+              {cursorTime && (
+                <div
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: cursorTime.x,
+                    top: 0,
+                    height: "100%",
+                    transform: "translateX(-50%)",
+                    zIndex: 20,
+                  }}
+                >
+                  <div
+                    className="w-px h-full"
+                    style={{ backgroundColor: "var(--muted-foreground)", opacity: 0.5 }}
+                  />
+                  <div
+                    className="absolute -top-8 px-2 py-1 rounded whitespace-nowrap"
+                    style={{
+                      backgroundColor: "var(--background)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "var(--radius)",
+                      transform: "translateX(-50%)",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    }}
+                  >
+                    <TinyText style={{ fontSize: "10px", fontWeight: 500 }}>
+                      {cursorTime.time.toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </TinyText>
+                    {(() => {
+                      const tally = getRunningTally(cursorTime.time);
+                      return (
+                        <div className="flex gap-2 mt-0.5">
+                          <TinyText style={{ fontSize: "9px", color: "#3E8635" }}>
+                            {tally.successes} ✓
+                          </TinyText>
+                          <TinyText style={{ fontSize: "9px", color: "#C9190B" }}>
+                            {tally.failures} ✗
+                          </TinyText>
+                          {tally.pending > 0 && (
+                            <TinyText muted style={{ fontSize: "9px" }}>
+                              {tally.pending} pending
+                            </TinyText>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -1776,7 +2194,28 @@ export function DeploymentDrilldownPage() {
               filteredEvents.map((event) => (
                 <div
                   key={event.id}
-                  className="p-4 hover:bg-secondary transition-colors"
+                  className="p-4 hover:bg-secondary transition-colors cursor-pointer"
+                  style={{
+                    backgroundColor: highlightedEventId === event.id ? "var(--secondary)" : undefined,
+                    borderLeft: highlightedEventId === event.id 
+                      ? `3px solid ${event.severity === "error" ? "#C9190B" : "#3E8635"}`
+                      : "3px solid transparent",
+                  }}
+                  onMouseEnter={() => setHighlightedEventId(event.id)}
+                  onMouseLeave={() => setHighlightedEventId(null)}
+                  onClick={() => {
+                    // Scroll timeline to show this event
+                    const pos = getTimelinePosition(event.timestamp);
+                    const viewportWidth = 1 / zoomLevel;
+                    const targetLeft = pos - viewportWidth / 2;
+                    const maxScroll = 1 - viewportWidth;
+                    if (maxScroll > 0) {
+                      setScrollPosition(Math.max(0, Math.min(1, targetLeft / maxScroll)));
+                    }
+                    // Highlight briefly
+                    setHighlightedEventId(event.id);
+                    setTimeout(() => setHighlightedEventId(null), 2000);
+                  }}
                 >
                   <div className="flex items-start gap-3">
                     <div
@@ -1787,7 +2226,7 @@ export function DeploymentDrilldownPage() {
                             ? "#C9190B"
                             : event.severity === "warning"
                               ? "#F0AB00"
-                              : "#0066CC",
+                              : "#3E8635",
                       }}
                     />
                     <div className="flex-1">
