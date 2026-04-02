@@ -10,6 +10,12 @@ import {
   ModalContent,
 } from "./UIComponents";
 
+/** Stored `runAs` value when the user selects Platform in Identity & Approval. */
+export const RUN_AS_PLATFORM_VALUE = "Platform Service";
+
+/** Stored `runAs` value for the logged-in user (“You”) in Identity & Approval. */
+export const RUN_AS_YOU_VALUE = "Personal (Adi Cluster Admin)";
+
 interface CreateClusterWizardProps {
   onComplete: (formData: any) => void;
   onCancel: () => void;
@@ -35,7 +41,7 @@ export function CreateClusterWizard({
     baseDomain: "example.com",
     cpuArchitecture: "x86_64",
     saveAsTemplate: false,
-    runAs: "Personal (Adi Cluster Admin)",
+    runAs: RUN_AS_YOU_VALUE,
     requireManualConfirmation: false,
   });
 
@@ -857,7 +863,7 @@ function ExecutionPolicyStep({
             color: "var(--foreground)",
           }}
         >
-          <option value="Personal (Adi Cluster Admin)">
+          <option value={RUN_AS_YOU_VALUE}>
             You: Adi Cluster Admin
           </option>
           <option value="Service account: ome-system-manager-sa">
@@ -866,7 +872,7 @@ function ExecutionPolicyStep({
           <option value="Service account: bulk-upgrade-worker-v4">
             Service account: bulk-upgrade-worker-v4
           </option>
-          <option value="Platform Service">Platform</option>
+          <option value={RUN_AS_PLATFORM_VALUE}>Platform</option>
         </select>
       </div>
 

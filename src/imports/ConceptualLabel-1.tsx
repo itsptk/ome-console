@@ -1,22 +1,22 @@
 import { Home } from 'lucide-react';
+import { Link } from 'react-router';
 
 export function ConceptualLabel() {
   return (
     <div className="fixed bottom-20 right-4 flex items-center gap-2 z-50">
-      {/* Home Button */}
-      <a
-        href="https://drop-shut-45494522.figma.site"
+      {/* Home Button — prototype title page */}
+      <Link
+        to="/"
         className="px-3 py-2 bg-background/80 backdrop-blur-sm border hover:opacity-80 transition-opacity flex items-center justify-center"
-        style={{ 
+        style={{
           borderColor: '#FF13F0',
           borderRadius: 'var(--radius)',
           color: '#FF13F0',
-          cursor: 'pointer',
         }}
-        aria-label="Return to home"
+        aria-label="Return to prototype title page"
       >
         <Home className="w-4 h-4" />
-      </a>
+      </Link>
 
       {/* Conceptual Label */}
       <div 

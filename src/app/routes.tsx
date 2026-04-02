@@ -15,6 +15,7 @@ import { DeploymentsPage } from "./pages/DeploymentsPage";
 import { DeploymentDrilldownPage } from "./pages/DeploymentDrilldownPage";
 import { ActivityDetailPage } from "./pages/ActivityDetailPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { TitlePage } from "./pages/TitlePage";
 
 const basename =
   import.meta.env.BASE_URL === "/"
@@ -26,8 +27,9 @@ const routeTree = [
     path: "/",
     Component: RootLayout,
     children: [
-      { index: true, Component: OverviewPage },
-      { path: "deployments", Component: DeploymentsPage },
+      { index: true, Component: TitlePage },
+      { path: "overview", Component: OverviewPage },
+    { path: "deployments", Component: DeploymentsPage },
       { path: "deployments/:deploymentId", Component: DeploymentDrilldownPage },
       { path: "clusters", Component: ClustersPage },
       { path: "clusters/:clusterId", Component: ClusterDetailPage },

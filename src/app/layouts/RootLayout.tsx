@@ -56,22 +56,25 @@ function Header({
           <HamburgerIcon />
         </IconButton>
 
-        {/* Logo */}
-        <div className="flex items-center justify-center size-[32px]">
-          <img alt="Red Hat" className="size-full object-contain" src={imgImageRedHat} />
-        </div>
-
-        {/* Product Name */}
-        <div className="flex items-center">
-          <span style={{ 
-            fontFamily: 'var(--font-family-display)', 
-            fontSize: 'var(--text-base)', 
-            fontWeight: 'var(--font-weight-medium)',
-            color: 'var(--foreground)'
-          }}>
+        {/* Logo + product name → title page */}
+        <Link
+          to="/"
+          className="flex items-center gap-3 shrink-0 rounded-[var(--radius)] outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          <div className="flex items-center justify-center size-[32px]">
+            <img alt="Red Hat" className="size-full object-contain" src={imgImageRedHat} />
+          </div>
+          <span
+            style={{
+              fontFamily: 'var(--font-family-display)',
+              fontSize: 'var(--text-base)',
+              fontWeight: 'var(--font-weight-medium)',
+              color: 'var(--foreground)',
+            }}
+          >
             Red Hat OpenShift Management Engine
           </span>
-        </div>
+        </Link>
 
         {/* Search bar */}
         <div className="flex-1 max-w-[768px]">
@@ -289,7 +292,7 @@ function Navigation({ currentUser }: { currentUser: User }) {
   const mainNavItems: NavItem[] = [
     {
       label: 'Overview',
-      path: '/',
+      path: '/overview',
       icon: (
         <svg fill="none" viewBox="0 0 20 20" className="size-full">
           <rect x="2" y="2" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.5" />
@@ -467,8 +470,10 @@ function Navigation({ currentUser }: { currentUser: User }) {
               key={item.label} 
               {...item} 
               isActive={
-                location.pathname === item.path || 
-                (item.path !== '/' && location.pathname.startsWith(item.path))
+                location.pathname === item.path ||
+                (item.path !== '/' &&
+                  item.path !== '/overview' &&
+                  location.pathname.startsWith(item.path))
               }
             />
           ))}
@@ -491,8 +496,22 @@ function Navigation({ currentUser }: { currentUser: User }) {
 }
 
 export function RootLayout() {
+  const location = useLocation();
+  const isTitlePage = location.pathname === '/';
+
   const [isAlertsPanelOpen, setIsAlertsPanelOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(users[0]);
+
+  if (isTitlePage) {
+    return (
+      <div className="h-screen flex flex-col bg-background">
+        <main className="flex flex-1 min-h-0 flex-col overflow-y-auto">
+          <Outlet />
+        </main>
+        <ConceptualLabel />
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-background">

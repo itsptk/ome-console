@@ -1,7 +1,12 @@
 import { CardTitle, SmallText, TinyText, Badge, SecondaryButton, PrimaryButton, IconButton } from './UIComponents';
 import { Link, useSearchParams } from 'react-router';
 import { useState, useEffect } from 'react';
-import { CreateClusterWizard } from './CreateClusterWizard';
+import {
+  CreateClusterWizard,
+  RUN_AS_PLATFORM_VALUE,
+  RUN_AS_YOU_VALUE,
+} from './CreateClusterWizard';
+import { PlatformSigningFlow } from '../app/components/deployments/PlatformSigningFlow';
 import { SmartphoneAuth } from '../app/components/deployments/SmartphoneAuth';
 import { YamlConfirmationModal } from '../app/components/deployments/YamlConfirmationModal';
 
@@ -14,6 +19,7 @@ export function ClustersPage() {
   const [showWizard, setShowWizard] = useState(false);
   const [showSmartphoneAuth, setShowSmartphoneAuth] = useState(false);
   const [showYamlConfirmation, setShowYamlConfirmation] = useState(false);
+  const [showPlatformSigning, setShowPlatformSigning] = useState(false);
   const [hasAuthorized, setHasAuthorized] = useState(false);
   const [fastForwardStage, setFastForwardStage] = useState(0); // 0 = initial, 1 = after first FF, 2 = after auth, 3 = completed
   const [pendingClusterData, setPendingClusterData] = useState<any>(null);
@@ -192,18 +198,40 @@ export function ClustersPage() {
   };
 
   const handleClusterCreation = (formData: any) => {
-    // Check if manual confirmation is required
+    setShowWizard(false);
+
+    if (formData.runAs === RUN_AS_PLATFORM_VALUE) {
+      setPendingClusterData(formData);
+      setShowPlatformSigning(true);
+      return;
+    }
+
     if (formData.requireManualConfirmation) {
-      // Store the cluster data and show YAML confirmation modal
       setPendingClusterData(formData);
       setRequiresManualConfirmation(true);
-      setShowWizard(false);
       setShowYamlConfirmation(true);
     } else {
-      // Create cluster immediately
       createCluster(formData);
-      setShowWizard(false);
     }
+  };
+
+  const handlePlatformSigningComplete = () => {
+    setShowPlatformSigning(false);
+    const data = pendingClusterData;
+    if (!data) return;
+
+    if (data.requireManualConfirmation) {
+      setRequiresManualConfirmation(true);
+      setShowYamlConfirmation(true);
+    } else {
+      createCluster(data);
+      setPendingClusterData(null);
+    }
+  };
+
+  const handlePlatformSigningCancel = () => {
+    setShowPlatformSigning(false);
+    setPendingClusterData(null);
   };
 
   const createCluster = (formData: any) => {
@@ -222,6 +250,8 @@ export function ClustersPage() {
       namespace: 'default',
       ipAddress: 'Pending',
       created: 'Just now',
+      /** Identity & Approval choice; drives phone auth demo only for run-as-you. */
+      runAs: formData.runAs as string,
     };
 
     // Add new cluster to the beginning of the list
@@ -244,20 +274,52 @@ export function ClustersPage() {
   };
 
   const handleFastForward = () => {
+    const top = clusters[0];
+    if (!top) return;
+    const needsPhoneAuthorization = top.runAs === RUN_AS_YOU_VALUE;
+
     if (fastForwardStage === 0) {
-      // First fast forward: change to "Paused - pending authorization"
-      // This happens regardless of whether manual confirmation was used
-      setClusters(prevClusters => {
+      if (top.status !== 'Provisioning') return;
+
+      // Run as you: time advances until the cluster waits for out-of-band approval (phone).
+      if (needsPhoneAuthorization) {
+        setClusters((prevClusters) => {
+          const updated = [...prevClusters];
+          if (updated[0] && updated[0].status === 'Provisioning') {
+            updated[0] = {
+              ...updated[0],
+              status: 'Paused - pending authorization',
+            };
+          }
+          return updated;
+        });
+        setFastForwardStage(1);
+        return;
+      }
+
+      // Run as platform (or service account): user already satisfied auth; skip phone pause.
+      setClusters((prevClusters) => {
         const updated = [...prevClusters];
         if (updated[0] && updated[0].status === 'Provisioning') {
-          updated[0] = { ...updated[0], status: 'Paused - pending authorization' };
+          updated[0] = {
+            ...updated[0],
+            status: 'Healthy',
+            version: 'OpenShift 4.16.0',
+            nodes: 3,
+            cpu: 48,
+            memory: '384 GB',
+            location: 'US East',
+            region: 'us-east-1',
+            ipAddress: '10.128.5.20',
+          };
         }
         return updated;
       });
-      setFastForwardStage(1);
+      setFastForwardStage(3);
+      setRequiresManualConfirmation(false);
     } else if (fastForwardStage === 2) {
-      // Third fast forward (after auth): change to "Healthy"
-      setClusters(prevClusters => {
+      // After phone approval: provisioning completes.
+      setClusters((prevClusters) => {
         const updated = [...prevClusters];
         if (updated[0] && updated[0].status === 'Provisioning') {
           updated[0] = {
@@ -300,7 +362,10 @@ export function ClustersPage() {
   // Check if we should show fast forward button
   const hasProvisioningCluster = clusters.some(c => c.status === 'Provisioning' || c.status === 'Paused - pending authorization');
   const showFastForwardButton = hasProvisioningCluster && fastForwardStage !== 3;
-  const showCheckPhoneButton = fastForwardStage === 1 && clusters[0]?.status === 'Paused - pending authorization';
+  const showCheckPhoneButton =
+    fastForwardStage === 1 &&
+    clusters[0]?.status === 'Paused - pending authorization' &&
+    clusters[0]?.runAs === RUN_AS_YOU_VALUE;
 
   return (
     <div className="p-8">
@@ -937,6 +1002,14 @@ export function ClustersPage() {
         <CreateClusterWizard
           onComplete={handleClusterCreation}
           onCancel={() => setShowWizard(false)}
+        />
+      )}
+
+      {showPlatformSigning && pendingClusterData && (
+        <PlatformSigningFlow
+          clusterName={pendingClusterData.clusterName ?? 'cluster'}
+          onComplete={handlePlatformSigningComplete}
+          onCancel={handlePlatformSigningCancel}
         />
       )}
 
