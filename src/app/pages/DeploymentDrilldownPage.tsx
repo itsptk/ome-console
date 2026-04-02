@@ -993,6 +993,27 @@ export function DeploymentDrilldownPage() {
             <div
               className="relative"
               style={{ height: "120px", marginLeft: "65px" }}
+              onWheel={(e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? -0.5 : 0.5;
+                const newZoom = Math.max(1, Math.min(4, zoomLevel + delta));
+                if (newZoom !== zoomLevel) {
+                  // Adjust scroll position to zoom toward cursor
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const cursorX = (e.clientX - rect.left) / rect.width;
+                  const oldViewportWidth = 1 / zoomLevel;
+                  const newViewportWidth = 1 / newZoom;
+                  const oldLeft = scrollPosition * (1 - oldViewportWidth);
+                  const cursorPositionInTimeline = oldLeft + cursorX * oldViewportWidth;
+                  const newLeft = cursorPositionInTimeline - cursorX * newViewportWidth;
+                  const maxNewScroll = 1 - newViewportWidth;
+                  const newScrollPosition = maxNewScroll > 0 
+                    ? Math.max(0, Math.min(1, newLeft / maxNewScroll))
+                    : 0;
+                  setZoomLevel(newZoom);
+                  setScrollPosition(newScrollPosition);
+                }
+              }}
             >
               {/* Swimlane Labels */}
               <div
@@ -1451,36 +1472,211 @@ export function DeploymentDrilldownPage() {
               )}
             </div>
 
-            {/* Scrubber - Interactive slider */}
-            <div className="mt-8">
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={scrollPosition * 100}
-                onChange={(e) =>
-                  setScrollPosition(
-                    parseFloat(e.target.value) / 100,
-                  )
-                }
-                disabled={zoomLevel === 1}
-                className="w-full"
+            {/* Mini-map Navigator */}
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-2">
+                <TinyText muted style={{ fontSize: "10px" }}>
+                  Overview — {zoomLevel === 1 ? "showing full timeline" : "drag viewport to navigate"}
+                </TinyText>
+                <TinyText muted style={{ fontSize: "10px" }}>
+                  Click events for details
+                </TinyText>
+              </div>
+              <div
+                className="relative border rounded"
                 style={{
-                  accentColor: "var(--primary)",
-                  cursor:
-                    zoomLevel === 1 ? "not-allowed" : "pointer",
-                  opacity: zoomLevel === 1 ? 0.5 : 1,
+                  height: "48px",
+                  backgroundColor: "var(--secondary)",
+                  borderColor: "var(--border)",
+                  borderRadius: "var(--radius)",
+                  cursor: zoomLevel > 1 ? "pointer" : "default",
                 }}
-              />
-              <div className="flex justify-between mt-1">
-                <TinyText muted style={{ fontSize: "10px" }}>
-                  {zoomLevel === 1
-                    ? "Zoom in to enable navigation"
-                    : "Drag to navigate timeline"}
-                </TinyText>
-                <TinyText muted style={{ fontSize: "10px" }}>
-                  Click red dots for 15-min window
-                </TinyText>
+                onClick={(e) => {
+                  if (zoomLevel === 1) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const clickX = (e.clientX - rect.left) / rect.width;
+                  // Center the viewport on click position
+                  const viewportWidth = 1 / zoomLevel;
+                  const newPosition = Math.max(0, Math.min(1 - viewportWidth, clickX - viewportWidth / 2));
+                  const maxScroll = 1 - viewportWidth;
+                  setScrollPosition(maxScroll > 0 ? newPosition / maxScroll : 0);
+                }}
+              >
+                {/* Phase bars in mini-map */}
+                {(() => {
+                  const totalDuration = deployment.endTime.getTime() - deployment.startTime.getTime();
+                  const p1Start = (deployment.phase1.start.getTime() - deployment.startTime.getTime()) / totalDuration;
+                  const p1Width = (deployment.phase1.end.getTime() - deployment.phase1.start.getTime()) / totalDuration;
+                  const soakStart = (deployment.soak.start.getTime() - deployment.startTime.getTime()) / totalDuration;
+                  const soakWidth = (deployment.soak.end.getTime() - deployment.soak.start.getTime()) / totalDuration;
+                  const p2Start = (deployment.phase2.start.getTime() - deployment.startTime.getTime()) / totalDuration;
+                  const p2Width = (deployment.phase2.end.getTime() - deployment.phase2.start.getTime()) / totalDuration;
+                  
+                  return (
+                    <>
+                      {/* Phase 1 */}
+                      <div
+                        className="absolute rounded-sm"
+                        style={{
+                          left: `${p1Start * 100}%`,
+                          width: `${p1Width * 100}%`,
+                          top: "8px",
+                          height: "8px",
+                          backgroundColor: "#0066CC",
+                        }}
+                      />
+                      {/* Soak */}
+                      <div
+                        className="absolute rounded-sm border border-dashed"
+                        style={{
+                          left: `${soakStart * 100}%`,
+                          width: `${soakWidth * 100}%`,
+                          top: "8px",
+                          height: "8px",
+                          borderColor: deployment.soak.status === "cancelled" ? "var(--muted-foreground)" : "#0066CC",
+                          backgroundColor: deployment.soak.status === "cancelled" ? "transparent" : "rgba(0, 102, 204, 0.2)",
+                          opacity: deployment.soak.status === "cancelled" ? 0.4 : 1,
+                        }}
+                      />
+                      {/* Phase 2 */}
+                      <div
+                        className="absolute rounded-sm"
+                        style={{
+                          left: `${p2Start * 100}%`,
+                          width: `${p2Width * 100}%`,
+                          top: "8px",
+                          height: "8px",
+                          backgroundColor: deployment.phase2.status === "cancelled" ? "transparent" : "#8A8D90",
+                          border: deployment.phase2.status === "cancelled" ? "1px dashed var(--muted-foreground)" : "none",
+                          opacity: deployment.phase2.status === "cancelled" ? 0.4 : 1,
+                        }}
+                      />
+                    </>
+                  );
+                })()}
+
+                {/* Success events in mini-map */}
+                {allEvents
+                  .filter((e) => e.severity === "info")
+                  .map((event) => {
+                    const position = getTimelinePosition(event.timestamp);
+                    return (
+                      <div
+                        key={`mini-${event.id}`}
+                        className="absolute"
+                        style={{
+                          left: `${position * 100}%`,
+                          top: "22px",
+                          transform: "translateX(-50%)",
+                        }}
+                      >
+                        <div
+                          className="size-1.5 rounded-full"
+                          style={{ backgroundColor: "#3E8635" }}
+                        />
+                      </div>
+                    );
+                  })}
+
+                {/* Error events in mini-map */}
+                {allEvents
+                  .filter((e) => e.severity === "error")
+                  .map((event) => {
+                    const position = getTimelinePosition(event.timestamp);
+                    return (
+                      <div
+                        key={`mini-${event.id}`}
+                        className="absolute"
+                        style={{
+                          left: `${position * 100}%`,
+                          top: "32px",
+                          transform: "translateX(-50%)",
+                        }}
+                      >
+                        <div
+                          className="size-1.5 rounded-full"
+                          style={{ backgroundColor: "#C9190B" }}
+                        />
+                      </div>
+                    );
+                  })}
+
+                {/* Safety brake line in mini-map */}
+                <div
+                  className="absolute"
+                  style={{
+                    left: `${getTimelinePosition(deployment.safetyBrakeTime) * 100}%`,
+                    top: "4px",
+                    height: "40px",
+                    transform: "translateX(-50%)",
+                  }}
+                >
+                  <div
+                    className="w-px h-full"
+                    style={{ backgroundColor: "#C9190B" }}
+                  />
+                </div>
+
+                {/* Viewport indicator */}
+                {zoomLevel > 1 && (
+                  <div
+                    className="absolute top-0 h-full border-2 rounded transition-all"
+                    style={{
+                      left: `${(scrollPosition * (1 - 1 / zoomLevel)) * 100}%`,
+                      width: `${(1 / zoomLevel) * 100}%`,
+                      borderColor: "var(--primary)",
+                      backgroundColor: "rgba(0, 102, 204, 0.1)",
+                      borderRadius: "var(--radius)",
+                      cursor: "grab",
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      const startX = e.clientX;
+                      const startPosition = scrollPosition;
+                      const container = e.currentTarget.parentElement;
+                      if (!container) return;
+                      const containerWidth = container.getBoundingClientRect().width;
+                      const viewportWidthRatio = 1 / zoomLevel;
+                      const maxScroll = 1 - viewportWidthRatio;
+
+                      const handleMouseMove = (moveEvent: MouseEvent) => {
+                        const deltaX = moveEvent.clientX - startX;
+                        const deltaRatio = deltaX / containerWidth;
+                        const newPosition = Math.max(0, Math.min(1, startPosition + deltaRatio / maxScroll));
+                        setScrollPosition(newPosition);
+                      };
+
+                      const handleMouseUp = () => {
+                        document.removeEventListener("mousemove", handleMouseMove);
+                        document.removeEventListener("mouseup", handleMouseUp);
+                      };
+
+                      document.addEventListener("mousemove", handleMouseMove);
+                      document.addEventListener("mouseup", handleMouseUp);
+                    }}
+                  >
+                    {/* Grip lines */}
+                    <div className="absolute inset-0 flex items-center justify-center gap-0.5 opacity-50">
+                      <div className="w-px h-3 bg-current" style={{ color: "var(--primary)" }} />
+                      <div className="w-px h-3 bg-current" style={{ color: "var(--primary)" }} />
+                      <div className="w-px h-3 bg-current" style={{ color: "var(--primary)" }} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Time labels */}
+                <div
+                  className="absolute bottom-1 left-1"
+                  style={{ fontSize: "9px", color: "var(--muted-foreground)" }}
+                >
+                  {deployment.startTime.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}
+                </div>
+                <div
+                  className="absolute bottom-1 right-1"
+                  style={{ fontSize: "9px", color: "var(--muted-foreground)" }}
+                >
+                  {deployment.endTime.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}
+                </div>
               </div>
             </div>
           </div>
