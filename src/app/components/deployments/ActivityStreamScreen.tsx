@@ -1817,11 +1817,11 @@ function CanaryProgressStepper({
             ", Soak: Pending"}
           {progress.soak.status === "cancelled" &&
             " → Soak: Cancelled"}
-          {progress.p2.status === "pending" && ", Fleet: Pending"}
+          {progress.p2.status === "pending" && ", Full rollout: Pending"}
           {progress.p2.status === "active" &&
-            `, Fleet: ${progress.p2.current}/${progress.p2.total}`}
+            `, Full rollout: ${progress.p2.current}/${progress.p2.total}`}
           {progress.p2.status === "cancelled" &&
-            " → Fleet: Cancelled"}
+            " → Full rollout: Cancelled"}
         </TinyText>
       </div>
     </div>

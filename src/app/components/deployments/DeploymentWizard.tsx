@@ -1990,7 +1990,7 @@ function Step3Content({
                     <option value="7d">7 days</option>
                   </select>
                   <TinyText muted className="mt-1">
-                    Observation time after canary deployment before proceeding to general rollout
+                    Observation time after canary deployment before proceeding to full rollout
                   </TinyText>
                 </div>
 
@@ -2055,7 +2055,7 @@ function Step3Content({
                     <div>
                       <SmallText>Auto-promote after soak</SmallText>
                       <TinyText muted className="mt-0.5">
-                        Automatically proceed to general rollout if soak passes without errors
+                        Automatically proceed to full rollout if soak passes without errors
                       </TinyText>
                     </div>
                   </label>
@@ -2064,7 +2064,7 @@ function Step3Content({
             )}
           </div>
 
-          {/* 5. Phase 2: General rollout */}
+          {/* 5. Phase 2: Full rollout */}
           <div
             className="border rounded overflow-hidden"
             style={{
@@ -2086,7 +2086,7 @@ function Step3Content({
                   fontWeight: "var(--font-weight-medium)",
                 }}
               >
-                Phase 2: General rollout
+                Phase 2: Full rollout
               </SmallText>
               <svg
                 className="size-5 transition-transform"
@@ -2962,7 +2962,7 @@ function Step5Content({ formData }: { formData: any }) {
               }}
               className="mb-4"
             >
-              Phase 2: General rollout
+              Phase 2: Full rollout
             </SmallText>
 
             <div className="space-y-3">

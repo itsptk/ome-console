@@ -776,7 +776,7 @@ export function DeploymentDrilldownPage() {
                 color: "var(--muted-foreground)",
               }}
             >
-              Phase 2: Fleet rollout
+              Phase 2: Full rollout
             </SmallText>
             <TinyText muted className="mt-0.5">
               {deployment.phase2.totalCount} clusters
