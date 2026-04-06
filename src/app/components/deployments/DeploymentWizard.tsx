@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   ModalOverlay,
-  ModalContent,
   CardTitle,
   BodyText,
   SmallText,
@@ -13,116 +12,153 @@ import {
   LinkButton,
   SearchInput,
 } from "../../../imports/UIComponents";
+import { Alert } from "@patternfly/react-core";
+// Use base-no-reset to get PF styling without global CSS resets affecting other elements
+import "@patternfly/react-core/dist/styles/base-no-reset.css";
 
 interface DeploymentWizardProps {
   onComplete: (formData?: any) => void;
   onCancel: () => void;
 }
 
-type ChangeType = "update" | "operator" | "policy" | "vm-image";
+type ActionType = "update" | "install" | "apply" | "delete" | "create";
 
-type ChangeOption = {
+type ActionOption = {
   id: string;
-  type: ChangeType;
+  type: ActionType;
   category: string;
   name: string;
   description: string;
   requiresVersion?: boolean;
-  compatibleWith?: string[]; // IDs of changes this is compatible with
+  compatibleWith?: string[]; // IDs of actions this is compatible with
 };
 
-type SelectedChange = {
+type SelectedAction = {
   id: string;
-  type: ChangeType;
+  type: ActionType;
   name: string;
   description: string;
   sourceVersion?: string;
   targetVersion?: string;
 };
 
-const availableChanges: ChangeOption[] = [
-  // Updates
+// Action-based configurations with verbs (Update, Install, Apply, Delete, Create)
+const availableActions: ActionOption[] = [
+  // Platform Updates
   {
-    id: "update-4.15-4.16",
+    id: "update-ocp-4.17",
     type: "update",
-    category: "Updates",
-    name: "OpenShift Cluster Update",
+    category: "Update",
+    name: "Update OpenShift 4.16 → 4.17",
     description:
-      "OpenShift platform update including security patches",
-    requiresVersion: true,
+      "Platform update with security patches and new features",
+    requiresVersion: false,
     compatibleWith: [
-      "operator-cert-manager",
-      "operator-logging",
+      "install-cert-manager",
+      "apply-network-policy",
     ],
   },
   {
-    id: "update-etcd",
+    id: "update-ocp-4.18",
     type: "update",
-    category: "Updates",
-    name: "etcd Update",
-    description: "Update etcd to latest stable version",
-    requiresVersion: false,
-  },
-  // Operators
-  {
-    id: "operator-cert-manager",
-    type: "operator",
-    category: "Operators",
-    name: "cert-manager Operator",
-    description: "Automated certificate management",
-    requiresVersion: false,
-    compatibleWith: ["update-4.15-4.16"],
-  },
-  {
-    id: "operator-logging",
-    type: "operator",
-    category: "Operators",
-    name: "Cluster Logging Operator",
-    description: "Centralized logging solution",
-    requiresVersion: false,
-    compatibleWith: ["update-4.15-4.16"],
-  },
-  {
-    id: "operator-service-mesh",
-    type: "operator",
-    category: "Operators",
-    name: "Service Mesh Operator",
-    description: "Istio-based service mesh",
-    requiresVersion: false,
-  },
-  // Policies
-  {
-    id: "policy-network",
-    type: "policy",
-    category: "Policies",
-    name: "Network Policy",
-    description: "Enforce pod network isolation rules",
-    requiresVersion: false,
-  },
-  {
-    id: "policy-pod-security",
-    type: "policy",
-    category: "Policies",
-    name: "Pod Security Policy",
-    description: "Define security context constraints",
-    requiresVersion: false,
-  },
-  // VM Images
-  {
-    id: "vm-rhel9",
-    type: "vm-image",
-    category: "VM Images",
-    name: "RHEL 9.2 Base Image",
+    category: "Update",
+    name: "Update OpenShift 4.17 → 4.18",
     description:
-      "Red Hat Enterprise Linux 9.2 virtual machine image",
+      "Latest stable release with performance improvements",
     requiresVersion: false,
   },
   {
-    id: "vm-windows",
-    type: "vm-image",
-    category: "VM Images",
-    name: "Windows Server 2022",
-    description: "Windows Server 2022 datacenter edition",
+    id: "update-etcd-3.5.12",
+    type: "update",
+    category: "Update",
+    name: "Update etcd 3.5.9 → 3.5.12",
+    description: "Critical stability and security fixes",
+    requiresVersion: false,
+  },
+  // Install actions
+  {
+    id: "install-cert-manager",
+    type: "install",
+    category: "Install",
+    name: "Install cert-manager v1.14",
+    description: "Automated X.509 certificate management",
+    requiresVersion: false,
+    compatibleWith: ["update-ocp-4.17"],
+  },
+  {
+    id: "install-logging-operator",
+    type: "install",
+    category: "Install",
+    name: "Install Cluster Logging Operator v5.8",
+    description: "Deploy centralized log aggregation",
+    requiresVersion: false,
+  },
+  {
+    id: "install-service-mesh",
+    type: "install",
+    category: "Install",
+    name: "Install Service Mesh Operator v2.5",
+    description: "Istio-based traffic management and observability",
+    requiresVersion: false,
+  },
+  // Apply configurations
+  {
+    id: "apply-network-policy",
+    type: "apply",
+    category: "Apply",
+    name: "Apply NetworkPolicy: deny-external",
+    description: "Block external ingress to non-public namespaces",
+    requiresVersion: false,
+    compatibleWith: ["update-ocp-4.17"],
+  },
+  {
+    id: "apply-pod-security",
+    type: "apply",
+    category: "Apply",
+    name: "Apply PodSecurityPolicy: restricted",
+    description: "Enforce restricted security context constraints",
+    requiresVersion: false,
+  },
+  {
+    id: "apply-resource-quota",
+    type: "apply",
+    category: "Apply",
+    name: "Apply ResourceQuota: prod-limits",
+    description: "Set CPU/memory limits for production namespaces",
+    requiresVersion: false,
+  },
+  // Delete/Remove actions
+  {
+    id: "delete-deprecated-api",
+    type: "delete",
+    category: "Delete",
+    name: "Delete deprecated v1beta1 APIs",
+    description: "Remove deprecated API versions before upgrade",
+    requiresVersion: false,
+  },
+  {
+    id: "delete-orphaned-pvcs",
+    type: "delete",
+    category: "Delete",
+    name: "Delete orphaned PersistentVolumeClaims",
+    description: "Clean up unbound storage claims",
+    requiresVersion: false,
+  },
+  // Create actions
+  {
+    id: "create-monitoring-stack",
+    type: "create",
+    category: "Create",
+    name: "Create monitoring stack config",
+    description: "Deploy Prometheus, Grafana, and AlertManager",
+    requiresVersion: false,
+  },
+  {
+    id: "create-backup-schedule",
+    type: "create",
+    category: "Create",
+    name: "Create etcd backup schedule",
+    description: "Configure daily automated etcd snapshots",
     requiresVersion: false,
   },
 ];
@@ -133,16 +169,17 @@ export function DeploymentWizard({
 }: DeploymentWizardProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
-    selectedChanges: [] as SelectedChange[],
+    selectedActions: [] as SelectedAction[],
     fleetSelection: "label",
     labelSelector: "env=prod",
-    strategy: "canary",
+    rolloutMethod: "canary", // "immediate" | "canary" | "rolling"
     scheduleType: "window",
     scheduleWindow: "weekends",
     scheduleStartTime: "22:00",
     scheduleEndTime: "02:00",
     phase1Count: "10",
     phase1Batch: "3",
+    phase1MaxParallel: "5",
     phase1Priority: "label:canary",
     phase1Soak: "24h",
     phase1RespectSchedule: true,
@@ -179,18 +216,18 @@ export function DeploymentWizard({
   const steps = [
     {
       number: 1,
-      label: "Change package",
-      name: "change-package",
+      label: "Action", // Action verb: Update, Delete, Create, etc.
+      name: "action",
     },
     {
       number: 2,
-      label: "Targeting & strategy",
-      name: "targeting-strategy",
+      label: "Placement", // WHERE it goes (which clusters)
+      name: "placement",
     },
     {
       number: 3,
-      label: "Strategy configuration",
-      name: "strategy-config",
+      label: "Rollout", // HOW it's sequenced (Immediate, Canary, Rolling)
+      name: "rollout",
     },
     {
       number: 4,
@@ -202,11 +239,17 @@ export function DeploymentWizard({
 
   return (
     <ModalOverlay onClose={onCancel}>
-      <ModalContent maxWidth="5xl">
-        <div
-          className="flex"
-          style={{ minHeight: "600px", maxHeight: "85vh" }}
-        >
+      {/* Custom modal container to avoid ModalContent styling conflicts with PatternFly */}
+      <div
+        className="w-full max-w-5xl flex rounded-lg overflow-hidden"
+        style={{
+          minHeight: "600px",
+          maxHeight: "85vh",
+          borderRadius: "var(--radius)",
+          boxShadow: "var(--elevation-lg)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
           {/* Left Sidebar - Steps Navigation */}
           <div
             className="w-64 flex-shrink-0 p-6"
@@ -315,7 +358,7 @@ export function DeploymentWizard({
           {/* Right Content Area */}
           <div
             className="flex-1 flex flex-col"
-            style={{ minHeight: 0 }}
+            style={{ minHeight: 0, backgroundColor: "var(--card)" }}
           >
             {/* Header with Close Button */}
             <div
@@ -338,11 +381,11 @@ export function DeploymentWizard({
                 </h4>
                 <TinyText muted className="mt-1">
                   {currentStep === 1 &&
-                    "Select the changes to deploy across your fleet"}
+                    "Choose an action: Update, Install, Apply, Delete, or Create"}
                   {currentStep === 2 &&
-                    "Define which clusters to target and deployment strategy"}
+                    "Select clusters to include in this deployment"}
                   {currentStep === 3 &&
-                    "Configure phase-specific deployment parameters"}
+                    "Choose how the deployment is sequenced"}
                   {currentStep === 4 &&
                     "Choose execution permissions and confirmation settings"}
                   {currentStep === 5 &&
@@ -438,7 +481,6 @@ export function DeploymentWizard({
             </div>
           </div>
         </div>
-      </ModalContent>
     </ModalOverlay>
   );
 }
@@ -459,37 +501,37 @@ function Step1Content({
   const [isDependentDropdownOpen, setIsDependentDropdownOpen] =
     useState(false);
 
-  const selectedChanges: SelectedChange[] =
-    formData.selectedChanges || [];
+  const selectedActions: SelectedAction[] =
+    formData.selectedActions || [];
 
-  // Filter available changes based on search
-  const filteredChanges = availableChanges.filter((change) => {
+  // Filter available actions based on search
+  const filteredActions = availableActions.filter((action) => {
     const query = searchQuery.toLowerCase();
     return (
-      change.name.toLowerCase().includes(query) ||
-      change.category.toLowerCase().includes(query) ||
-      change.description.toLowerCase().includes(query)
+      action.name.toLowerCase().includes(query) ||
+      action.category.toLowerCase().includes(query) ||
+      action.description.toLowerCase().includes(query)
     );
   });
 
-  // Filter dependent changes - only show compatible ones
-  const filteredDependentChanges = availableChanges.filter(
-    (change) => {
+  // Filter dependent actions - only show compatible ones
+  const filteredDependentActions = availableActions.filter(
+    (action) => {
       const query = dependentSearchQuery.toLowerCase();
       const matchesQuery =
-        change.name.toLowerCase().includes(query) ||
-        change.category.toLowerCase().includes(query) ||
-        change.description.toLowerCase().includes(query);
+        action.name.toLowerCase().includes(query) ||
+        action.category.toLowerCase().includes(query) ||
+        action.description.toLowerCase().includes(query);
 
-      // If we have a primary change selected, filter by compatibility
-      if (selectedChanges.length > 0 && selectedChanges[0].id) {
-        const primaryChange = availableChanges.find(
-          (c) => c.id === selectedChanges[0].id,
+      // If we have a primary action selected, filter by compatibility
+      if (selectedActions.length > 0 && selectedActions[0].id) {
+        const primaryAction = availableActions.find(
+          (c) => c.id === selectedActions[0].id,
         );
-        if (primaryChange?.compatibleWith) {
+        if (primaryAction?.compatibleWith) {
           return (
             matchesQuery &&
-            primaryChange.compatibleWith.includes(change.id)
+            primaryAction.compatibleWith.includes(action.id)
           );
         }
       }
@@ -498,107 +540,107 @@ function Step1Content({
     },
   );
 
-  // Group changes by category
-  const groupedChanges = filteredChanges.reduce(
-    (acc, change) => {
-      if (!acc[change.category]) {
-        acc[change.category] = [];
+  // Group actions by category
+  const groupedActions = filteredActions.reduce(
+    (acc, action) => {
+      if (!acc[action.category]) {
+        acc[action.category] = [];
       }
-      acc[change.category].push(change);
+      acc[action.category].push(action);
       return acc;
     },
-    {} as Record<string, ChangeOption[]>,
+    {} as Record<string, ActionOption[]>,
   );
 
-  const groupedDependentChanges =
-    filteredDependentChanges.reduce(
-      (acc, change) => {
-        if (!acc[change.category]) {
-          acc[change.category] = [];
+  const groupedDependentActions =
+    filteredDependentActions.reduce(
+      (acc, action) => {
+        if (!acc[action.category]) {
+          acc[action.category] = [];
         }
-        acc[change.category].push(change);
+        acc[action.category].push(action);
         return acc;
       },
-      {} as Record<string, ChangeOption[]>,
+      {} as Record<string, ActionOption[]>,
     );
 
-  const handleSelectChange = (change: ChangeOption) => {
-    const newChange: SelectedChange = {
-      id: change.id,
-      type: change.type,
-      name: change.name,
-      description: change.description,
+  const handleSelectAction = (action: ActionOption) => {
+    const newAction: SelectedAction = {
+      id: action.id,
+      type: action.type,
+      name: action.name,
+      description: action.description,
       // Default versions for cluster update
-      sourceVersion: change.requiresVersion
+      sourceVersion: action.requiresVersion
         ? "4.15.12"
         : undefined,
-      targetVersion: change.requiresVersion
+      targetVersion: action.requiresVersion
         ? "4.16.2"
         : undefined,
     };
 
     setFormData({
       ...formData,
-      selectedChanges: [newChange, ...selectedChanges.slice(1)],
+      selectedActions: [newAction, ...selectedActions.slice(1)],
     });
     setIsDropdownOpen(false);
     setSearchQuery("");
   };
 
-  const handleSelectDependentChange = (
-    change: ChangeOption,
+  const handleSelectDependentAction = (
+    action: ActionOption,
   ) => {
-    const newChange: SelectedChange = {
-      id: change.id,
-      type: change.type,
-      name: change.name,
-      description: change.description,
+    const newAction: SelectedAction = {
+      id: action.id,
+      type: action.type,
+      name: action.name,
+      description: action.description,
     };
 
     setFormData({
       ...formData,
-      selectedChanges: [...selectedChanges, newChange],
+      selectedActions: [...selectedActions, newAction],
     });
     setIsDependentDropdownOpen(false);
     setDependentSearchQuery("");
     setShowDependentSearch(false);
   };
 
-  const handleRemoveChange = (index: number) => {
-    const newChanges = selectedChanges.filter(
+  const handleRemoveAction = (index: number) => {
+    const newActions = selectedActions.filter(
       (_, i) => i !== index,
     );
     setFormData({
       ...formData,
-      selectedChanges: newChanges,
+      selectedActions: newActions,
     });
     if (index === 1) {
       setShowDependentSearch(false);
     }
   };
 
-  const updateChangeVersion = (
+  const updateActionVersion = (
     index: number,
     field: "sourceVersion" | "targetVersion",
     value: string,
   ) => {
-    const newChanges = [...selectedChanges];
-    newChanges[index] = {
-      ...newChanges[index],
+    const newActions = [...selectedActions];
+    newActions[index] = {
+      ...newActions[index],
       [field]: value,
     };
     setFormData({
       ...formData,
-      selectedChanges: newChanges,
+      selectedActions: newActions,
     });
   };
 
   return (
     <div className="space-y-6">
-      {/* Primary Change Selector */}
+      {/* Primary Action Selector */}
       <div>
         <LabelText className="mb-2">
-          Search available changes
+          Search available actions
         </LabelText>
         <div className="relative">
           <div
@@ -612,7 +654,7 @@ function Step1Content({
                 setSearchQuery(e.target.value);
                 setIsDropdownOpen(true);
               }}
-              placeholder="Search available changes (Updates, Operators, Policies, VM Images)"
+              placeholder="Search actions (Update, Install, Apply, Delete, Create)"
               className="w-full px-4 py-2.5 border rounded pr-10"
               style={{
                 borderRadius: "var(--radius)",
@@ -667,9 +709,9 @@ function Step1Content({
                     "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
                 }}
               >
-                {Object.keys(groupedChanges).length > 0 ? (
-                  Object.entries(groupedChanges).map(
-                    ([category, changes]) => (
+                {Object.keys(groupedActions).length > 0 ? (
+                  Object.entries(groupedActions).map(
+                    ([category, actions]) => (
                       <div key={category}>
                         <div
                           className="px-4 py-2"
@@ -691,11 +733,11 @@ function Step1Content({
                             {category}
                           </TinyText>
                         </div>
-                        {changes.map((change) => (
+                        {actions.map((action) => (
                           <button
-                            key={change.id}
+                            key={action.id}
                             onClick={() =>
-                              handleSelectChange(change)
+                              handleSelectAction(action)
                             }
                             className="w-full px-4 py-3 text-left hover:bg-secondary transition-colors"
                             style={{
@@ -709,10 +751,10 @@ function Step1Content({
                                   "var(--font-weight-medium)",
                               }}
                             >
-                              {change.name}
+                              {action.name}
                             </SmallText>
                             <TinyText muted className="mt-1">
-                              {change.description}
+                              {action.description}
                             </TinyText>
                           </button>
                         ))}
@@ -722,7 +764,7 @@ function Step1Content({
                 ) : (
                   <div className="px-4 py-8 text-center">
                     <TinyText muted>
-                      No changes found matching "{searchQuery}"
+                      No actions found matching "{searchQuery}"
                     </TinyText>
                   </div>
                 )}
@@ -732,12 +774,12 @@ function Step1Content({
         </div>
       </div>
 
-      {/* Selected Changes */}
-      {selectedChanges.length > 0 && (
+      {/* Selected Actions */}
+      {selectedActions.length > 0 && (
         <div className="space-y-0">
-          {selectedChanges.map((change, index) => (
-            <div key={`${change.id}-${index}`}>
-              {/* Change Card */}
+          {selectedActions.map((action, index) => (
+            <div key={`${action.id}-${index}`}>
+              {/* Action Card */}
               <div
                 className="p-4 border rounded relative"
                 style={{
@@ -747,7 +789,7 @@ function Step1Content({
                 }}
               >
                 {/* Order Badge */}
-                {selectedChanges.length > 1 && (
+                {selectedActions.length > 1 && (
                   <div
                     className="absolute -left-3 top-4 size-8 rounded-full border-2 flex items-center justify-center"
                     style={{
@@ -775,14 +817,14 @@ function Step1Content({
                         fontWeight: "var(--font-weight-medium)",
                       }}
                     >
-                      {change.name}
+                      {action.name}
                     </SmallText>
                     <TinyText muted className="mt-1">
-                      {change.description}
+                      {action.description}
                     </TinyText>
                   </div>
                   <button
-                    onClick={() => handleRemoveChange(index)}
+                    onClick={() => handleRemoveAction(index)}
                     className="ml-4 p-1 hover:bg-destructive/10 rounded transition-colors"
                     style={{ borderRadius: "var(--radius)" }}
                   >
@@ -804,8 +846,8 @@ function Step1Content({
                 </div>
 
                 {/* Version Fields for Updates */}
-                {change.sourceVersion !== undefined &&
-                  change.targetVersion !== undefined && (
+                {action.sourceVersion !== undefined &&
+                  action.targetVersion !== undefined && (
                     <div
                       className="grid grid-cols-2 gap-3 pt-3"
                       style={{
@@ -817,9 +859,9 @@ function Step1Content({
                           Source version
                         </TinyText>
                         <select
-                          value={change.sourceVersion}
+                          value={action.sourceVersion}
                           onChange={(e) =>
-                            updateChangeVersion(
+                            updateActionVersion(
                               index,
                               "sourceVersion",
                               e.target.value,
@@ -846,9 +888,9 @@ function Step1Content({
                           Target version
                         </TinyText>
                         <select
-                          value={change.targetVersion}
+                          value={action.targetVersion}
                           onChange={(e) =>
-                            updateChangeVersion(
+                            updateActionVersion(
                               index,
                               "targetVersion",
                               e.target.value,
@@ -873,8 +915,8 @@ function Step1Content({
                   )}
               </div>
 
-              {/* Arrow Connector between changes */}
-              {index < selectedChanges.length - 1 && (
+              {/* Arrow Connector between actions */}
+              {index < selectedActions.length - 1 && (
                 <div className="flex items-center py-3 pl-3">
                   <svg
                     className="size-6"
@@ -900,9 +942,9 @@ function Step1Content({
         </div>
       )}
 
-      {/* Add Dependent Change */}
-      {selectedChanges.length > 0 &&
-        selectedChanges.length < 3 &&
+      {/* Add Dependent Action */}
+      {selectedActions.length > 0 &&
+        selectedActions.length < 3 &&
         !showDependentSearch && (
           <div>
             <LinkButton
@@ -929,16 +971,16 @@ function Step1Content({
                   strokeWidth="1.33333"
                 />
               </svg>
-              <span>Add dependent change</span>
+              <span>Add dependent action</span>
             </LinkButton>
           </div>
         )}
 
-      {/* Dependent Change Search */}
-      {showDependentSearch && selectedChanges.length < 3 && (
+      {/* Dependent Action Search */}
+      {showDependentSearch && selectedActions.length < 3 && (
         <div>
           <LabelText className="mb-2">
-            Add compatible dependent change
+            Add compatible dependent action
           </LabelText>
           <div className="relative">
             <div
@@ -952,7 +994,7 @@ function Step1Content({
                   setDependentSearchQuery(e.target.value);
                   setIsDependentDropdownOpen(true);
                 }}
-                placeholder="Search compatible changes..."
+                placeholder="Search compatible actions..."
                 className="w-full px-4 py-2.5 border rounded pr-10"
                 style={{
                   borderRadius: "var(--radius)",
@@ -1009,7 +1051,7 @@ function Step1Content({
                       "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
                   }}
                 >
-                  {Object.keys(groupedDependentChanges).length >
+                  {Object.keys(groupedDependentActions).length >
                   0 ? (
                     <>
                       <div
@@ -1021,13 +1063,13 @@ function Step1Content({
                         }}
                       >
                         <TinyText muted>
-                          Showing changes compatible with{" "}
-                          {selectedChanges[0].name}
+                          Showing actions compatible with{" "}
+                          {selectedActions[0].name}
                         </TinyText>
                       </div>
                       {Object.entries(
-                        groupedDependentChanges,
-                      ).map(([category, changes]) => (
+                        groupedDependentActions,
+                      ).map(([category, actions]) => (
                         <div key={category}>
                           <div
                             className="px-4 py-2"
@@ -1050,12 +1092,12 @@ function Step1Content({
                               {category}
                             </TinyText>
                           </div>
-                          {changes.map((change) => (
+                          {actions.map((action) => (
                             <button
-                              key={change.id}
+                              key={action.id}
                               onClick={() =>
-                                handleSelectDependentChange(
-                                  change,
+                                handleSelectDependentAction(
+                                  action,
                                 )
                               }
                               className="w-full px-4 py-3 text-left hover:bg-secondary transition-colors"
@@ -1070,10 +1112,10 @@ function Step1Content({
                                     "var(--font-weight-medium)",
                                 }}
                               >
-                                {change.name}
+                                {action.name}
                               </SmallText>
                               <TinyText muted className="mt-1">
-                                {change.description}
+                                {action.description}
                               </TinyText>
                             </button>
                           ))}
@@ -1083,10 +1125,10 @@ function Step1Content({
                   ) : (
                     <div className="px-4 py-8 text-center">
                       <TinyText muted>
-                        {filteredDependentChanges.length ===
+                        {filteredDependentActions.length ===
                           0 && dependentSearchQuery
-                          ? `No compatible changes found matching "${dependentSearchQuery}"`
-                          : "No compatible changes available"}
+                          ? `No compatible actions found matching "${dependentSearchQuery}"`
+                          : "No compatible actions available"}
                       </TinyText>
                     </div>
                   )}
@@ -1100,6 +1142,31 @@ function Step1Content({
   );
 }
 
+// Mock cluster data
+const allClusters = [
+  { name: "virt-prod-01", env: "prod", region: "us-east-1", labels: ["env=prod", "tier=web"] },
+  { name: "virt-prod-02", env: "prod", region: "us-west-2", labels: ["env=prod", "tier=web"] },
+  { name: "virt-prod-03", env: "prod", region: "eu-west-1", labels: ["env=prod", "tier=web"] },
+  { name: "data-prod-01", env: "prod", region: "us-east-1", labels: ["env=prod", "tier=data"] },
+  { name: "data-prod-02", env: "prod", region: "ap-south-1", labels: ["env=prod", "tier=data"] },
+  { name: "virt-staging-01", env: "staging", region: "us-east-1", labels: ["env=staging", "tier=web", "tier=canary"] },
+  { name: "virt-staging-02", env: "staging", region: "us-west-2", labels: ["env=staging", "tier=web", "tier=canary"] },
+  { name: "data-staging-01", env: "staging", region: "us-east-1", labels: ["env=staging", "tier=data"] },
+  { name: "virt-dev-01", env: "dev", region: "us-east-1", labels: ["env=dev", "tier=web"] },
+  { name: "virt-dev-02", env: "dev", region: "us-east-1", labels: ["env=dev", "tier=web"] },
+];
+
+// Helper function to match clusters by label selector
+const matchClustersBySelector = (selector: string) => {
+  if (!selector?.trim()) return [];
+  const selectorParts = selector.split(",").map((s) => s.trim().toLowerCase());
+  return allClusters.filter((cluster) =>
+    selectorParts.some((part) =>
+      cluster.labels.some((label) => label.toLowerCase().includes(part))
+    )
+  );
+};
+
 function Step2Content({
   formData,
   setFormData,
@@ -1107,19 +1174,77 @@ function Step2Content({
   formData: any;
   setFormData: (data: any) => void;
 }) {
-  const [phase1Expanded, setPhase1Expanded] = useState(true);
-  const [phase2Expanded, setPhase2Expanded] = useState(false);
+  const [clusterSearch, setClusterSearch] = useState("");
+
+  // Get selected clusters from formData or default to empty array
+  const selectedClusterNames: string[] = formData.selectedClusters || [];
+
+  // Filter clusters based on label selector
+  const getMatchedClusters = () => {
+    if (formData.fleetSelection === "label") {
+      const selector = formData.labelSelector?.trim() || "";
+      if (!selector) return [];
+      // Simple label matching simulation
+      return allClusters.filter((c) =>
+        c.labels.some((label) =>
+          label.toLowerCase().includes(selector.toLowerCase())
+        )
+      );
+    } else {
+      // Manual selection - return selected clusters
+      return allClusters.filter((c) => selectedClusterNames.includes(c.name));
+    }
+  };
+
+  const matchedClusters = getMatchedClusters();
+
+  // Filter available clusters for the searchable list
+  const filteredClusters = clusterSearch
+    ? allClusters.filter((c) =>
+        c.name.toLowerCase().includes(clusterSearch.toLowerCase())
+      )
+    : allClusters;
+
+  const toggleClusterSelection = (clusterName: string) => {
+    const current = formData.selectedClusters || [];
+    const updated = current.includes(clusterName)
+      ? current.filter((n: string) => n !== clusterName)
+      : [...current, clusterName];
+    setFormData({ ...formData, selectedClusters: updated });
+  };
 
   return (
     <div className="space-y-6">
-      {/* 1. Targeted clusters (Fleet Selection) */}
+      {/* 1. Cluster Placement */}
       <div>
-        <SmallText
-          style={{ fontWeight: "var(--font-weight-medium)" }}
-          className="mb-3"
-        >
-          Targeted clusters
-        </SmallText>
+        <div className="flex items-center gap-2 mb-3">
+          <SmallText
+            style={{ fontWeight: "var(--font-weight-medium)" }}
+          >
+            Cluster selection
+          </SmallText>
+          <div className="relative group">
+            <svg
+              className="size-4 cursor-help"
+              fill="none"
+              viewBox="0 0 16 16"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M8 7V11M8 5V5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <div
+              className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-2 rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"
+              style={{
+                backgroundColor: "var(--foreground)",
+                color: "var(--background)",
+                borderRadius: "var(--radius)",
+              }}
+            >
+              Define which clusters this deployment applies to
+            </div>
+          </div>
+        </div>
 
         {/* Radio Group */}
         <div className="space-y-2 mb-4">
@@ -1218,7 +1343,7 @@ function Step2Content({
               placeholder="e.g., env=prod"
             />
             <TinyText muted className="mt-2">
-              40 clusters match
+              Try: env=prod, env=staging, tier=web, tier=data
             </TinyText>
           </div>
         )}
@@ -1232,6 +1357,8 @@ function Step2Content({
             <SearchInput
               placeholder="Search clusters..."
               className="mb-3"
+              value={clusterSearch}
+              onChange={(e) => setClusterSearch(e.target.value)}
             />
             <div
               className="border rounded overflow-hidden"
@@ -1241,7 +1368,7 @@ function Step2Content({
               }}
             >
               <div
-                className="bg-secondary px-4 py-2"
+                className="bg-secondary px-4 py-2 flex items-center justify-between"
                 style={{
                   borderBottom: "1px solid var(--border)",
                 }}
@@ -1251,30 +1378,39 @@ function Step2Content({
                     fontWeight: "var(--font-weight-medium)",
                   }}
                 >
-                  Available clusters (40)
+                  Available clusters ({filteredClusters.length})
                 </TinyText>
+                {selectedClusterNames.length > 0 && (
+                  <TinyText style={{ color: "var(--primary)" }}>
+                    {selectedClusterNames.length} selected
+                  </TinyText>
+                )}
               </div>
               <div className="max-h-48 overflow-y-auto">
-                {[
-                  "virt-prod-01",
-                  "virt-prod-02",
-                  "virt-prod-03",
-                  "data-prod-01",
-                  "data-prod-02",
-                ].map((cluster) => (
+                {filteredClusters.map((cluster) => (
                   <label
-                    key={cluster}
+                    key={cluster.name}
                     className="flex items-center gap-3 px-4 py-2 hover:bg-secondary cursor-pointer"
                     style={{
                       borderBottom: "1px solid var(--border)",
+                      backgroundColor: selectedClusterNames.includes(cluster.name)
+                        ? "var(--secondary)"
+                        : "transparent",
                     }}
                   >
                     <input
                       type="checkbox"
                       className="size-4"
                       style={{ accentColor: "var(--primary)" }}
+                      checked={selectedClusterNames.includes(cluster.name)}
+                      onChange={() => toggleClusterSelection(cluster.name)}
                     />
-                    <SmallText>{cluster}</SmallText>
+                    <div className="flex-1">
+                      <SmallText>{cluster.name}</SmallText>
+                      <TinyText muted className="ml-2">
+                        {cluster.env} · {cluster.region}
+                      </TinyText>
+                    </div>
                   </label>
                 ))}
               </div>
@@ -1283,66 +1419,139 @@ function Step2Content({
         )}
       </div>
 
-      {/* 2. Strategy Selection */}
+      {/* Matched Clusters */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <SmallText style={{ fontWeight: "var(--font-weight-medium)" }}>
+            Matched clusters
+          </SmallText>
+          <TinyText muted>{matchedClusters.length} clusters</TinyText>
+        </div>
+
+        {matchedClusters.length === 0 ? (
+          <div
+            className="p-6 border rounded text-center"
+            style={{
+              borderRadius: "var(--radius)",
+              borderColor: "var(--border)",
+              backgroundColor: "var(--secondary)",
+            }}
+          >
+            <TinyText muted>
+              {formData.fleetSelection === "label"
+                ? "Enter a label selector to see matching clusters"
+                : "Select clusters from the list above"}
+            </TinyText>
+          </div>
+        ) : (
+          <div
+            className="border rounded overflow-hidden"
+            style={{
+              borderRadius: "var(--radius)",
+              borderColor: "var(--border)",
+            }}
+          >
+            <table className="w-full">
+              <thead>
+                <tr style={{ backgroundColor: "var(--secondary)" }}>
+                  <th
+                    className="px-4 py-2 text-left"
+                    style={{ borderBottom: "1px solid var(--border)" }}
+                  >
+                    <TinyText style={{ fontWeight: "var(--font-weight-medium)" }}>
+                      Cluster name
+                    </TinyText>
+                  </th>
+                  <th
+                    className="px-4 py-2 text-left"
+                    style={{ borderBottom: "1px solid var(--border)" }}
+                  >
+                    <TinyText style={{ fontWeight: "var(--font-weight-medium)" }}>
+                      Environment
+                    </TinyText>
+                  </th>
+                  <th
+                    className="px-4 py-2 text-left"
+                    style={{ borderBottom: "1px solid var(--border)" }}
+                  >
+                    <TinyText style={{ fontWeight: "var(--font-weight-medium)" }}>
+                      Region
+                    </TinyText>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {matchedClusters.map((cluster, idx) => (
+                  <tr
+                    key={cluster.name}
+                    style={{
+                      borderBottom:
+                        idx < matchedClusters.length - 1
+                          ? "1px solid var(--border)"
+                          : "none",
+                    }}
+                  >
+                    <td className="px-4 py-2">
+                      <SmallText>{cluster.name}</SmallText>
+                    </td>
+                    <td className="px-4 py-2">
+                      <TinyText muted>{cluster.env}</TinyText>
+                    </td>
+                    <td className="px-4 py-2">
+                      <TinyText muted>{cluster.region}</TinyText>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Step3Content({
+  formData,
+  setFormData,
+}: {
+  formData: any;
+  setFormData: (data: any) => void;
+}) {
+  const [phase1Expanded, setPhase1Expanded] = useState(true);
+  const [phase2Expanded, setPhase2Expanded] = useState(true);
+  const [pacingConfigExpanded, setPacingConfigExpanded] = useState(true);
+
+  return (
+    <div className="space-y-6">
+      {/* Rollout Selection */}
       <div>
         <SmallText
           style={{ fontWeight: "var(--font-weight-medium)" }}
           className="mb-3"
         >
-          Strategy
+          Rollout
         </SmallText>
 
         <div className="grid grid-cols-3 gap-3">
-          {/* Rolling Update */}
+          {/* Canary - Lowest risk (default) */}
           <button
             onClick={() =>
-              setFormData({ ...formData, strategy: "rolling" })
+              setFormData({ ...formData, rolloutMethod: "canary" })
             }
-            className="p-4 border rounded text-left transition-colors hover:bg-secondary"
+            className="p-4 border rounded text-left transition-colors hover:bg-secondary flex flex-col h-full"
             style={{
               borderRadius: "var(--radius)",
               borderColor:
-                formData.strategy === "rolling"
+                formData.rolloutMethod === "canary"
                   ? "var(--primary)"
                   : "var(--border)",
               backgroundColor:
-                formData.strategy === "rolling"
+                formData.rolloutMethod === "canary"
                   ? "var(--secondary)"
                   : "transparent",
               borderWidth:
-                formData.strategy === "rolling" ? "2px" : "1px",
-            }}
-          >
-            <SmallText
-              style={{
-                fontWeight: "var(--font-weight-medium)",
-              }}
-            >
-              Rolling Update
-            </SmallText>
-            <TinyText muted className="mt-1">
-              Sequential deployment
-            </TinyText>
-          </button>
-
-          {/* Canary */}
-          <button
-            onClick={() =>
-              setFormData({ ...formData, strategy: "canary" })
-            }
-            className="p-4 border rounded text-left transition-colors hover:bg-secondary"
-            style={{
-              borderRadius: "var(--radius)",
-              borderColor:
-                formData.strategy === "canary"
-                  ? "var(--primary)"
-                  : "var(--border)",
-              backgroundColor:
-                formData.strategy === "canary"
-                  ? "var(--secondary)"
-                  : "transparent",
-              borderWidth:
-                formData.strategy === "canary" ? "2px" : "1px",
+                formData.rolloutMethod === "canary" ? "2px" : "1px",
             }}
           >
             <SmallText
@@ -1353,33 +1562,28 @@ function Step2Content({
               Canary
             </SmallText>
             <TinyText muted className="mt-1">
-              Test on subset first
+              Subset first, then rest
             </TinyText>
           </button>
 
-          {/* Blue/Green */}
+          {/* Rolling - Medium risk */}
           <button
             onClick={() =>
-              setFormData({
-                ...formData,
-                strategy: "bluegreen",
-              })
+              setFormData({ ...formData, rolloutMethod: "rolling" })
             }
-            className="p-4 border rounded text-left transition-colors hover:bg-secondary"
+            className="p-4 border rounded text-left transition-colors hover:bg-secondary flex flex-col h-full"
             style={{
               borderRadius: "var(--radius)",
               borderColor:
-                formData.strategy === "bluegreen"
+                formData.rolloutMethod === "rolling"
                   ? "var(--primary)"
                   : "var(--border)",
               backgroundColor:
-                formData.strategy === "bluegreen"
+                formData.rolloutMethod === "rolling"
                   ? "var(--secondary)"
                   : "transparent",
               borderWidth:
-                formData.strategy === "bluegreen"
-                  ? "2px"
-                  : "1px",
+                formData.rolloutMethod === "rolling" ? "2px" : "1px",
             }}
           >
             <SmallText
@@ -1387,16 +1591,48 @@ function Step2Content({
                 fontWeight: "var(--font-weight-medium)",
               }}
             >
-              Blue/Green
+              Rolling
             </SmallText>
             <TinyText muted className="mt-1">
-              Parallel environment
+              Waves of X clusters
+            </TinyText>
+          </button>
+
+          {/* Immediate - Highest risk */}
+          <button
+            onClick={() =>
+              setFormData({ ...formData, rolloutMethod: "immediate" })
+            }
+            className="p-4 border rounded text-left transition-colors hover:bg-secondary flex flex-col h-full"
+            style={{
+              borderRadius: "var(--radius)",
+              borderColor:
+                formData.rolloutMethod === "immediate"
+                  ? "var(--primary)"
+                  : "var(--border)",
+              backgroundColor:
+                formData.rolloutMethod === "immediate"
+                  ? "var(--secondary)"
+                  : "transparent",
+              borderWidth:
+                formData.rolloutMethod === "immediate" ? "2px" : "1px",
+            }}
+          >
+            <SmallText
+              style={{
+                fontWeight: "var(--font-weight-medium)",
+              }}
+            >
+              Immediate
+            </SmallText>
+            <TinyText muted className="mt-1">
+              All at once
             </TinyText>
           </button>
         </div>
       </div>
 
-      {/* 3. Schedule (Global Constraint) */}
+      {/* Schedule Configuration */}
       <div>
         <SmallText
           style={{ fontWeight: "var(--font-weight-medium)" }}
@@ -1434,13 +1670,18 @@ function Step2Content({
               className="size-4"
               style={{ accentColor: "var(--primary)" }}
             />
-            <SmallText
-              style={{
-                fontWeight: "var(--font-weight-medium)",
-              }}
-            >
-              Immediate
-            </SmallText>
+            <div>
+              <SmallText
+                style={{
+                  fontWeight: "var(--font-weight-medium)",
+                }}
+              >
+                Start immediately
+              </SmallText>
+              <TinyText muted className="mt-0.5">
+                Begin deployment as soon as it's submitted
+              </TinyText>
+            </div>
           </label>
 
           <label
@@ -1471,13 +1712,18 @@ function Step2Content({
               className="size-4"
               style={{ accentColor: "var(--primary)" }}
             />
-            <SmallText
-              style={{
-                fontWeight: "var(--font-weight-medium)",
-              }}
-            >
-              Defined window
-            </SmallText>
+            <div>
+              <SmallText
+                style={{
+                  fontWeight: "var(--font-weight-medium)",
+                }}
+              >
+                Scheduled window
+              </SmallText>
+              <TinyText muted className="mt-0.5">
+                Only deploy during defined maintenance windows
+              </TinyText>
+            </div>
           </label>
         </div>
 
@@ -1564,24 +1810,9 @@ function Step2Content({
           </div>
         )}
       </div>
-    </div>
-  );
-}
 
-function Step3Content({
-  formData,
-  setFormData,
-}: {
-  formData: any;
-  setFormData: (data: any) => void;
-}) {
-  const [phase1Expanded, setPhase1Expanded] = useState(true);
-  const [phase2Expanded, setPhase2Expanded] = useState(false);
-
-  return (
-    <div className="space-y-6">
-      {/* Phase Cards - Only show if Canary is selected */}
-      {formData.strategy === "canary" && (
+      {/* Canary Configuration - Only show if Canary is selected */}
+      {formData.rolloutMethod === "canary" && (
         <div className="space-y-4">
           {/* Phase 1: Canary rollout */}
           <div
@@ -1629,45 +1860,87 @@ function Step3Content({
 
             {phase1Expanded && (
               <div className="p-4 space-y-4">
-                {/* Phase 1 Inputs */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <TinyText muted className="mb-2">
-                      Canary count
-                    </TinyText>
-                    <input
-                      type="number"
-                      value={formData.phase1Count}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          phase1Count: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 border rounded"
-                      style={{
-                        borderRadius: "var(--radius)",
-                        borderColor: "var(--border)",
-                        fontFamily: "var(--font-family-text)",
-                        fontSize: "var(--text-sm)",
-                        backgroundColor: "var(--card)",
-                      }}
-                    />
+                {/* Canary Selection */}
+                <div>
+                  <TinyText muted className="mb-2">
+                    Canary selector
+                  </TinyText>
+                  <TextInput
+                    value={formData.canarySelector}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        canarySelector: e.target.value,
+                      })
+                    }
+                    placeholder="e.g., tier=canary, env=staging"
+                  />
+                  <TinyText muted className="mt-1">
+                    Label selector to identify canary clusters (deploys to these first)
+                  </TinyText>
+                </div>
+
+                {/* Canary Cluster Preview */}
+                {formData.canarySelector && (
+                  <div
+                    className="p-3 border rounded"
+                    style={{
+                      borderRadius: "var(--radius)",
+                      borderColor: "var(--border)",
+                      backgroundColor: "var(--secondary)",
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <TinyText muted>Matched canary clusters</TinyText>
+                      <TinyText
+                        style={{
+                          color: matchClustersBySelector(formData.canarySelector).length > 0
+                            ? "var(--success)"
+                            : "var(--destructive)",
+                        }}
+                      >
+                        {matchClustersBySelector(formData.canarySelector).length} cluster
+                        {matchClustersBySelector(formData.canarySelector).length !== 1 ? "s" : ""}
+                      </TinyText>
+                    </div>
+                    {matchClustersBySelector(formData.canarySelector).length > 0 ? (
+                      <div className="space-y-1">
+                        {matchClustersBySelector(formData.canarySelector).map((cluster) => (
+                          <div
+                            key={cluster.name}
+                            className="flex items-center justify-between py-1.5 px-2 rounded"
+                            style={{ backgroundColor: "var(--card)" }}
+                          >
+                            <TinyText className="font-mono">{cluster.name}</TinyText>
+                            <TinyText muted>{cluster.region}</TinyText>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <TinyText muted>
+                        No clusters match this selector. Try "tier=canary" or "env=staging".
+                      </TinyText>
+                    )}
                   </div>
-                  <div>
-                    <TinyText muted className="mb-2">
-                      Batch size
-                    </TinyText>
+                )}
+
+                {/* Clusters per wave */}
+                <div>
+                  <TinyText muted className="mb-2">
+                    Clusters per wave
+                  </TinyText>
+                  <div className="flex items-center gap-2">
                     <input
                       type="number"
-                      value={formData.phase1Batch}
+                      value={formData.phase1Batch || "3"}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
                           phase1Batch: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border rounded"
+                      min="1"
+                      className="w-24 px-3 py-2 border rounded"
                       style={{
                         borderRadius: "var(--radius)",
                         borderColor: "var(--border)",
@@ -1676,23 +1949,11 @@ function Step3Content({
                         backgroundColor: "var(--card)",
                       }}
                     />
+                    <TinyText>clusters</TinyText>
                   </div>
-                </div>
-
-                <div>
-                  <TinyText muted className="mb-2">
-                    Priority by label selector
+                  <TinyText muted className="mt-1">
+                    Maximum number of canary clusters to update simultaneously
                   </TinyText>
-                  <TextInput
-                    value={formData.phase1Priority}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        phase1Priority: e.target.value,
-                      })
-                    }
-                    placeholder="e.g., label:canary"
-                  />
                 </div>
 
                 {/* Soak Duration */}
@@ -1717,78 +1978,93 @@ function Step3Content({
                       backgroundColor: "var(--card)",
                     }}
                   >
-                    <option value="0h">None</option>
+                    <option value="0">None (proceed immediately)</option>
+                    <option value="15m">15 minutes</option>
+                    <option value="30m">30 minutes</option>
+                    <option value="1h">1 hour</option>
+                    <option value="4h">4 hours</option>
                     <option value="12h">12 hours</option>
-                    <option value="24h">24 hours</option>
-                    <option value="48h">48 hours</option>
-                    <option value="72h">72 hours</option>
+                    <option value="24h">24 hours (1 day)</option>
+                    <option value="48h">48 hours (2 days)</option>
+                    <option value="72h">72 hours (3 days)</option>
+                    <option value="7d">7 days</option>
                   </select>
+                  <TinyText muted className="mt-1">
+                    Observation time after canary deployment before proceeding to full rollout
+                  </TinyText>
                 </div>
 
-                {/* Respect Schedule Checkbox */}
-                {formData.phase1Soak !== "0h" && (
+                {/* Error Threshold */}
+                <div>
+                  <TinyText muted className="mb-2">
+                    Error threshold
+                  </TinyText>
+                  <select
+                    value={formData.phase1ErrorThreshold || "0"}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        phase1ErrorThreshold: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded"
+                    style={{
+                      borderRadius: "var(--radius)",
+                      borderColor: "var(--border)",
+                      fontFamily: "var(--font-family-text)",
+                      fontSize: "var(--text-sm)",
+                      backgroundColor: "var(--card)",
+                    }}
+                  >
+                    <option value="0">0% — Stop on any failure</option>
+                    <option value="5">5% — Conservative (recommended)</option>
+                    <option value="10">10% — Moderate tolerance</option>
+                    <option value="25">25% — High tolerance</option>
+                    <option value="100">100% — Never stop</option>
+                  </select>
+                  <TinyText muted className="mt-1">
+                    Halt canary phase if cumulative failure rate exceeds this threshold
+                  </TinyText>
+                </div>
+
+                {/* Auto-promote */}
+                <div>
                   <label
                     className="flex items-center gap-3 p-3 border rounded cursor-pointer hover:bg-secondary"
                     style={{
                       borderRadius: "var(--radius)",
                       borderColor: "var(--border)",
                       backgroundColor:
-                        formData.phase1RespectSchedule
+                        formData.autoPromote
                           ? "var(--secondary)"
                           : "transparent",
                     }}
                   >
                     <input
                       type="checkbox"
-                      checked={formData.phase1RespectSchedule}
+                      checked={formData.autoPromote !== false}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          phase1RespectSchedule:
-                            e.target.checked,
+                          autoPromote: e.target.checked,
                         })
                       }
                       className="size-4"
                       style={{ accentColor: "var(--primary)" }}
                     />
-                    <SmallText>Respect schedule</SmallText>
+                    <div>
+                      <SmallText>Auto-promote after soak</SmallText>
+                      <TinyText muted className="mt-0.5">
+                        Automatically proceed to full rollout if soak passes without errors
+                      </TinyText>
+                    </div>
                   </label>
-                )}
-
-                {/* Safety Brake */}
-                <div>
-                  <TinyText muted className="mb-2">
-                    Stop on error threshold
-                  </TinyText>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      value={formData.phase1SafetyBrake}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          phase1SafetyBrake: e.target.value,
-                        })
-                      }
-                      min="0"
-                      max="100"
-                      className="w-24 px-3 py-2 border rounded"
-                      style={{
-                        borderRadius: "var(--radius)",
-                        borderColor: "var(--border)",
-                        fontFamily: "var(--font-family-text)",
-                        fontSize: "var(--text-sm)",
-                        backgroundColor: "var(--card)",
-                      }}
-                    />
-                    <TinyText>%</TinyText>
-                  </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* 5. Phase 2: General rollout */}
+          {/* 5. Phase 2: Full rollout */}
           <div
             className="border rounded overflow-hidden"
             style={{
@@ -1810,7 +2086,7 @@ function Step3Content({
                   fontWeight: "var(--font-weight-medium)",
                 }}
               >
-                Phase 2: General rollout
+                Phase 2: Full rollout
               </SmallText>
               <svg
                 className="size-5 transition-transform"
@@ -1834,22 +2110,23 @@ function Step3Content({
 
             {phase2Expanded && (
               <div className="p-4 space-y-4">
-                {/* Phase 2 Inputs */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <TinyText muted className="mb-2">
-                      Batch size
-                    </TinyText>
+                {/* Clusters per wave */}
+                <div>
+                  <TinyText muted className="mb-2">
+                    Clusters per wave
+                  </TinyText>
+                  <div className="flex items-center gap-2">
                     <input
                       type="number"
-                      value={formData.phase2Batch}
+                      value={formData.phase2Batch || "10"}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
                           phase2Batch: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border rounded"
+                      min="1"
+                      className="w-24 px-3 py-2 border rounded"
                       style={{
                         borderRadius: "var(--radius)",
                         borderColor: "var(--border)",
@@ -1858,154 +2135,243 @@ function Step3Content({
                         backgroundColor: "var(--card)",
                       }}
                     />
+                    <TinyText>clusters</TinyText>
                   </div>
-                  <div></div>
+                  <TinyText muted className="mt-1">
+                    Maximum number of clusters to update simultaneously in each wave
+                  </TinyText>
                 </div>
 
-                {/* Stop on Failure Toggle */}
+                {/* Soak between waves */}
                 <div>
-                  <div className="flex items-center justify-between">
-                    <SmallText
-                      style={{
-                        fontWeight: "var(--font-weight-medium)",
-                      }}
-                    >
-                      Stop on error threshold
-                    </SmallText>
-                    <button
-                      onClick={() =>
-                        setFormData({
-                          ...formData,
-                          phase2StopOnFailure:
-                            !formData.phase2StopOnFailure,
-                        })
-                      }
-                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-                      style={{
-                        backgroundColor:
-                          formData.phase2StopOnFailure
-                            ? "var(--primary)"
-                            : "var(--border)",
-                      }}
-                      aria-label="Toggle stop on failure"
-                    >
-                      <span
-                        className="inline-block size-4 transform rounded-full bg-white transition-transform"
-                        style={{
-                          transform:
-                            formData.phase2StopOnFailure
-                              ? "translateX(1.5rem)"
-                              : "translateX(0.25rem)",
-                        }}
-                      />
-                    </button>
-                  </div>
-
-                  {/* Conditional Failure Threshold with Connector */}
-                  {formData.phase2StopOnFailure && (
-                    <div className="mt-4 ml-0 relative">
-                      {/* Vertical connector line */}
-                      <div
-                        className="absolute left-0 top-0 w-0.5 h-full"
-                        style={{
-                          backgroundColor: "var(--border)",
-                        }}
-                      />
-
-                      {/* Threshold input */}
-                      <div className="ml-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1">
-                            <TinyText muted className="mb-1.5">
-                              Error threshold
-                            </TinyText>
-                            <select
-                              value={
-                                formData.phase2FailureThreshold
-                              }
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  phase2FailureThreshold:
-                                    e.target.value,
-                                })
-                              }
-                              className="w-full px-3 py-2 border rounded"
-                              style={{
-                                borderRadius: "var(--radius)",
-                                borderColor: "var(--border)",
-                                fontFamily:
-                                  "var(--font-family-text)",
-                                fontSize: "var(--text-sm)",
-                                backgroundColor:
-                                  "var(--background)",
-                              }}
-                            >
-                              <option value="1">
-                                1 cluster
-                              </option>
-                              <option value="2">
-                                2 clusters
-                              </option>
-                              <option value="3">
-                                3 clusters
-                              </option>
-                              <option value="5">
-                                5 clusters
-                              </option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <TinyText muted className="mb-2">
+                    Soak time between waves
+                  </TinyText>
+                  <select
+                    value={formData.phase2SoakTime || "0"}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        phase2SoakTime: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded"
+                    style={{
+                      borderRadius: "var(--radius)",
+                      borderColor: "var(--border)",
+                      fontFamily: "var(--font-family-text)",
+                      fontSize: "var(--text-sm)",
+                      backgroundColor: "var(--card)",
+                    }}
+                  >
+                    <option value="0">None (continuous waves)</option>
+                    <option value="5m">5 minutes</option>
+                    <option value="15m">15 minutes</option>
+                    <option value="30m">30 minutes</option>
+                    <option value="1h">1 hour</option>
+                  </select>
+                  <TinyText muted className="mt-1">
+                    Wait time after each wave completes before starting the next
+                  </TinyText>
                 </div>
 
-                {/* Threshold - Only show if Stop on Failure is ON */}
-                {formData.phase2StopOnFailure && (
-                  <div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2"></div>
-                      <TinyText muted>
-                        If{" "}
-                        {formData.phase2FailureThreshold || "1"}{" "}
-                        cluster
-                        {formData.phase2FailureThreshold !== "1"
-                          ? "s"
-                          : ""}{" "}
-                        in the general rollout fail
-                        {formData.phase2FailureThreshold === "1"
-                          ? "s"
-                          : ""}
-                        , the entire deployment stops
-                      </TinyText>
-                    </div>
-                  </div>
-                )}
+                {/* Error Threshold */}
+                <div>
+                  <TinyText muted className="mb-2">
+                    Error threshold
+                  </TinyText>
+                  <select
+                    value={formData.phase2ErrorThreshold || "5"}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        phase2ErrorThreshold: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded"
+                    style={{
+                      borderRadius: "var(--radius)",
+                      borderColor: "var(--border)",
+                      fontFamily: "var(--font-family-text)",
+                      fontSize: "var(--text-sm)",
+                      backgroundColor: "var(--card)",
+                    }}
+                  >
+                    <option value="0">0% — Stop on any failure</option>
+                    <option value="5">5% — Conservative (recommended)</option>
+                    <option value="10">10% — Moderate tolerance</option>
+                    <option value="25">25% — High tolerance</option>
+                    <option value="100">100% — Never stop</option>
+                  </select>
+                  <TinyText muted className="mt-1">
+                    Halt rollout if cumulative failure rate exceeds this threshold
+                  </TinyText>
+                </div>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Message when not using Canary strategy */}
-      {formData.strategy !== "canary" && (
+      {/* Rolling Configuration - Only show if Rolling is selected */}
+      {formData.rolloutMethod === "rolling" && (
         <div
-          className="p-6 rounded text-center"
+          className="border rounded overflow-hidden"
           style={{
             borderRadius: "var(--radius)",
-            backgroundColor: "var(--secondary)",
+            borderColor: "var(--border)",
           }}
         >
-          <SmallText muted>
-            Phase configuration is only available for Canary
-            deployment strategy.
-          </SmallText>
-          <TinyText muted className="mt-2">
-            Go back to the previous step to select Canary
-            strategy, or proceed to review your deployment.
-          </TinyText>
+          <button
+            onClick={() => setPacingConfigExpanded(!pacingConfigExpanded)}
+            className="w-full px-4 py-3 flex items-center justify-between bg-card hover:bg-secondary transition-colors"
+            style={{
+              borderBottom: pacingConfigExpanded
+                ? "1px solid var(--border)"
+                : "none",
+            }}
+          >
+            <SmallText
+              style={{
+                fontWeight: "var(--font-weight-medium)",
+              }}
+            >
+              Rolling configuration
+            </SmallText>
+            <svg
+              className="size-5 transition-transform"
+              style={{
+                transform: pacingConfigExpanded
+                  ? "rotate(180deg)"
+                  : "rotate(0deg)",
+              }}
+              fill="none"
+              viewBox="0 0 20 20"
+            >
+              <path
+                d="M5 7.5L10 12.5L15 7.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+
+          {pacingConfigExpanded && (
+            <div className="p-4 space-y-4">
+              {/* Clusters per wave */}
+              <div>
+                <TinyText muted className="mb-2">
+                  Clusters per wave
+                </TinyText>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={formData.pacingBatchSize || "5"}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        pacingBatchSize: e.target.value,
+                      })
+                    }
+                    min="1"
+                    className="w-24 px-3 py-2 border rounded"
+                    style={{
+                      borderRadius: "var(--radius)",
+                      borderColor: "var(--border)",
+                      fontFamily: "var(--font-family-text)",
+                      fontSize: "var(--text-sm)",
+                      backgroundColor: "var(--card)",
+                    }}
+                  />
+                  <TinyText>clusters</TinyText>
+                </div>
+                <TinyText muted className="mt-1">
+                  Maximum number of clusters to update simultaneously in each wave
+                </TinyText>
+              </div>
+
+              {/* Soak time between waves */}
+              <div>
+                <TinyText muted className="mb-2">
+                  Soak time between waves
+                </TinyText>
+                <select
+                  value={formData.pacingSoakTime || "0"}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      pacingSoakTime: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border rounded"
+                  style={{
+                    borderRadius: "var(--radius)",
+                    borderColor: "var(--border)",
+                    fontFamily: "var(--font-family-text)",
+                    fontSize: "var(--text-sm)",
+                    backgroundColor: "var(--card)",
+                  }}
+                >
+                  <option value="0">None (continuous waves)</option>
+                  <option value="5m">5 minutes</option>
+                  <option value="15m">15 minutes</option>
+                  <option value="30m">30 minutes</option>
+                  <option value="1h">1 hour</option>
+                </select>
+                <TinyText muted className="mt-1">
+                  Wait time after each wave completes before starting the next
+                </TinyText>
+              </div>
+
+              {/* Stop on error threshold */}
+              <div>
+                <TinyText muted className="mb-2">
+                  Error threshold
+                </TinyText>
+                <select
+                  value={formData.pacingErrorThreshold || "5"}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      pacingErrorThreshold: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border rounded"
+                  style={{
+                    borderRadius: "var(--radius)",
+                    borderColor: "var(--border)",
+                    fontFamily: "var(--font-family-text)",
+                    fontSize: "var(--text-sm)",
+                    backgroundColor: "var(--card)",
+                  }}
+                >
+                  <option value="0">0% — Stop on any failure</option>
+                  <option value="5">5% — Conservative (recommended)</option>
+                  <option value="10">10% — Moderate tolerance</option>
+                  <option value="25">25% — High tolerance</option>
+                  <option value="100">100% — Never stop</option>
+                </select>
+                <TinyText muted className="mt-1">
+                  Halt deployment if cumulative failure rate exceeds this threshold
+                </TinyText>
+              </div>
+            </div>
+          )}
         </div>
+      )}
+
+      {/* Immediate confirmation message */}
+      {formData.rolloutMethod === "immediate" && (
+        <Alert
+          variant="warning"
+          title="High-risk rollout"
+          isInline
+        >
+          All matched clusters will be updated simultaneously. 
+          Consider using Canary or Rolling for production deployments.
+        </Alert>
       )}
     </div>
   );
@@ -2215,7 +2581,7 @@ function Step4Content({
                   >
                     <SmallText>
                       The upgrade will pause for a final review before applying
-                      changes to the clusters.
+                      actions to the clusters.
                     </SmallText>
                   </div>
                 )}
@@ -2229,8 +2595,8 @@ function Step4Content({
 }
 
 function Step5Content({ formData }: { formData: any }) {
-  const selectedChanges: SelectedChange[] =
-    formData.selectedChanges || [];
+  const selectedActions: SelectedAction[] =
+    formData.selectedActions || [];
 
   // Helper to format labels
   const formatLabel = (value: string) => {
@@ -2239,7 +2605,7 @@ function Step5Content({ formData }: { formData: any }) {
 
   return (
     <div className="space-y-6">
-      {/* Change Package Section */}
+      {/* Action Section */}
       <div
         className="p-6 border rounded"
         style={{
@@ -2252,12 +2618,12 @@ function Step5Content({ formData }: { formData: any }) {
           style={{ fontWeight: "var(--font-weight-medium)" }}
           className="mb-4"
         >
-          Change package
+          Action
         </SmallText>
 
         <div className="space-y-3">
-          {selectedChanges.length > 0 ? (
-            selectedChanges.map((change, idx) => (
+          {selectedActions.length > 0 ? (
+            selectedActions.map((action, idx) => (
               <div key={idx} className="flex items-start gap-3">
                 <div>
                   <SmallText
@@ -2265,30 +2631,143 @@ function Step5Content({ formData }: { formData: any }) {
                       fontWeight: "var(--font-weight-medium)",
                     }}
                   >
-                    {change.name}
+                    {action.name}
                   </SmallText>
-                  {change.sourceVersion &&
-                    change.targetVersion && (
+                  {action.sourceVersion &&
+                    action.targetVersion && (
                       <TinyText muted className="mt-0.5">
-                        {change.sourceVersion} →{" "}
-                        {change.targetVersion}
+                        {action.sourceVersion} →{" "}
+                        {action.targetVersion}
                       </TinyText>
                     )}
-                  {change.description && (
+                  {action.description && (
                     <TinyText muted className="mt-1">
-                      {change.description}
+                      {action.description}
                     </TinyText>
                   )}
                 </div>
               </div>
             ))
           ) : (
-            <TinyText muted>No changes selected</TinyText>
+            <TinyText muted>No actions selected</TinyText>
           )}
         </div>
       </div>
 
-      {/* Targeting & Strategy Section */}
+      {/* Placement Section */}
+      {(() => {
+        // Calculate matched clusters for review
+        const selectedClusterNames: string[] = formData.selectedClusters || [];
+        const reviewMatchedClusters =
+          formData.fleetSelection === "label"
+            ? allClusters.filter((c) => {
+                const selector = formData.labelSelector?.trim() || "";
+                if (!selector) return false;
+                return c.labels.some((label) =>
+                  label.toLowerCase().includes(selector.toLowerCase())
+                );
+              })
+            : allClusters.filter((c) => selectedClusterNames.includes(c.name));
+        const previewClusters = reviewMatchedClusters.slice(0, 3);
+        const remainingCount = reviewMatchedClusters.length - 3;
+
+        return (
+          <div
+            className="p-6 border rounded"
+            style={{
+              borderRadius: "var(--radius)",
+              borderColor: "var(--border)",
+              backgroundColor: "var(--card)",
+            }}
+          >
+            <SmallText
+              style={{ fontWeight: "var(--font-weight-medium)" }}
+              className="mb-4"
+            >
+              Placement
+            </SmallText>
+
+            <div className="space-y-3">
+              <div
+                className="flex items-start justify-between py-2"
+                style={{ borderBottom: "1px solid var(--border)" }}
+              >
+                <TinyText muted>Selection method</TinyText>
+                <SmallText className="text-right">
+                  {formData.fleetSelection === "label"
+                    ? `Label: ${formData.labelSelector}`
+                    : "Manual selection"}
+                </SmallText>
+              </div>
+
+              <div
+                className="flex items-start justify-between py-2"
+                style={{ borderBottom: "1px solid var(--border)" }}
+              >
+                <TinyText muted>Matched clusters</TinyText>
+                <SmallText
+                  className="text-right"
+                  style={{ fontWeight: "var(--font-weight-medium)" }}
+                >
+                  {reviewMatchedClusters.length} clusters
+                </SmallText>
+              </div>
+
+              {/* Cluster list */}
+              {reviewMatchedClusters.length > 0 && (
+                <div className="pt-2">
+                  <div
+                    className="border rounded overflow-hidden"
+                    style={{
+                      borderRadius: "var(--radius)",
+                      borderColor: "var(--border)",
+                    }}
+                  >
+                    <table className="w-full text-sm">
+                      <tbody>
+                        {previewClusters.map((cluster, idx) => (
+                          <tr
+                            key={cluster.name}
+                            style={{
+                              borderBottom:
+                                idx < previewClusters.length - 1
+                                  ? "1px solid var(--border)"
+                                  : "none",
+                            }}
+                          >
+                            <td className="px-3 py-1.5">
+                              <TinyText>{cluster.name}</TinyText>
+                            </td>
+                            <td className="px-3 py-1.5">
+                              <TinyText muted>{cluster.env}</TinyText>
+                            </td>
+                            <td className="px-3 py-1.5">
+                              <TinyText muted>{cluster.region}</TinyText>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {remainingCount > 0 && (
+                      <div
+                        className="px-3 py-1.5 text-center"
+                        style={{
+                          backgroundColor: "var(--secondary)",
+                          borderTop: "1px solid var(--border)",
+                        }}
+                      >
+                        <TinyText muted>+{remainingCount} more clusters</TinyText>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Rollout Section */}
       <div
         className="p-6 border rounded"
         style={{
@@ -2301,7 +2780,7 @@ function Step5Content({ formData }: { formData: any }) {
           style={{ fontWeight: "var(--font-weight-medium)" }}
           className="mb-4"
         >
-          Targeting & strategy
+          Rollout
         </SmallText>
 
         <div className="space-y-3">
@@ -2309,21 +2788,9 @@ function Step5Content({ formData }: { formData: any }) {
             className="flex items-start justify-between py-2"
             style={{ borderBottom: "1px solid var(--border)" }}
           >
-            <TinyText muted>Fleet selection</TinyText>
-            <SmallText className="text-right">
-              {formData.fleetSelection === "label"
-                ? `Label selector: ${formData.labelSelector}`
-                : "Selected clusters"}
-            </SmallText>
-          </div>
-
-          <div
-            className="flex items-start justify-between py-2"
-            style={{ borderBottom: "1px solid var(--border)" }}
-          >
-            <TinyText muted>Strategy</TinyText>
+            <TinyText muted>Rollout</TinyText>
             <SmallText className="text-right capitalize">
-              {formData.strategy}
+              {formData.rolloutMethod}
             </SmallText>
           </div>
 
@@ -2340,11 +2807,48 @@ function Step5Content({ formData }: { formData: any }) {
                   : `Starts: ${formData.schedule}`}
             </SmallText>
           </div>
+
+          {formData.rolloutMethod === "rolling" && (
+            <>
+              <div
+                className="flex items-start justify-between py-2"
+                style={{ borderBottom: "1px solid var(--border)" }}
+              >
+                <TinyText muted>Clusters per wave</TinyText>
+                <SmallText className="text-right">
+                  {formData.pacingBatchSize || "5"} clusters
+                </SmallText>
+              </div>
+              <div
+                className="flex items-start justify-between py-2"
+                style={{ borderBottom: "1px solid var(--border)" }}
+              >
+                <TinyText muted>Soak time</TinyText>
+                <SmallText className="text-right">
+                  {formData.pacingSoakTime === "0" || !formData.pacingSoakTime
+                    ? "None (continuous)"
+                    : formData.pacingSoakTime}
+                </SmallText>
+              </div>
+              <div
+                className="flex items-start justify-between py-2"
+              >
+                <TinyText muted>Error threshold</TinyText>
+                <SmallText className="text-right">
+                  {formData.pacingErrorThreshold === "0"
+                    ? "Stop on any failure"
+                    : formData.pacingErrorThreshold === "100"
+                      ? "Never stop"
+                      : `${formData.pacingErrorThreshold || "5"}%`}
+                </SmallText>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/* Phase Configuration - Only show if Canary */}
-      {formData.strategy === "canary" && (
+      {formData.rolloutMethod === "canary" && (
         <>
           {/* Phase 1 Configuration */}
           <div
@@ -2371,9 +2875,9 @@ function Step5Content({ formData }: { formData: any }) {
                   borderBottom: "1px solid var(--border)",
                 }}
               >
-                <TinyText muted>Canary count</TinyText>
-                <SmallText className="text-right">
-                  {formData.phase1Count} clusters
+                <TinyText muted>Canary selector</TinyText>
+                <SmallText className="text-right font-mono text-xs">
+                  {formData.canarySelector || "tier=canary"}
                 </SmallText>
               </div>
 
@@ -2383,9 +2887,10 @@ function Step5Content({ formData }: { formData: any }) {
                   borderBottom: "1px solid var(--border)",
                 }}
               >
-                <TinyText muted>Batch size</TinyText>
+                <TinyText muted>Canary clusters</TinyText>
                 <SmallText className="text-right">
-                  {formData.phase1Batch} clusters at a time
+                  {matchClustersBySelector(formData.canarySelector || "tier=canary").length} cluster
+                  {matchClustersBySelector(formData.canarySelector || "tier=canary").length !== 1 ? "s" : ""}
                 </SmallText>
               </div>
 
@@ -2395,9 +2900,9 @@ function Step5Content({ formData }: { formData: any }) {
                   borderBottom: "1px solid var(--border)",
                 }}
               >
-                <TinyText muted>Priority</TinyText>
+                <TinyText muted>Clusters per wave</TinyText>
                 <SmallText className="text-right">
-                  {formData.phase1Priority}
+                  {formData.phase1Batch || "3"} clusters
                 </SmallText>
               </div>
 
@@ -2407,9 +2912,11 @@ function Step5Content({ formData }: { formData: any }) {
                   borderBottom: "1px solid var(--border)",
                 }}
               >
-                <TinyText muted>Soak time</TinyText>
+                <TinyText muted>Soak duration</TinyText>
                 <SmallText className="text-right">
-                  {formData.phase1Soak}
+                  {formData.phase1Soak === "0" || !formData.phase1Soak
+                    ? "None (immediate)"
+                    : formData.phase1Soak}
                 </SmallText>
               </div>
 
@@ -2419,21 +2926,23 @@ function Step5Content({ formData }: { formData: any }) {
                   borderBottom: "1px solid var(--border)",
                 }}
               >
-                <TinyText muted>Respect schedule</TinyText>
+                <TinyText muted>Error threshold</TinyText>
                 <SmallText className="text-right">
-                  {formData.phase1RespectSchedule
-                    ? "Enabled"
-                    : "Disabled"}
+                  {formData.phase1ErrorThreshold === "0"
+                    ? "Stop on any failure"
+                    : formData.phase1ErrorThreshold === "100"
+                      ? "Never stop"
+                      : `${formData.phase1ErrorThreshold || "0"}%`}
                 </SmallText>
               </div>
 
               <div className="flex items-start justify-between py-2">
-                <TinyText muted>Safety brake</TinyText>
-                <div className="flex items-center gap-2">
-                  <SmallText className="text-right">
-                    {formData.phase1SafetyBrake}% threshold
-                  </SmallText>
-                </div>
+                <TinyText muted>Auto-promote</TinyText>
+                <SmallText className="text-right">
+                  {formData.autoPromote !== false
+                    ? "Yes (automatic)"
+                    : "No (manual approval)"}
+                </SmallText>
               </div>
             </div>
           </div>
@@ -2453,7 +2962,7 @@ function Step5Content({ formData }: { formData: any }) {
               }}
               className="mb-4"
             >
-              Phase 2: General rollout
+              Phase 2: Full rollout
             </SmallText>
 
             <div className="space-y-3">
@@ -2463,9 +2972,9 @@ function Step5Content({ formData }: { formData: any }) {
                   borderBottom: "1px solid var(--border)",
                 }}
               >
-                <TinyText muted>Batch size</TinyText>
+                <TinyText muted>Clusters per wave</TinyText>
                 <SmallText className="text-right">
-                  {formData.phase2Batch} clusters at a time
+                  {formData.phase2Batch || "10"} clusters
                 </SmallText>
               </div>
 
@@ -2475,11 +2984,22 @@ function Step5Content({ formData }: { formData: any }) {
                   borderBottom: "1px solid var(--border)",
                 }}
               >
-                <TinyText muted>Stop on failure</TinyText>
+                <TinyText muted>Soak time</TinyText>
                 <SmallText className="text-right">
-                  {formData.phase2StopOnFailure
-                    ? `Enabled (${formData.phase2FailureThreshold} cluster threshold)`
-                    : "Disabled"}
+                  {formData.phase2SoakTime === "0" || !formData.phase2SoakTime
+                    ? "None (continuous)"
+                    : formData.phase2SoakTime}
+                </SmallText>
+              </div>
+
+              <div className="flex items-start justify-between py-2">
+                <TinyText muted>Error threshold</TinyText>
+                <SmallText className="text-right">
+                  {formData.phase2ErrorThreshold === "0"
+                    ? "Stop on any failure"
+                    : formData.phase2ErrorThreshold === "100"
+                      ? "Never stop"
+                      : `${formData.phase2ErrorThreshold || "5"}%`}
                 </SmallText>
               </div>
             </div>
@@ -2523,9 +3043,11 @@ function Step5Content({ formData }: { formData: any }) {
             Estimated completion
           </TinyText>
           <TinyText muted className="mt-1">
-            {formData.strategy === "canary"
-              ? `This deployment will take approximately 5-7 days including soak times (${formData.phase1Soak} after Phase 1, during the configured schedule).`
-              : "This deployment will proceed based on the configured schedule and strategy."}
+            {formData.rolloutMethod === "canary"
+              ? `This deployment will take approximately 5-7 days including soak times (${formData.phase1Soak || "24h"} after Phase 1, during the configured schedule).`
+              : formData.rolloutMethod === "rolling"
+                ? `This deployment will roll out ${formData.pacingBatchSize || "5"} clusters per wave${formData.pacingSoakTime && formData.pacingSoakTime !== "0" ? ` with ${formData.pacingSoakTime} soak between waves` : ""}.`
+                : "This deployment will update all clusters immediately."}
           </TinyText>
         </div>
       </div>
