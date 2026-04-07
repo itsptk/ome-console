@@ -16,6 +16,13 @@ import { DeploymentDrilldownPage } from "./pages/DeploymentDrilldownPage";
 import { ActivityDetailPage } from "./pages/ActivityDetailPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { TitlePage } from "./pages/TitlePage";
+import { DayOneTerminalPage } from "./pages/day-one/DayOneTerminalPage";
+import { DayOneConfigurationPage } from "./pages/day-one/DayOneConfigurationPage";
+import { DayOneRestartPage } from "./pages/day-one/DayOneRestartPage";
+import { DayOneLoginPage } from "./pages/day-one/DayOneLoginPage";
+import { DayOneWelcomePage } from "./pages/day-one/DayOneWelcomePage";
+import { DayOneCreateClusterPage } from "./pages/day-one/DayOneCreateClusterPage";
+import { DayOneCompletionPage } from "./pages/day-one/DayOneCompletionPage";
 
 const basename =
   import.meta.env.BASE_URL === "/"
@@ -28,6 +35,20 @@ const routeTree = [
     Component: RootLayout,
     children: [
       { index: true, Component: TitlePage },
+      { path: "day-one/terminal", Component: DayOneTerminalPage },
+      { path: "day-one/configuration", Component: DayOneConfigurationPage },
+      { path: "day-one/restart", Component: DayOneRestartPage },
+      { path: "day-one/login", Component: DayOneLoginPage },
+      { path: "day-one/welcome", Component: DayOneWelcomePage },
+      {
+        path: "day-one/create-cluster/virtualization",
+        Component: DayOneCreateClusterPage,
+      },
+      {
+        path: "day-one/create-cluster/management-cluster",
+        Component: DayOneCreateClusterPage,
+      },
+      { path: "day-one/completion", Component: DayOneCompletionPage },
       { path: "overview", Component: OverviewPage },
     { path: "deployments", Component: DeploymentsPage },
       { path: "deployments/:deploymentId", Component: DeploymentDrilldownPage },

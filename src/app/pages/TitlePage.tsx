@@ -89,19 +89,36 @@ export function TitlePage() {
           </p>
         </div>
 
-        <Link
-          to="/overview"
-          className="inline-flex px-5 py-2.5 bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-          style={{
-            fontFamily: 'var(--font-family-text)',
-            fontSize: 'var(--text-sm)',
-            fontWeight: 'var(--font-weight-medium)',
-            borderRadius: 'var(--radius)',
-            textDecoration: 'none',
-          }}
-        >
-          Enter console
-        </Link>
+        <div className="flex justify-center">
+          <div className="inline-flex flex-col gap-3">
+          <Link
+            to="/overview"
+            className="flex justify-center px-5 py-2.5 bg-primary text-primary-foreground hover:opacity-90 transition-opacity whitespace-nowrap"
+            style={{
+              fontFamily: 'var(--font-family-text)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 'var(--font-weight-medium)',
+              borderRadius: 'var(--radius)',
+              textDecoration: 'none',
+            }}
+          >
+            Enter console
+          </Link>
+          <Link
+            to="/day-one/terminal"
+            className="flex justify-center px-5 py-2.5 border border-border bg-background text-foreground hover:bg-muted/80 transition-colors whitespace-nowrap"
+            style={{
+              fontFamily: 'var(--font-family-text)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 'var(--font-weight-medium)',
+              borderRadius: 'var(--radius)',
+              textDecoration: 'none',
+            }}
+          >
+            View day 1 interactions
+          </Link>
+          </div>
+        </div>
       </div>
     </div>
   );
