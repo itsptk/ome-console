@@ -497,7 +497,8 @@ function Navigation({ currentUser }: { currentUser: User }) {
 
 export function RootLayout() {
   const location = useLocation();
-  const isTitlePage = location.pathname === '/';
+  const isTitlePage =
+    location.pathname === '/' || location.pathname.startsWith('/day-one');
 
   const [isAlertsPanelOpen, setIsAlertsPanelOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(users[0]);

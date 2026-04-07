@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, Info } from 'lucide-react';
-import { ConceptualLabel } from './ConceptualLabel';
+import { ConceptualLabel } from './ConceptualLabel-1';
 
 interface ClusterWizardProps {
   clusterType: 'virtualization' | 'management-cluster';
