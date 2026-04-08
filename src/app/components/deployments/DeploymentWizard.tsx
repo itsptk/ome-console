@@ -2035,17 +2035,7 @@ function Step3Content({
                       </table>
                     </div>
                   )}
-                </div>
-
-                {/* Info about canary deployment */}
-                <div
-                  className="p-3 rounded"
-                  style={{
-                    backgroundColor: "var(--secondary)",
-                    borderRadius: "var(--radius)",
-                  }}
-                >
-                  <TinyText muted>
+                  <TinyText muted className="mt-2">
                     All canary clusters deploy together, then soak before proceeding to Phase 2.
                   </TinyText>
                 </div>
