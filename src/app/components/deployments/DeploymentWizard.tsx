@@ -186,6 +186,7 @@ export function DeploymentWizard({
     phase1Soak: "24h",
     phase1RespectSchedule: true,
     phase1SafetyBrake: "50",
+    requireApproval: false,
     phase2Batch: "3",
     phase2MaxParallel: "10",
     phase2StopOnFailure: true,
@@ -2111,7 +2112,7 @@ function Step3Content({
                   </TinyText>
                 </div>
 
-                {/* Auto-promote */}
+                {/* Require approval */}
                 <div>
                   <label
                     className="flex items-center gap-3 p-3 border rounded cursor-pointer hover:bg-secondary"
@@ -2119,27 +2120,27 @@ function Step3Content({
                       borderRadius: "var(--radius)",
                       borderColor: "var(--border)",
                       backgroundColor:
-                        formData.autoPromote
+                        formData.requireApproval
                           ? "var(--secondary)"
                           : "transparent",
                     }}
                   >
                     <input
                       type="checkbox"
-                      checked={formData.autoPromote !== false}
+                      checked={formData.requireApproval === true}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          autoPromote: e.target.checked,
+                          requireApproval: e.target.checked,
                         })
                       }
                       className="size-4"
                       style={{ accentColor: "var(--primary)" }}
                     />
                     <div>
-                      <SmallText>Auto-promote after soak</SmallText>
+                      <SmallText>Require approval before Phase 2</SmallText>
                       <TinyText muted className="mt-0.5">
-                        Automatically proceed to full rollout if soak passes without errors
+                        Manual approval required after soak period completes
                       </TinyText>
                     </div>
                   </label>
@@ -3070,11 +3071,11 @@ function Step5Content({ formData }: { formData: any }) {
               </div>
 
               <div className="flex items-start justify-between py-2">
-                <TinyText muted>Auto-promote</TinyText>
+                <TinyText muted>Approval</TinyText>
                 <SmallText className="text-right">
-                  {formData.autoPromote !== false
-                    ? "Yes (automatic)"
-                    : "No (manual approval)"}
+                  {formData.requireApproval
+                    ? "Required before Phase 2"
+                    : "Auto-promote after soak"}
                 </SmallText>
               </div>
             </div>
