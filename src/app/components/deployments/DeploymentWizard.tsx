@@ -2888,11 +2888,72 @@ function Step5Content({ formData }: { formData: any }) {
                 }}
               >
                 <TinyText muted>Canary clusters</TinyText>
-                <SmallText className="text-right">
+                <SmallText
+                  className="text-right"
+                  style={{ fontWeight: "var(--font-weight-medium)" }}
+                >
                   {matchClustersBySelector(formData.canarySelector || "tier=canary").length} cluster
                   {matchClustersBySelector(formData.canarySelector || "tier=canary").length !== 1 ? "s" : ""}
                 </SmallText>
               </div>
+
+              {/* Canary cluster list - similar to Placement view */}
+              {(() => {
+                const canaryClusters = matchClustersBySelector(formData.canarySelector || "tier=canary");
+                const previewCanaryClusters = canaryClusters.slice(0, 3);
+                const remainingCanaryCount = canaryClusters.length - 3;
+                
+                if (canaryClusters.length === 0) return null;
+                
+                return (
+                  <div className="pt-2 pb-3" style={{ borderBottom: "1px solid var(--border)" }}>
+                    <div
+                      className="border rounded overflow-hidden"
+                      style={{
+                        borderRadius: "var(--radius)",
+                        borderColor: "var(--border)",
+                      }}
+                    >
+                      <table className="w-full text-sm">
+                        <tbody>
+                          {previewCanaryClusters.map((cluster, idx) => (
+                            <tr
+                              key={cluster.name}
+                              style={{
+                                borderBottom:
+                                  idx < previewCanaryClusters.length - 1
+                                    ? "1px solid var(--border)"
+                                    : "none",
+                              }}
+                            >
+                              <td className="px-3 py-1.5">
+                                <TinyText>{cluster.name}</TinyText>
+                              </td>
+                              <td className="px-3 py-1.5">
+                                <TinyText muted>{cluster.env}</TinyText>
+                              </td>
+                              <td className="px-3 py-1.5">
+                                <TinyText muted>{cluster.region}</TinyText>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {remainingCanaryCount > 0 && (
+                        <div
+                          className="px-3 py-1.5 text-center"
+                          style={{
+                            backgroundColor: "var(--secondary)",
+                            borderTop: "1px solid var(--border)",
+                          }}
+                        >
+                          <TinyText muted>+{remainingCanaryCount} more clusters</TinyText>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div
                 className="flex items-start justify-between py-2"
