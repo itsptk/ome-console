@@ -1700,6 +1700,48 @@ function Step3Content({
             style={{
               borderRadius: "var(--radius)",
               borderColor:
+                formData.scheduleType === "delayed"
+                  ? "var(--primary)"
+                  : "var(--border)",
+              backgroundColor:
+                formData.scheduleType === "delayed"
+                  ? "var(--secondary)"
+                  : "transparent",
+            }}
+          >
+            <input
+              type="radio"
+              name="scheduleType"
+              value="delayed"
+              checked={formData.scheduleType === "delayed"}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  scheduleType: e.target.value,
+                })
+              }
+              className="size-4"
+              style={{ accentColor: "var(--primary)" }}
+            />
+            <div>
+              <SmallText
+                style={{
+                  fontWeight: "var(--font-weight-medium)",
+                }}
+              >
+                Delayed start
+              </SmallText>
+              <TinyText muted className="mt-0.5">
+                Start at a specific time or after a delay
+              </TinyText>
+            </div>
+          </label>
+
+          <label
+            className="flex items-center gap-3 p-3 border rounded cursor-pointer transition-colors hover:bg-secondary"
+            style={{
+              borderRadius: "var(--radius)",
+              borderColor:
                 formData.scheduleType === "window"
                   ? "var(--primary)"
                   : "var(--border)",
@@ -1737,6 +1779,127 @@ function Step3Content({
             </div>
           </label>
         </div>
+
+        {/* Dynamic: Delayed Start Settings */}
+        {formData.scheduleType === "delayed" && (
+          <div
+            className="pl-4 space-y-3"
+            style={{ borderLeft: "2px solid var(--border)" }}
+          >
+            <div>
+              <TinyText muted className="mb-2">
+                Start timing
+              </TinyText>
+              <div className="flex flex-wrap gap-2">
+                {["1h", "2h", "4h", "6h", "12h", "24h"].map((delay) => (
+                  <button
+                    key={delay}
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        delayedStartType: "relative",
+                        delayedStartValue: delay,
+                      })
+                    }
+                    className="px-3 py-1.5 border rounded text-sm transition-colors"
+                    style={{
+                      borderRadius: "var(--radius)",
+                      borderColor:
+                        formData.delayedStartType === "relative" &&
+                        formData.delayedStartValue === delay
+                          ? "var(--primary)"
+                          : "var(--border)",
+                      backgroundColor:
+                        formData.delayedStartType === "relative" &&
+                        formData.delayedStartValue === delay
+                          ? "var(--secondary)"
+                          : "transparent",
+                      fontFamily: "var(--font-family-text)",
+                      fontSize: "var(--text-sm)",
+                    }}
+                  >
+                    In {delay.replace("h", " hour").replace("hour", "hour")}
+                    {parseInt(delay) > 1 ? "s" : ""}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <TinyText muted>Or start at specific time:</TinyText>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <input
+                type="date"
+                value={formData.delayedStartDate || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    delayedStartType: "absolute",
+                    delayedStartDate: e.target.value,
+                  })
+                }
+                className="px-3 py-2 border rounded"
+                style={{
+                  borderRadius: "var(--radius)",
+                  borderColor: "var(--border)",
+                  fontFamily: "var(--font-family-text)",
+                  fontSize: "var(--text-sm)",
+                  backgroundColor: "var(--card)",
+                }}
+              />
+              <input
+                type="time"
+                value={formData.delayedStartTime || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    delayedStartType: "absolute",
+                    delayedStartTime: e.target.value,
+                  })
+                }
+                className="px-3 py-2 border rounded"
+                style={{
+                  borderRadius: "var(--radius)",
+                  borderColor: "var(--border)",
+                  fontFamily: "var(--font-family-text)",
+                  fontSize: "var(--text-sm)",
+                  backgroundColor: "var(--card)",
+                }}
+              />
+            </div>
+
+            {formData.delayedStartType === "relative" && formData.delayedStartValue && (
+              <div
+                className="p-3 rounded"
+                style={{
+                  backgroundColor: "var(--secondary)",
+                  borderRadius: "var(--radius)",
+                }}
+              >
+                <TinyText muted>
+                  Deployment will start in {formData.delayedStartValue.replace("h", " hour")}
+                  {parseInt(formData.delayedStartValue) > 1 ? "s" : ""} from when you click Deploy.
+                </TinyText>
+              </div>
+            )}
+
+            {formData.delayedStartType === "absolute" && formData.delayedStartDate && (
+              <div
+                className="p-3 rounded"
+                style={{
+                  backgroundColor: "var(--secondary)",
+                  borderRadius: "var(--radius)",
+                }}
+              >
+                <TinyText muted>
+                  Deployment will start on {formData.delayedStartDate} at {formData.delayedStartTime || "00:00"}.
+                </TinyText>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Dynamic: Window Settings */}
         {formData.scheduleType === "window" && (
@@ -2838,10 +3001,14 @@ function Step5Content({ formData }: { formData: any }) {
             <TinyText muted>Schedule</TinyText>
             <SmallText className="text-right">
               {formData.scheduleType === "window"
-                ? ` ${formatLabel(formData.scheduleWindow)} ${formData.scheduleStartTime}-${formData.scheduleEndTime}`
-                : formData.scheduleType === "immediate"
-                  ? "Immediate"
-                  : `Starts: ${formData.schedule}`}
+                ? `${formatLabel(formData.scheduleWindow)} ${formData.scheduleStartTime}-${formData.scheduleEndTime}`
+                : formData.scheduleType === "delayed"
+                  ? formData.delayedStartType === "relative"
+                    ? `Starts in ${formData.delayedStartValue?.replace("h", " hour")}${parseInt(formData.delayedStartValue || "1") > 1 ? "s" : ""}`
+                    : `Starts ${formData.delayedStartDate} at ${formData.delayedStartTime || "00:00"}`
+                  : formData.scheduleType === "immediate"
+                    ? "Immediate"
+                    : `Starts: ${formData.schedule}`}
             </SmallText>
           </div>
 
