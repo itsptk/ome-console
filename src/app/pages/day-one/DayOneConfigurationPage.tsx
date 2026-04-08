@@ -1,12 +1,20 @@
-import { useNavigate } from 'react-router';
-import { DayOneConfigurationScreen } from '../../components/day-one/DayOneConfigurationScreen';
-import { DAY_ONE_BASE } from './paths';
+import { useNavigate } from "react-router";
+import { DayOneConfigurationScreen } from "../../components/day-one/DayOneConfigurationScreen";
+import {
+  DAY_ONE_CONSOLE_CONFIG_KEY,
+  type DayOneConsoleConfig,
+} from "./dayOneConsoleConfig";
+import { DAY_ONE_BASE } from "./paths";
 
 export function DayOneConfigurationPage() {
   const navigate = useNavigate();
 
-  const handleComplete = (selectedAuthProvider: string) => {
-    sessionStorage.setItem('dayOneAuthProvider', selectedAuthProvider);
+  const handleComplete = (config: DayOneConsoleConfig) => {
+    sessionStorage.setItem(
+      DAY_ONE_CONSOLE_CONFIG_KEY,
+      JSON.stringify(config),
+    );
+    sessionStorage.setItem("dayOneAuthProvider", config.authProvider);
     navigate(`${DAY_ONE_BASE}/restart`);
   };
 

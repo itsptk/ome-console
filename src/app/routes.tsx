@@ -1,5 +1,14 @@
 import { createBrowserRouter } from "react-router";
+import { ConsoleCapabilitiesProvider } from "./contexts/ConsoleCapabilitiesContext";
 import { RootLayout } from "./layouts/RootLayout";
+
+function RootLayoutWithCapabilities() {
+  return (
+    <ConsoleCapabilitiesProvider>
+      <RootLayout />
+    </ConsoleCapabilitiesProvider>
+  );
+}
 import { OverviewPage } from "./pages/OverviewPage";
 import { ClustersPage } from "./pages/ClustersPage";
 import { ClusterDetailPage } from "./pages/ClusterDetailPage";
@@ -32,7 +41,7 @@ const basename =
 const routeTree = [
   {
     path: "/",
-    Component: RootLayout,
+    Component: RootLayoutWithCapabilities,
     children: [
       { index: true, Component: TitlePage },
       { path: "day-one/terminal", Component: DayOneTerminalPage },

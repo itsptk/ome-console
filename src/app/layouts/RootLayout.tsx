@@ -6,6 +6,7 @@ import { AlertsPanel } from "../components/AlertsPanel";
 import { BottomPanel } from "../components/BottomPanel";
 import { IconButton, SearchInput } from "../../imports/UIComponents";
 import { ConceptualLabel } from "../../imports/ConceptualLabel-1";
+import { SigningKeyStatusBanner } from "../components/SigningKeyStatusBanner";
 
 // User type
 type User = {
@@ -521,6 +522,7 @@ export function RootLayout() {
         currentUser={currentUser}
         onUserChange={setCurrentUser}
       />
+      <SigningKeyStatusBanner />
       <div className="flex-1 flex overflow-hidden">
         <Navigation currentUser={currentUser} />
         <div className="flex-1 flex flex-col overflow-hidden">
