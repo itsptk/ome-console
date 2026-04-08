@@ -429,7 +429,6 @@ function Navigation({ currentUser }: { currentUser: User }) {
     {
       label: 'Settings',
       path: '/settings',
-      disabled: true,
       icon: (
         <svg fill="none" viewBox="0 0 20 20" className="size-full">
           <path d={svgPaths.p1f3cfb80} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" transform="scale(0.92)" />
