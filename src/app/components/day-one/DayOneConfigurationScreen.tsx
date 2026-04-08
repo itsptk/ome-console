@@ -88,7 +88,7 @@ export function DayOneConfigurationScreen({
       style={{ backgroundColor: "var(--background)" }}
     >
       <div
-        className="w-full max-w-2xl p-8 border bg-card"
+        className="w-full max-w-5xl p-8 border bg-card"
         style={{
           borderRadius: "var(--radius)",
           borderColor: "var(--border)",
@@ -115,18 +115,19 @@ export function DayOneConfigurationScreen({
           Configure your console settings before first launch.
         </p>
 
-        {/* Backing Store Section */}
-        <div className="mb-8">
-          <label
-            className="block mb-4"
+        {/* Backing store */}
+        <section className="mb-10" aria-labelledby="day-one-heading-backing-store">
+          <h2
+            id="day-one-heading-backing-store"
+            className="mb-4"
             style={{
-              fontFamily: "var(--font-family-text)",
-              fontSize: "var(--text-sm)",
+              fontFamily: "var(--font-family-display)",
+              fontSize: "var(--text-lg)",
               fontWeight: "var(--font-weight-medium)",
             }}
           >
-            1. Select backing store:
-          </label>
+            Backing store
+          </h2>
           <div className="space-y-3">
             <label
               className="flex items-start gap-3 p-3 border rounded cursor-pointer hover:bg-secondary transition-colors"
@@ -197,20 +198,24 @@ export function DayOneConfigurationScreen({
               </span>
             </label>
           </div>
-        </div>
+        </section>
 
-        {/* Authentication Provider Section */}
-        <div className="mb-8">
-          <label
-            className="block mb-4"
+        {/* Authentication provider */}
+        <section
+          className="mb-10"
+          aria-labelledby="day-one-heading-auth-provider"
+        >
+          <h2
+            id="day-one-heading-auth-provider"
+            className="mb-4"
             style={{
-              fontFamily: "var(--font-family-text)",
-              fontSize: "var(--text-sm)",
+              fontFamily: "var(--font-family-display)",
+              fontSize: "var(--text-lg)",
               fontWeight: "var(--font-weight-medium)",
             }}
           >
-            2. Setup authentication provider:
-          </label>
+            Authentication provider
+          </h2>
 
           {/* Segmented Button */}
           <div
@@ -535,20 +540,24 @@ export function DayOneConfigurationScreen({
               </p>
             </div>
           )}
-        </div>
+        </section>
 
         {/* Signing: public key registry */}
-        <div className="mb-8">
-          <label
-            className="block mb-2"
+        <section
+          className="mb-10"
+          aria-labelledby="day-one-heading-signing-registry"
+        >
+          <h2
+            id="day-one-heading-signing-registry"
+            className="mb-2"
             style={{
-              fontFamily: "var(--font-family-text)",
-              fontSize: "var(--text-sm)",
+              fontFamily: "var(--font-family-display)",
+              fontSize: "var(--text-lg)",
               fontWeight: "var(--font-weight-medium)",
             }}
           >
-            3. Signing: public key registry
-          </label>
+            Signing: public key registry
+          </h2>
           <p
             className="mb-4 text-muted-foreground"
             style={{
@@ -646,11 +655,105 @@ export function DayOneConfigurationScreen({
                   }}
                 >
                   Keys are published in an external system (for example
-                  GitHub, GitLab, or a custom URL).
+                  GitHub, GitLab, or a custom URL). Expect coordination with
+                  your IdP or security team for key discovery, trust, and
+                  registry-specific setup.
                 </p>
               </div>
             </label>
           </div>
+
+          {signingKeyRegistry === "platform" && (
+            <div className="mt-4 pl-1">
+              <div
+                className="p-4 border bg-muted"
+                style={{
+                  borderRadius: "var(--radius)",
+                  borderColor: "var(--border)",
+                }}
+              >
+                <p
+                  className="m-0"
+                  style={{
+                    fontFamily: "var(--font-family-text)",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: "var(--font-weight-medium)",
+                  }}
+                >
+                  IdP / registry alignment (illustrative)
+                </p>
+                <p
+                  className="mt-2 mb-4 text-muted-foreground m-0"
+                  style={{
+                    fontFamily: "var(--font-family-text)",
+                    fontSize: "var(--text-xs)",
+                  }}
+                >
+                  Prototype only—final steps depend on your IdP (signing
+                  workflows and what your provider actually supports). These
+                  fields are not real settings.
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label
+                      htmlFor="fake-signer-binding"
+                      className="block mb-2"
+                      style={{
+                        fontFamily: "var(--font-family-text)",
+                        fontSize: "var(--text-sm)",
+                        fontWeight: "var(--font-weight-medium)",
+                      }}
+                    >
+                      Fake example field: signer binding
+                    </label>
+                    <input
+                      id="fake-signer-binding"
+                      type="text"
+                      disabled
+                      readOnly
+                      tabIndex={-1}
+                      placeholder="urn:example:signing:console"
+                      className="w-full px-3 py-2 border bg-background opacity-70 cursor-not-allowed"
+                      style={{
+                        fontFamily: "var(--font-family-text)",
+                        fontSize: "var(--text-sm)",
+                        borderRadius: "var(--radius)",
+                        borderColor: "var(--border)",
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="fake-extra-idp"
+                      className="block mb-2"
+                      style={{
+                        fontFamily: "var(--font-family-text)",
+                        fontSize: "var(--text-sm)",
+                        fontWeight: "var(--font-weight-medium)",
+                      }}
+                    >
+                      Fake example field: extra IdP knobs
+                    </label>
+                    <input
+                      id="fake-extra-idp"
+                      type="text"
+                      disabled
+                      readOnly
+                      tabIndex={-1}
+                      placeholder="TBD — not every IdP exposes this"
+                      className="w-full px-3 py-2 border bg-background opacity-70 cursor-not-allowed"
+                      style={{
+                        fontFamily: "var(--font-family-text)",
+                        fontSize: "var(--text-sm)",
+                        borderRadius: "var(--radius)",
+                        borderColor: "var(--border)",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {signingKeyRegistry === "external" && (
             <div className="mt-4 space-y-4 pl-1">
@@ -748,20 +851,24 @@ export function DayOneConfigurationScreen({
               </div>
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Claim mapping */}
-        <div className="mb-8">
-          <label
-            className="block mb-2"
+        {/* OIDC claim mapping */}
+        <section
+          className="mb-10"
+          aria-labelledby="day-one-heading-claim-mapping"
+        >
+          <h2
+            id="day-one-heading-claim-mapping"
+            className="mb-2"
             style={{
-              fontFamily: "var(--font-family-text)",
-              fontSize: "var(--text-sm)",
+              fontFamily: "var(--font-family-display)",
+              fontSize: "var(--text-lg)",
               fontWeight: "var(--font-weight-medium)",
             }}
           >
-            4. OIDC claim mapping
-          </label>
+            OIDC claim mapping
+          </h2>
           <p
             className="mb-4 text-muted-foreground"
             style={{
@@ -849,7 +956,7 @@ export function DayOneConfigurationScreen({
                 value={usernameClaim}
                 onChange={(e) => setUsernameClaim(e.target.value)}
                 placeholder="sub"
-                className="w-full max-w-md px-3 py-2 border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
                 style={{
                   fontFamily: "var(--font-family-text)",
                   fontSize: "var(--text-sm)",
@@ -859,24 +966,35 @@ export function DayOneConfigurationScreen({
               />
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Advanced Settings Section */}
-        <div className="mb-8">
-          <button
-            onClick={() => setAdvancedOpen(!advancedOpen)}
-            className="w-full flex items-center justify-between hover:bg-secondary transition-colors"
+        {/* Advanced settings */}
+        <section className="mb-10">
+          <h2
+            className="m-0"
             style={{
-              fontFamily: "var(--font-family-text)",
-              fontSize: "var(--text-sm)",
+              fontFamily: "var(--font-family-display)",
+              fontSize: "var(--text-lg)",
               fontWeight: "var(--font-weight-medium)",
             }}
           >
-            <span>Advanced Settings</span>
-            <ChevronRight
-              className={`w-5 h-5 transition-transform ${advancedOpen ? "rotate-90" : ""}`}
-            />
-          </button>
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen(!advancedOpen)}
+              className="flex w-full items-center justify-between gap-2 rounded border-0 bg-transparent px-1 py-2 text-left hover:bg-secondary transition-colors"
+              style={{
+                font: "inherit",
+                color: "inherit",
+              }}
+              aria-expanded={advancedOpen}
+            >
+              <span>Advanced settings</span>
+              <ChevronRight
+                className={`size-5 shrink-0 transition-transform ${advancedOpen ? "rotate-90" : ""}`}
+                aria-hidden
+              />
+            </button>
+          </h2>
 
           {advancedOpen && (
             <div
@@ -897,7 +1015,7 @@ export function DayOneConfigurationScreen({
               </p>
             </div>
           )}
-        </div>
+        </section>
 
         {/* Informational Message */}
         <div

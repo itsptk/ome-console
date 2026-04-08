@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Lock } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { ConceptualLabel } from "../../../imports/ConceptualLabel-1";
 
 interface LoginScreenProps {
@@ -28,7 +28,7 @@ export function LoginScreen({ onComplete }: LoginScreenProps) {
           boxShadow: "var(--elevation-md)",
         }}
       >
-        {/* Logo/Header Area */}
+        {/* External IdP–style sign-in (illustrative) */}
         <div className="text-center mb-8">
           <div
             className="inline-flex items-center justify-center w-16 h-16 mb-4 border"
@@ -38,7 +38,11 @@ export function LoginScreen({ onComplete }: LoginScreenProps) {
               backgroundColor: "var(--muted)",
             }}
           >
-            <Lock className="w-8 h-8 text-primary" />
+            <Building2
+              className="w-8 h-8"
+              style={{ color: "var(--secondary-foreground)" }}
+              aria-hidden
+            />
           </div>
 
           <h1
@@ -49,16 +53,26 @@ export function LoginScreen({ onComplete }: LoginScreenProps) {
               fontWeight: "var(--font-weight-medium)",
             }}
           >
-            OpenShift Management Engine
+            ACME Corporation
           </h1>
           <p
-            className="text-muted-foreground"
+            className="text-muted-foreground mb-1"
             style={{
               fontFamily: "var(--font-family-text)",
               fontSize: "var(--text-sm)",
             }}
           >
-            Sign in to continue
+            Single sign-on
+          </p>
+          <p
+            className="text-muted-foreground"
+            style={{
+              fontFamily: "var(--font-family-text)",
+              fontSize: "var(--text-xs)",
+            }}
+          >
+            Sign in with your work account to continue to OpenShift Management
+            Engine.
           </p>
         </div>
 
@@ -124,15 +138,17 @@ export function LoginScreen({ onComplete }: LoginScreenProps) {
 
           <button
             type="submit"
-            className="w-full px-4 py-3 bg-primary text-primary-foreground hover:opacity-90 transition-opacity mt-6"
+            className="w-full px-4 py-3 hover:opacity-90 transition-opacity mt-6"
             style={{
               fontFamily: "var(--font-family-text)",
               fontSize: "var(--text-sm)",
               fontWeight: "var(--font-weight-medium)",
               borderRadius: "var(--radius)",
+              backgroundColor: "var(--secondary)",
+              color: "var(--secondary-foreground)",
             }}
           >
-            Log in
+            Sign in
           </button>
         </form>
       </div>
