@@ -178,13 +178,13 @@ export function DeploymentWizard({
     scheduleStartTime: "22:00",
     scheduleEndTime: "02:00",
     phase1Count: "10",
-    phase1Batch: "3",
+    phase1Batch: "2",
     phase1MaxParallel: "5",
     phase1Priority: "label:canary",
     phase1Soak: "24h",
     phase1RespectSchedule: true,
     phase1SafetyBrake: "50",
-    phase2Batch: "10",
+    phase2Batch: "3",
     phase2MaxParallel: "10",
     phase2StopOnFailure: true,
     phase2FailureThreshold: "1",
@@ -1144,14 +1144,25 @@ function Step1Content({
 
 // Mock cluster data
 const allClusters = [
+  // Production clusters (8 total)
   { name: "virt-prod-01", env: "prod", region: "us-east-1", labels: ["env=prod", "tier=web"] },
   { name: "virt-prod-02", env: "prod", region: "us-west-2", labels: ["env=prod", "tier=web"] },
   { name: "virt-prod-03", env: "prod", region: "eu-west-1", labels: ["env=prod", "tier=web"] },
+  { name: "virt-prod-04", env: "prod", region: "ap-south-1", labels: ["env=prod", "tier=web"] },
+  { name: "virt-prod-05", env: "prod", region: "ap-southeast-1", labels: ["env=prod", "tier=web"] },
   { name: "data-prod-01", env: "prod", region: "us-east-1", labels: ["env=prod", "tier=data"] },
-  { name: "data-prod-02", env: "prod", region: "ap-south-1", labels: ["env=prod", "tier=data"] },
-  { name: "virt-staging-01", env: "staging", region: "us-east-1", labels: ["env=staging", "tier=web", "tier=canary"] },
-  { name: "virt-staging-02", env: "staging", region: "us-west-2", labels: ["env=staging", "tier=web", "tier=canary"] },
+  { name: "data-prod-02", env: "prod", region: "us-west-2", labels: ["env=prod", "tier=data"] },
+  { name: "data-prod-03", env: "prod", region: "eu-west-1", labels: ["env=prod", "tier=data"] },
+  // Canary clusters (4 total) - these get updates first
+  { name: "canary-us-east-01", env: "canary", region: "us-east-1", labels: ["env=canary", "tier=canary", "tier=web"] },
+  { name: "canary-us-west-01", env: "canary", region: "us-west-2", labels: ["env=canary", "tier=canary", "tier=web"] },
+  { name: "canary-eu-west-01", env: "canary", region: "eu-west-1", labels: ["env=canary", "tier=canary", "tier=web"] },
+  { name: "canary-ap-south-01", env: "canary", region: "ap-south-1", labels: ["env=canary", "tier=canary", "tier=web"] },
+  // Staging clusters
+  { name: "virt-staging-01", env: "staging", region: "us-east-1", labels: ["env=staging", "tier=web"] },
+  { name: "virt-staging-02", env: "staging", region: "us-west-2", labels: ["env=staging", "tier=web"] },
   { name: "data-staging-01", env: "staging", region: "us-east-1", labels: ["env=staging", "tier=data"] },
+  // Dev clusters
   { name: "virt-dev-01", env: "dev", region: "us-east-1", labels: ["env=dev", "tier=web"] },
   { name: "virt-dev-02", env: "dev", region: "us-east-1", labels: ["env=dev", "tier=web"] },
 ];
@@ -1977,7 +1988,7 @@ function Step3Content({
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
-                      value={formData.phase1Batch || "3"}
+                      value={formData.phase1Batch || "2"}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
@@ -2163,7 +2174,7 @@ function Step3Content({
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
-                      value={formData.phase2Batch || "10"}
+                      value={formData.phase2Batch || "3"}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
@@ -3008,7 +3019,7 @@ function Step5Content({ formData }: { formData: any }) {
               >
                 <TinyText muted>Clusters per wave</TinyText>
                 <SmallText className="text-right">
-                  {formData.phase1Batch || "3"} clusters
+                  {formData.phase1Batch || "2"} clusters
                 </SmallText>
               </div>
 
@@ -3080,7 +3091,7 @@ function Step5Content({ formData }: { formData: any }) {
               >
                 <TinyText muted>Clusters per wave</TinyText>
                 <SmallText className="text-right">
-                  {formData.phase2Batch || "10"} clusters
+                  {formData.phase2Batch || "3"} clusters
                 </SmallText>
               </div>
 
