@@ -1,5 +1,14 @@
+import { Copy, Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 import {
   PageTitle,
   BodyText,
@@ -17,10 +26,31 @@ const ROTATION_OPTIONS = [
   { value: "365d", label: "Every 365 days" },
 ] as const;
 
+const GITHUB_SIGNING_PUB_KEY_STORAGE = "ome-prototype-github-signing-public-key";
+
+const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+/** Illustrative OpenSSH-style signing public line (prototype only). */
+function generateIllustrativeSigningPublicKey(): string {
+  const buf = new Uint8Array(86);
+  crypto.getRandomValues(buf);
+  let tail = "";
+  for (let i = 0; i < 86; i++) {
+    tail += B64[buf[i]! % 64];
+  }
+  return `ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTI1NiAAAAIbmlzdHAyNTYAAABB${tail}=`;
+}
+
 export function SettingsPage() {
   const location = useLocation();
   const [published, setPublished] = useState(false);
   const [config, setConfig] = useState(readDayOneConsoleConfig());
+  const [signingKeyDialogOpen, setSigningKeyDialogOpen] = useState(false);
+  const [generatedPublicKey, setGeneratedPublicKey] = useState<string | null>(
+    null,
+  );
+  const [isGeneratingKey, setIsGeneratingKey] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(false);
   /** Illustrative product setting — not wired to a backend in this prototype. */
   const [signingKeyRotationPolicy, setSigningKeyRotationPolicy] =
     useState<string>("90d");
@@ -47,6 +77,43 @@ export function SettingsPage() {
   }, [config]);
 
   const external = config?.signingKeyRegistry === "external";
+  const externalGithub =
+    external && config?.externalRegistryProvider === "github";
+
+  useEffect(() => {
+    if (!externalGithub || typeof sessionStorage === "undefined") return;
+    try {
+      const saved = sessionStorage.getItem(GITHUB_SIGNING_PUB_KEY_STORAGE);
+      if (saved) setGeneratedPublicKey(saved);
+    } catch {
+      /* ignore */
+    }
+  }, [externalGithub]);
+
+  const copyPublicKey = async (key: string) => {
+    try {
+      await navigator.clipboard.writeText(key);
+      setCopiedKey(true);
+      setTimeout(() => setCopiedKey(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const runGenerateSigningKeyPair = () => {
+    setIsGeneratingKey(true);
+    window.setTimeout(() => {
+      const key = generateIllustrativeSigningPublicKey();
+      setGeneratedPublicKey(key);
+      try {
+        sessionStorage.setItem(GITHUB_SIGNING_PUB_KEY_STORAGE, key);
+      } catch {
+        /* ignore */
+      }
+      setIsGeneratingKey(false);
+      setSigningKeyDialogOpen(true);
+    }, 650);
+  };
 
   const onPublishedChange = (checked: boolean) => {
     if (!config || !external) return;
@@ -130,6 +197,182 @@ export function SettingsPage() {
             for emergencies or compliance windows.
           </p>
         </div>
+
+        {externalGithub && (
+          <div
+            className="mt-8 border-t pt-6"
+            style={{ borderColor: "var(--border)" }}
+          >
+            <h3
+              className="mb-1"
+              style={{
+                fontFamily: "var(--font-family-display)",
+                fontSize: "var(--text-base)",
+                fontWeight: "var(--font-weight-medium)",
+              }}
+            >
+              External signing key
+            </h3>
+            <h4
+              className="mb-3 text-muted-foreground"
+              style={{
+                fontFamily: "var(--font-family-text)",
+                fontSize: "var(--text-sm)",
+                fontWeight: "var(--font-weight-medium)",
+              }}
+            >
+              GitHub
+            </h4>
+            <p
+              className="mb-4 text-muted-foreground"
+              style={{
+                fontFamily: "var(--font-family-text)",
+                fontSize: "var(--text-sm)",
+              }}
+            >
+              Generate a signing key pair here, then add the{" "}
+              <strong className="font-medium text-foreground">
+                public key
+              </strong>{" "}
+              to GitHub as a signing key.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                disabled={isGeneratingKey}
+                onClick={runGenerateSigningKeyPair}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ fontFamily: "var(--font-family-text)" }}
+              >
+                {isGeneratingKey
+                  ? "Generating…"
+                  : generatedPublicKey
+                    ? "Regenerate signing key pair"
+                    : "Generate signing key pair"}
+              </button>
+              {generatedPublicKey && !isGeneratingKey && (
+                <button
+                  type="button"
+                  onClick={() => setSigningKeyDialogOpen(true)}
+                  className="rounded-md border px-4 py-2 text-sm font-medium transition-colors hover:bg-secondary"
+                  style={{
+                    fontFamily: "var(--font-family-text)",
+                    borderColor: "var(--border)",
+                  }}
+                >
+                  Show public key and GitHub steps
+                </button>
+              )}
+            </div>
+            {generatedPublicKey && (
+              <p
+                className="mt-3 text-muted-foreground"
+                style={{
+                  fontFamily: "var(--font-family-text)",
+                  fontSize: "var(--text-xs)",
+                }}
+              >
+                A key is stored for this browser session so you can reopen the
+                instructions anytime.
+              </p>
+            )}
+
+            <Dialog
+              open={signingKeyDialogOpen}
+              onOpenChange={setSigningKeyDialogOpen}
+            >
+              <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>Your SSH signing public key</DialogTitle>
+                  <DialogDescription>
+                    Copy this entire line into GitHub as a{" "}
+                    <strong className="text-foreground">Signing Key</strong>.
+                  </DialogDescription>
+                </DialogHeader>
+
+                {generatedPublicKey && (
+                  <>
+                    <div className="relative">
+                      <pre
+                        className="max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-md border bg-muted p-3 pr-12 font-mono text-xs text-foreground"
+                        style={{ borderColor: "var(--border)" }}
+                      >
+                        {generatedPublicKey}
+                      </pre>
+                      <button
+                        type="button"
+                        onClick={() => copyPublicKey(generatedPublicKey)}
+                        className="absolute right-2 top-2 rounded p-1.5 text-muted-foreground hover:bg-background hover:text-foreground"
+                        aria-label="Copy public key"
+                      >
+                        {copiedKey ? (
+                          <Check className="size-4" aria-hidden />
+                        ) : (
+                          <Copy className="size-4" aria-hidden />
+                        )}
+                      </button>
+                    </div>
+
+                    <ol
+                      className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground"
+                      style={{ fontFamily: "var(--font-family-text)" }}
+                    >
+                      <li>
+                        Open GitHub:{" "}
+                        <strong className="font-medium text-foreground">
+                          Settings
+                        </strong>{" "}
+                        →{" "}
+                        <strong className="font-medium text-foreground">
+                          SSH and GPG keys
+                        </strong>{" "}
+                        →{" "}
+                        <strong className="font-medium text-foreground">
+                          New SSH key
+                        </strong>
+                        .
+                      </li>
+                      <li>
+                        Set{" "}
+                        <strong className="font-medium text-foreground">
+                          Key type
+                        </strong>{" "}
+                        to{" "}
+                        <strong className="font-medium text-foreground">
+                          Signing Key
+                        </strong>
+                        , paste the public key above, title it (for example
+                        &quot;OME signing&quot;), and save.
+                      </li>
+                      <li>
+                        <a
+                          href="https://github.com/settings/ssh/new"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-primary underline-offset-2 hover:underline"
+                        >
+                          Open GitHub: new SSH key
+                        </a>
+                      </li>
+                    </ol>
+                  </>
+                )}
+
+                <DialogFooter>
+                  <button
+                    type="button"
+                    onClick={() => setSigningKeyDialogOpen(false)}
+                    className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+                    style={{ fontFamily: "var(--font-family-text)" }}
+                  >
+                    Done
+                  </button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
       </section>
 
       <section

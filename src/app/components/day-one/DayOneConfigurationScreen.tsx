@@ -1,7 +1,27 @@
-import { ChevronRight } from "lucide-react";
+import "@patternfly/react-core/dist/styles/base-no-reset.css";
+import {
+  ActionList,
+  ActionListItem,
+  Alert,
+  Button,
+  Card,
+  CardBody,
+  ClipboardCopy,
+  Content,
+  Divider,
+  ExpandableSection,
+  Form,
+  FormGroup,
+  FormGroupLabelHelp,
+  Popover,
+  Radio,
+  TextInput,
+  Title,
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@patternfly/react-core";
 import { useEffect, useState } from "react";
 import { ConceptualLabel } from "../../../imports/ConceptualLabel-1";
-import { Copy, Info, Check } from "lucide-react";
 import type {
   ClaimMappingMode,
   DayOneConsoleConfig,
@@ -24,13 +44,8 @@ export function DayOneConfigurationScreen({
   const [authConfigType, setAuthConfigType] = useState<
     "manual" | "automated"
   >("manual");
-  const [showHelp, setShowHelp] = useState(false);
-  const [copied, setCopied] = useState(false);
   const redirectUri =
     "https://console.example.com/api/auth/callback";
-  const [showIssuerHelp, setShowIssuerHelp] = useState(false);
-  const [showClientIdHelp, setShowClientIdHelp] =
-    useState(false);
   const [signingKeyRegistry, setSigningKeyRegistry] =
     useState<SigningKeyRegistry>("platform");
   const [externalRegistryProvider, setExternalRegistryProvider] =
@@ -50,16 +65,6 @@ export function DayOneConfigurationScreen({
       return prev;
     });
   }, [signingKeyRegistry, externalRegistryProvider]);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(redirectUri);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
-  };
 
   const handleComplete = () => {
     onComplete({
@@ -82,992 +87,411 @@ export function DayOneConfigurationScreen({
     });
   };
 
+  const issuerHelp = (
+    <Popover
+      headerContent={<div>Issuer URL</div>}
+      bodyContent={
+        <div>
+          The base URL of your OIDC provider (e.g., Okta, Auth0).
+        </div>
+      }
+    >
+      <FormGroupLabelHelp aria-label="More information for issuer URL" />
+    </Popover>
+  );
+
+  const clientIdHelp = (
+    <Popover
+      headerContent={<div>Client ID</div>}
+      bodyContent={
+        <div>The unique identifier for this application.</div>
+      }
+    >
+      <FormGroupLabelHelp aria-label="More information for client ID" />
+    </Popover>
+  );
+
+  const redirectHelp = (
+    <Popover
+      headerContent={<div>Redirect URI</div>}
+      bodyContent={
+        <div>
+          Copy this URI and register it in your Identity Provider&apos;s
+          application settings to allow the management console to authenticate
+          users.
+        </div>
+      }
+    >
+      <FormGroupLabelHelp aria-label="More information for redirect URI" />
+    </Popover>
+  );
+
   return (
     <div
       className="min-h-full w-full flex justify-center items-start p-8 py-10"
       style={{ backgroundColor: "var(--background)" }}
     >
-      <div
-        className="w-full max-w-5xl p-8 border bg-card"
-        style={{
-          borderRadius: "var(--radius)",
-          borderColor: "var(--border)",
-          boxShadow: "var(--elevation-md)",
-        }}
+      <Card
+        className="w-full max-w-5xl"
+        ouiaId="day-one-configuration-card"
       >
-        <h1
-          className="mb-2"
-          style={{
-            fontFamily: "var(--font-family-display)",
-            fontSize: "var(--text-2xl)",
-            fontWeight: "var(--font-weight-medium)",
-          }}
-        >
-          Initial OpenShift Management Engine Setup
-        </h1>
-        <p
-          className="mb-8 text-muted-foreground"
-          style={{
-            fontFamily: "var(--font-family-text)",
-            fontSize: "var(--text-sm)",
-          }}
-        >
-          Configure your console settings before first launch.
-        </p>
+        <CardBody>
+          <Title headingLevel="h1" size="2xl">
+            Initial OpenShift Management Engine Setup
+          </Title>
+          <Content className="mt-2 mb-8">
+            <p className="text-muted-foreground">
+              Configure your console settings before first launch.
+            </p>
+          </Content>
 
-        {/* Backing store */}
-        <section className="mb-10" aria-labelledby="day-one-heading-backing-store">
-          <h2
-            id="day-one-heading-backing-store"
-            className="mb-4"
-            style={{
-              fontFamily: "var(--font-family-display)",
-              fontSize: "var(--text-lg)",
-              fontWeight: "var(--font-weight-medium)",
-            }}
-          >
-            Backing store
-          </h2>
-          <div className="space-y-3">
-            <label
-              className="flex items-start gap-3 p-3 border rounded cursor-pointer hover:bg-secondary transition-colors"
-              style={{
-                borderRadius: "var(--radius)",
-                borderColor:
-                  backingStore === "mysql"
-                    ? "var(--primary)"
-                    : "var(--border)",
-                backgroundColor:
-                  backingStore === "mysql"
-                    ? "var(--primary-foreground)"
-                    : "transparent",
-              }}
+          <section aria-labelledby="day-one-heading-backing-store">
+            <Title
+              id="day-one-heading-backing-store"
+              headingLevel="h2"
+              size="xl"
+              className="mb-2"
             >
-              <input
-                type="radio"
-                name="backingStore"
-                value="mysql"
-                checked={backingStore === "mysql"}
-                onChange={(e) =>
-                  setBackingStore(e.target.value)
-                }
-                className="mt-0.5"
-                style={{ accentColor: "var(--primary)" }}
-              />
-              <span
-                style={{
-                  fontFamily: "var(--font-family-text)",
-                  fontSize: "var(--text-sm)",
-                }}
-              >
-                MySQL
-              </span>
-            </label>
-            <label
-              className="flex items-start gap-3 p-3 border rounded cursor-pointer hover:bg-secondary transition-colors"
-              style={{
-                borderRadius: "var(--radius)",
-                borderColor:
-                  backingStore === "enterprisedb"
-                    ? "var(--primary)"
-                    : "var(--border)",
-                backgroundColor:
-                  backingStore === "enterprisedb"
-                    ? "var(--primary-foreground)"
-                    : "transparent",
-              }}
-            >
-              <input
-                type="radio"
-                name="backingStore"
-                value="enterprisedb"
-                checked={backingStore === "enterprisedb"}
-                onChange={(e) =>
-                  setBackingStore(e.target.value)
-                }
-                className="mt-0.5"
-                style={{ accentColor: "var(--primary)" }}
-              />
-              <span
-                style={{
-                  fontFamily: "var(--font-family-text)",
-                  fontSize: "var(--text-sm)",
-                }}
-              >
-                Enterprise DB
-              </span>
-            </label>
-          </div>
-        </section>
-
-        {/* Authentication provider */}
-        <section
-          className="mb-10"
-          aria-labelledby="day-one-heading-auth-provider"
-        >
-          <h2
-            id="day-one-heading-auth-provider"
-            className="mb-4"
-            style={{
-              fontFamily: "var(--font-family-display)",
-              fontSize: "var(--text-lg)",
-              fontWeight: "var(--font-weight-medium)",
-            }}
-          >
-            Authentication provider
-          </h2>
-
-          {/* Segmented Button */}
-          <div
-            className="inline-flex border p-1 mb-4"
-            style={{
-              borderRadius: "var(--radius)",
-              borderColor: "var(--border)",
-              backgroundColor: "var(--muted)",
-            }}
-          >
-            <button
-              onClick={() => setAuthConfigType("manual")}
-              className="px-4 py-2 transition-colors"
-              style={{
-                fontFamily: "var(--font-family-text)",
-                fontSize: "var(--text-sm)",
-                fontWeight: "var(--font-weight-medium)",
-                borderRadius: "var(--radius)",
-                backgroundColor:
-                  authConfigType === "manual"
-                    ? "var(--card)"
-                    : "transparent",
-                color:
-                  authConfigType === "manual"
-                    ? "var(--foreground)"
-                    : "var(--muted-foreground)",
-                boxShadow:
-                  authConfigType === "manual"
-                    ? "var(--elevation-sm)"
-                    : "none",
-              }}
-            >
-              Manual configuration
-            </button>
-            <button
-              onClick={() => setAuthConfigType("automated")}
-              className="px-4 py-2 transition-colors"
-              style={{
-                fontFamily: "var(--font-family-text)",
-                fontSize: "var(--text-sm)",
-                fontWeight: "var(--font-weight-medium)",
-                borderRadius: "var(--radius)",
-                backgroundColor:
-                  authConfigType === "automated"
-                    ? "var(--card)"
-                    : "transparent",
-                color:
-                  authConfigType === "automated"
-                    ? "var(--foreground)"
-                    : "var(--muted-foreground)",
-                boxShadow:
-                  authConfigType === "automated"
-                    ? "var(--elevation-sm)"
-                    : "none",
-              }}
-            >
-              Automated configuration
-            </button>
-          </div>
-
-          {/* Manual Configuration Fields */}
-          {authConfigType === "manual" && (
-            <div className="space-y-4">
-              <div>
-                <label
-                  htmlFor="issuer-url"
-                  className="block mb-2"
-                  style={{
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: "var(--font-weight-medium)",
-                  }}
-                >
-                  <span className="flex items-center gap-2">
-                    Issuer URL:
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onMouseEnter={() =>
-                          setShowIssuerHelp(true)
-                        }
-                        onMouseLeave={() =>
-                          setShowIssuerHelp(false)
-                        }
-                        className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <Info className="w-4 h-4" />
-                      </button>
-                      {showIssuerHelp && (
-                        <div
-                          className="absolute left-0 top-6 z-10 w-64 p-3 border bg-card shadow-lg"
-                          style={{
-                            borderRadius: "var(--radius)",
-                            borderColor: "var(--border)",
-                            boxShadow: "var(--elevation-md)",
-                          }}
-                        >
-                          <p
-                            className="text-foreground"
-                            style={{
-                              fontFamily:
-                                "var(--font-family-text)",
-                              fontSize: "var(--text-xs)",
-                            }}
-                          >
-                            The base URL of your OIDC provider
-                            (e.g., Okta, Auth0).
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </span>
-                </label>
-                <input
-                  id="issuer-url"
-                  type="text"
-                  value={issuerUrl}
-                  onChange={(e) => setIssuerUrl(e.target.value)}
-                  className="w-full px-3 py-2 border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                  style={{
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-sm)",
-                    borderRadius: "var(--radius)",
-                    borderColor: "var(--border)",
-                  }}
+              Backing store
+            </Title>
+            <Content className="mb-4">
+              <p className="text-sm text-muted-foreground">
+                Select the database the console uses to persist configuration
+                and operational state.
+              </p>
+            </Content>
+            <Form>
+              <FormGroup role="radiogroup" fieldId="backing-store" isStack>
+                <Radio
+                  id="backing-mysql"
+                  name="backingStore"
+                  label="MySQL"
+                  isChecked={backingStore === "mysql"}
+                  onChange={() => setBackingStore("mysql")}
                 />
-              </div>
-              <div>
-                <label
-                  htmlFor="client-id"
-                  className="block mb-2"
-                  style={{
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: "var(--font-weight-medium)",
-                  }}
-                >
-                  <span className="flex items-center gap-2">
-                    Client ID:
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onMouseEnter={() =>
-                          setShowClientIdHelp(true)
-                        }
-                        onMouseLeave={() =>
-                          setShowClientIdHelp(false)
-                        }
-                        className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <Info className="w-4 h-4" />
-                      </button>
-                      {showClientIdHelp && (
-                        <div
-                          className="absolute left-0 top-6 z-10 w-64 p-3 border bg-card shadow-lg"
-                          style={{
-                            borderRadius: "var(--radius)",
-                            borderColor: "var(--border)",
-                            boxShadow: "var(--elevation-md)",
-                          }}
-                        >
-                          <p
-                            className="text-foreground"
-                            style={{
-                              fontFamily:
-                                "var(--font-family-text)",
-                              fontSize: "var(--text-xs)",
-                            }}
-                          >
-                            The unique identifier for this
-                            application.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </span>
-                </label>
-                <input
-                  id="client-id"
-                  type="text"
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                  className="w-full px-3 py-2 border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                  style={{
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-sm)",
-                    borderRadius: "var(--radius)",
-                    borderColor: "var(--border)",
-                  }}
+                <Radio
+                  id="backing-enterprisedb"
+                  name="backingStore"
+                  label="Enterprise DB"
+                  isChecked={backingStore === "enterprisedb"}
+                  onChange={() => setBackingStore("enterprisedb")}
                 />
-              </div>
-              <div>
-                <label
-                  htmlFor="redirect-uri"
-                  className="block mb-2"
-                  style={{
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: "var(--font-weight-medium)",
-                  }}
+              </FormGroup>
+            </Form>
+          </section>
+
+          <Divider className="my-10" />
+
+          <section aria-labelledby="day-one-heading-auth-provider">
+            <Title
+              id="day-one-heading-auth-provider"
+              headingLevel="h2"
+              size="xl"
+              className="mb-2"
+            >
+              Authentication provider
+            </Title>
+            <Content className="mb-4">
+              <p className="text-sm text-muted-foreground">
+                Choose how the console integrates with your identity provider
+                for user sign-in (manual OIDC settings or automated setup).
+              </p>
+            </Content>
+            <ToggleGroup
+              aria-label="Configuration type"
+              className="mb-4"
+            >
+              <ToggleGroupItem
+                text="Manual configuration"
+                isSelected={authConfigType === "manual"}
+                onChange={(_e, selected) =>
+                  selected && setAuthConfigType("manual")
+                }
+              />
+              <ToggleGroupItem
+                text="Automated configuration"
+                isSelected={authConfigType === "automated"}
+                onChange={(_e, selected) =>
+                  selected && setAuthConfigType("automated")
+                }
+              />
+            </ToggleGroup>
+
+            {authConfigType === "manual" && (
+              <Form className="mt-4" maxWidth="40rem">
+                <FormGroup
+                  fieldId="issuer-url"
+                  label="Issuer URL"
+                  labelHelp={issuerHelp}
                 >
-                  <span className="flex items-center gap-2">
-                    Redirect URI:
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onMouseEnter={() => setShowHelp(true)}
-                        onMouseLeave={() => setShowHelp(false)}
-                        className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <Info className="w-4 h-4" />
-                      </button>
-                      {showHelp && (
-                        <div
-                          className="absolute left-0 top-6 z-10 w-64 p-3 border bg-card shadow-lg"
-                          style={{
-                            borderRadius: "var(--radius)",
-                            borderColor: "var(--border)",
-                            boxShadow: "var(--elevation-md)",
-                          }}
-                        >
-                          <p
-                            className="text-foreground"
-                            style={{
-                              fontFamily:
-                                "var(--font-family-text)",
-                              fontSize: "var(--text-xs)",
-                            }}
-                          >
-                            Copy this URI and register it in
-                            your Identity Provider's application
-                            settings to allow the management
-                            console to authenticate users.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </span>
-                </label>
-                <div className="flex items-center">
-                  <input
-                    id="redirect-uri"
+                  <TextInput
+                    id="issuer-url"
                     type="text"
-                    value={redirectUri}
-                    readOnly
-                    className="w-full px-3 py-2 border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                    style={{
-                      fontFamily: "var(--font-family-text)",
-                      fontSize: "var(--text-sm)",
-                      borderRadius: "var(--radius)",
-                      borderColor: "var(--border)",
-                    }}
+                    value={issuerUrl}
+                    onChange={(_e, v) => setIssuerUrl(v)}
                   />
-                  <button
-                    onClick={handleCopy}
-                    className="ml-2 px-3 py-2 bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-                    style={{
-                      fontFamily: "var(--font-family-text)",
-                      fontSize: "var(--text-sm)",
-                      fontWeight: "var(--font-weight-medium)",
-                      borderRadius: "var(--radius)",
-                    }}
+                </FormGroup>
+                <FormGroup
+                  fieldId="client-id"
+                  label="Client ID"
+                  labelHelp={clientIdHelp}
+                >
+                  <TextInput
+                    id="client-id"
+                    type="text"
+                    value={clientId}
+                    onChange={(_e, v) => setClientId(v)}
+                  />
+                </FormGroup>
+                <FormGroup
+                  fieldId="redirect-uri"
+                  label="Redirect URI"
+                  labelHelp={redirectHelp}
+                >
+                  <ClipboardCopy
+                    isReadOnly
+                    hoverTip="Copy to clipboard"
+                    clickTip="Copied!"
+                    variant="inline"
+                    isBlock
                   >
-                    {copied ? (
-                      <Check className="w-4 h-4" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
+                    {redirectUri}
+                  </ClipboardCopy>
+                </FormGroup>
+                <FormGroup fieldId="test-connection">
+                  <Button
+                    variant="secondary"
+                    isDisabled={!issuerUrl || !clientId}
+                  >
+                    Test connection
+                  </Button>
+                </FormGroup>
+              </Form>
+            )}
 
-              <div className="pt-2">
-                <button
-                  disabled={!issuerUrl || !clientId}
-                  className="px-4 py-2 border transition-colors"
-                  style={{
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: "var(--font-weight-medium)",
-                    borderRadius: "var(--radius)",
-                    borderColor: "var(--border)",
-                    backgroundColor:
-                      issuerUrl && clientId
-                        ? "var(--card)"
-                        : "var(--muted)",
-                    color:
-                      issuerUrl && clientId
-                        ? "var(--foreground)"
-                        : "var(--muted-foreground)",
-                    cursor:
-                      issuerUrl && clientId
-                        ? "pointer"
-                        : "not-allowed",
-                    opacity: issuerUrl && clientId ? 1 : 0.5,
-                  }}
-                >
-                  Test connection
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Automated Configuration Placeholder */}
-          {authConfigType === "automated" && (
-            <div
-              className="p-4 border bg-muted"
-              style={{
-                borderRadius: "var(--radius)",
-                borderColor: "var(--border)",
-              }}
-            >
-              <p
-                className="text-muted-foreground"
-                style={{
-                  fontFamily: "var(--font-family-text)",
-                  fontSize: "var(--text-sm)",
-                }}
+            {authConfigType === "automated" && (
+              <Alert
+                variant="info"
+                isInline
+                title="Automated configuration"
               >
-                Automated configuration options would appear
-                here
+                Automated configuration options would appear here.
+              </Alert>
+            )}
+          </section>
+
+          <Divider className="my-10" />
+
+          <section aria-labelledby="day-one-heading-signing-registry">
+            <Title
+              id="day-one-heading-signing-registry"
+              headingLevel="h2"
+              size="xl"
+              className="mb-2"
+            >
+              Signing public key registry
+            </Title>
+            <Content className="mb-4">
+              <p className="text-sm text-muted-foreground">
+                Choose where verification public keys are stored for signed
+                artifacts and policies.
               </p>
-            </div>
-          )}
-        </section>
-
-        {/* Signing: public key registry */}
-        <section
-          className="mb-10"
-          aria-labelledby="day-one-heading-signing-registry"
-        >
-          <h2
-            id="day-one-heading-signing-registry"
-            className="mb-2"
-            style={{
-              fontFamily: "var(--font-family-display)",
-              fontSize: "var(--text-lg)",
-              fontWeight: "var(--font-weight-medium)",
-            }}
-          >
-            Signing: public key registry
-          </h2>
-          <p
-            className="mb-4 text-muted-foreground"
-            style={{
-              fontFamily: "var(--font-family-text)",
-              fontSize: "var(--text-xs)",
-            }}
-          >
-            Choose where verification public keys are stored for signed
-            artifacts and policies.
-          </p>
-          <div className="space-y-3">
-            <label
-              className="flex items-start gap-3 p-3 border rounded cursor-pointer hover:bg-secondary transition-colors"
-              style={{
-                borderRadius: "var(--radius)",
-                borderColor:
-                  signingKeyRegistry === "platform"
-                    ? "var(--primary)"
-                    : "var(--border)",
-                backgroundColor:
-                  signingKeyRegistry === "platform"
-                    ? "var(--primary-foreground)"
-                    : "transparent",
-              }}
-            >
-              <input
-                type="radio"
-                name="signingKeyRegistry"
-                value="platform"
-                checked={signingKeyRegistry === "platform"}
-                onChange={() => setSigningKeyRegistry("platform")}
-                className="mt-0.5"
-                style={{ accentColor: "var(--primary)" }}
-              />
-              <div>
-                <span
-                  style={{
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: "var(--font-weight-medium)",
-                  }}
-                >
-                  Platform (internal)
-                </span>
-                <p
-                  className="text-muted-foreground mt-1"
-                  style={{
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-xs)",
-                  }}
-                >
-                  Keys are managed and served by the OpenShift Management
-                  Engine platform.
-                </p>
-              </div>
-            </label>
-            <label
-              className="flex items-start gap-3 p-3 border rounded cursor-pointer hover:bg-secondary transition-colors"
-              style={{
-                borderRadius: "var(--radius)",
-                borderColor:
-                  signingKeyRegistry === "external"
-                    ? "var(--primary)"
-                    : "var(--border)",
-                backgroundColor:
-                  signingKeyRegistry === "external"
-                    ? "var(--primary-foreground)"
-                    : "transparent",
-              }}
-            >
-              <input
-                type="radio"
-                name="signingKeyRegistry"
-                value="external"
-                checked={signingKeyRegistry === "external"}
-                onChange={() => setSigningKeyRegistry("external")}
-                className="mt-0.5"
-                style={{ accentColor: "var(--primary)" }}
-              />
-              <div>
-                <span
-                  style={{
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: "var(--font-weight-medium)",
-                  }}
-                >
-                  External registry
-                </span>
-                <p
-                  className="text-muted-foreground mt-1"
-                  style={{
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-xs)",
-                  }}
-                >
-                  Keys are published in an external system (for example
-                  GitHub, GitLab, or a custom URL). Expect coordination with
-                  your IdP or security team for key discovery, trust, and
-                  registry-specific setup.
-                </p>
-              </div>
-            </label>
-          </div>
-
-          {signingKeyRegistry === "platform" && (
-            <div className="mt-4 pl-1">
-              <div
-                className="p-4 border bg-muted"
-                style={{
-                  borderRadius: "var(--radius)",
-                  borderColor: "var(--border)",
-                }}
+            </Content>
+            <Form>
+              <FormGroup
+                role="radiogroup"
+                fieldId="signing-key-registry"
+                isStack
               >
-                <p
-                  className="m-0"
-                  style={{
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: "var(--font-weight-medium)",
-                  }}
-                >
-                  IdP / registry alignment (illustrative)
-                </p>
-                <p
-                  className="mt-2 mb-4 text-muted-foreground m-0"
-                  style={{
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-xs)",
-                  }}
-                >
-                  Prototype only—final steps depend on your IdP (signing
-                  workflows and what your provider actually supports). These
-                  fields are not real settings.
-                </p>
-                <div className="space-y-3">
-                  <div>
-                    <label
-                      htmlFor="fake-signer-binding"
-                      className="block mb-2"
-                      style={{
-                        fontFamily: "var(--font-family-text)",
-                        fontSize: "var(--text-sm)",
-                        fontWeight: "var(--font-weight-medium)",
-                      }}
-                    >
-                      Fake example field: signer binding
-                    </label>
-                    <input
-                      id="fake-signer-binding"
-                      type="text"
-                      disabled
-                      readOnly
-                      tabIndex={-1}
-                      placeholder="urn:example:signing:console"
-                      className="w-full px-3 py-2 border bg-background opacity-70 cursor-not-allowed"
-                      style={{
-                        fontFamily: "var(--font-family-text)",
-                        fontSize: "var(--text-sm)",
-                        borderRadius: "var(--radius)",
-                        borderColor: "var(--border)",
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="fake-extra-idp"
-                      className="block mb-2"
-                      style={{
-                        fontFamily: "var(--font-family-text)",
-                        fontSize: "var(--text-sm)",
-                        fontWeight: "var(--font-weight-medium)",
-                      }}
-                    >
-                      Fake example field: extra IdP knobs
-                    </label>
-                    <input
-                      id="fake-extra-idp"
-                      type="text"
-                      disabled
-                      readOnly
-                      tabIndex={-1}
-                      placeholder="TBD — not every IdP exposes this"
-                      className="w-full px-3 py-2 border bg-background opacity-70 cursor-not-allowed"
-                      style={{
-                        fontFamily: "var(--font-family-text)",
-                        fontSize: "var(--text-sm)",
-                        borderRadius: "var(--radius)",
-                        borderColor: "var(--border)",
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {signingKeyRegistry === "external" && (
-            <div className="mt-4 space-y-4 pl-1">
-              <div>
-                <span
-                  className="block mb-2"
-                  style={{
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: "var(--font-weight-medium)",
-                  }}
-                >
-                  External provider
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      ["github", "GitHub"],
-                      ["gitlab", "GitLab"],
-                      ["other", "Other / URL"],
-                    ] as const
-                  ).map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() =>
-                        setExternalRegistryProvider(value)
-                      }
-                      className="px-3 py-1.5 border transition-colors"
-                      style={{
-                        fontFamily: "var(--font-family-text)",
-                        fontSize: "var(--text-xs)",
-                        fontWeight: "var(--font-weight-medium)",
-                        borderRadius: "var(--radius)",
-                        borderColor:
-                          externalRegistryProvider === value
-                            ? "var(--primary)"
-                            : "var(--border)",
-                        backgroundColor:
-                          externalRegistryProvider === value
-                            ? "var(--primary-foreground)"
-                            : "var(--muted)",
-                        color: "var(--foreground)",
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label
-                  htmlFor="external-registry-ref"
-                  className="block mb-2"
-                  style={{
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: "var(--font-weight-medium)",
-                  }}
-                >
-                  Registry base URL
-                </label>
-                <input
-                  id="external-registry-ref"
-                  type="text"
-                  inputMode="url"
-                  autoComplete="off"
-                  value={externalRegistryRef}
-                  onChange={(e) => setExternalRegistryRef(e.target.value)}
-                  placeholder={
-                    externalRegistryProvider === "github"
-                      ? "https://github.com"
-                      : externalRegistryProvider === "gitlab"
-                        ? "https://gitlab.com"
-                        : "https://registry.example.com"
-                  }
-                  className="w-full px-3 py-2 border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                  style={{
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-sm)",
-                    borderRadius: "var(--radius)",
-                    borderColor: "var(--border)",
-                  }}
+                <Radio
+                  id="signing-platform"
+                  name="signingKeyRegistry"
+                  label="Platform (internal)"
+                  description="Keys are managed and served by the OpenShift Management Engine platform."
+                  isChecked={signingKeyRegistry === "platform"}
+                  onChange={() => setSigningKeyRegistry("platform")}
                 />
-                <p
-                  className="mt-2 text-muted-foreground"
-                  style={{
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-xs)",
-                  }}
+                <Radio
+                  id="signing-external"
+                  name="signingKeyRegistry"
+                  label="External registry"
+                  description="Keys are published in an external system (for example GitHub, GitLab, or a custom URL). Expect coordination with your IdP or security team for key discovery, trust, and registry-specific setup."
+                  isChecked={signingKeyRegistry === "external"}
+                  onChange={() => setSigningKeyRegistry("external")}
+                />
+              </FormGroup>
+            </Form>
+
+            {signingKeyRegistry === "platform" && (
+              <Form className="mt-4" maxWidth="40rem">
+                <FormGroup
+                  fieldId="fake-signer-binding"
+                  label="Fake example field: signer binding"
                 >
-                  Use the registry&apos;s base URL only, not a repository or
-                  project path.
-                </p>
-              </div>
-            </div>
-          )}
-        </section>
+                  <TextInput
+                    id="fake-signer-binding"
+                    readOnly
+                    readOnlyVariant="default"
+                    value="urn:example:signing:console"
+                    onChange={() => {}}
+                  />
+                </FormGroup>
+                <FormGroup
+                  fieldId="fake-extra-idp"
+                  label="Fake example field: extra IdP knobs"
+                >
+                  <TextInput
+                    id="fake-extra-idp"
+                    readOnly
+                    readOnlyVariant="default"
+                    value="TBD — not every IdP exposes this"
+                    onChange={() => {}}
+                  />
+                </FormGroup>
+              </Form>
+            )}
 
-        {/* OIDC claim mapping */}
-        <section
-          className="mb-10"
-          aria-labelledby="day-one-heading-claim-mapping"
-        >
-          <h2
-            id="day-one-heading-claim-mapping"
-            className="mb-2"
-            style={{
-              fontFamily: "var(--font-family-display)",
-              fontSize: "var(--text-lg)",
-              fontWeight: "var(--font-weight-medium)",
-            }}
-          >
-            OIDC claim mapping
-          </h2>
-          <p
-            className="mb-4 text-muted-foreground"
-            style={{
-              fontFamily: "var(--font-family-text)",
-              fontSize: "var(--text-xs)",
-            }}
-          >
-            Choose which OIDC token claim supplies the console username.
-          </p>
-          <div
-            className="inline-flex border p-1 mb-4"
-            style={{
-              borderRadius: "var(--radius)",
-              borderColor: "var(--border)",
-              backgroundColor: "var(--muted)",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setClaimMappingMode("default")}
-              className="px-4 py-2 transition-colors"
-              style={{
-                fontFamily: "var(--font-family-text)",
-                fontSize: "var(--text-sm)",
-                fontWeight: "var(--font-weight-medium)",
-                borderRadius: "var(--radius)",
-                backgroundColor:
-                  claimMappingMode === "default"
-                    ? "var(--card)"
-                    : "transparent",
-                color:
-                  claimMappingMode === "default"
-                    ? "var(--foreground)"
-                    : "var(--muted-foreground)",
-                boxShadow:
-                  claimMappingMode === "default"
-                    ? "var(--elevation-sm)"
-                    : "none",
-              }}
-            >
-              Use platform defaults
-            </button>
-            <button
-              type="button"
-              onClick={() => setClaimMappingMode("custom")}
-              className="px-4 py-2 transition-colors"
-              style={{
-                fontFamily: "var(--font-family-text)",
-                fontSize: "var(--text-sm)",
-                fontWeight: "var(--font-weight-medium)",
-                borderRadius: "var(--radius)",
-                backgroundColor:
-                  claimMappingMode === "custom"
-                    ? "var(--card)"
-                    : "transparent",
-                color:
-                  claimMappingMode === "custom"
-                    ? "var(--foreground)"
-                    : "var(--muted-foreground)",
-                boxShadow:
-                  claimMappingMode === "custom"
-                    ? "var(--elevation-sm)"
-                    : "none",
-              }}
-            >
-              Custom mapping
-            </button>
-          </div>
-          {claimMappingMode === "custom" && (
-            <div>
-              <label
-                htmlFor="username-claim"
-                className="block mb-2"
-                style={{
-                  fontFamily: "var(--font-family-text)",
-                  fontSize: "var(--text-sm)",
-                  fontWeight: "var(--font-weight-medium)",
-                }}
-              >
-                Username claim
-              </label>
-              <input
-                id="username-claim"
-                type="text"
-                value={usernameClaim}
-                onChange={(e) => setUsernameClaim(e.target.value)}
-                placeholder="sub"
-                className="w-full px-3 py-2 border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                style={{
-                  fontFamily: "var(--font-family-text)",
-                  fontSize: "var(--text-sm)",
-                  borderRadius: "var(--radius)",
-                  borderColor: "var(--border)",
-                }}
-              />
-            </div>
-          )}
-        </section>
+            {signingKeyRegistry === "external" && (
+              <Form className="mt-4" maxWidth="40rem">
+                <FormGroup fieldId="external-provider" label="External provider">
+                  <ToggleGroup aria-label="External registry provider">
+                    <ToggleGroupItem
+                      text="GitHub"
+                      isSelected={externalRegistryProvider === "github"}
+                      onChange={(_e, sel) =>
+                        sel && setExternalRegistryProvider("github")
+                      }
+                    />
+                    <ToggleGroupItem
+                      text="GitLab"
+                      isSelected={externalRegistryProvider === "gitlab"}
+                      onChange={(_e, sel) =>
+                        sel && setExternalRegistryProvider("gitlab")
+                      }
+                    />
+                    <ToggleGroupItem
+                      text="Other / URL"
+                      isSelected={externalRegistryProvider === "other"}
+                      onChange={(_e, sel) =>
+                        sel && setExternalRegistryProvider("other")
+                      }
+                    />
+                  </ToggleGroup>
+                </FormGroup>
+                <FormGroup fieldId="external-registry-ref" label="Registry base URL">
+                  <TextInput
+                    id="external-registry-ref"
+                    type="url"
+                    value={externalRegistryRef}
+                    onChange={(_e, v) => setExternalRegistryRef(v)}
+                    placeholder={
+                      externalRegistryProvider === "github"
+                        ? "https://github.com"
+                        : externalRegistryProvider === "gitlab"
+                          ? "https://gitlab.com"
+                          : "https://registry.example.com"
+                    }
+                  />
+                  <Content className="mt-2">
+                    <p className="text-sm text-muted-foreground">
+                      Use the registry&apos;s base URL only, not a repository or
+                      project path.
+                    </p>
+                  </Content>
+                </FormGroup>
+              </Form>
+            )}
+          </section>
 
-        {/* Advanced settings */}
-        <section className="mb-10">
-          <h2
-            className="m-0"
-            style={{
-              fontFamily: "var(--font-family-display)",
-              fontSize: "var(--text-lg)",
-              fontWeight: "var(--font-weight-medium)",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setAdvancedOpen(!advancedOpen)}
-              className="flex w-full items-center justify-between gap-2 rounded border-0 bg-transparent px-1 py-2 text-left hover:bg-secondary transition-colors"
-              style={{
-                font: "inherit",
-                color: "inherit",
-              }}
-              aria-expanded={advancedOpen}
-            >
-              <span>Advanced settings</span>
-              <ChevronRight
-                className={`size-5 shrink-0 transition-transform ${advancedOpen ? "rotate-90" : ""}`}
-                aria-hidden
-              />
-            </button>
-          </h2>
+          <Divider className="my-10" />
 
-          {advancedOpen && (
-            <div
-              className="mt-3 p-4 border bg-muted"
-              style={{
-                borderRadius: "var(--radius)",
-                borderColor: "var(--border)",
-              }}
+          <section aria-labelledby="day-one-heading-claim-mapping">
+            <Title
+              id="day-one-heading-claim-mapping"
+              headingLevel="h2"
+              size="xl"
+              className="mb-2"
             >
-              <p
-                className="text-muted-foreground"
-                style={{
-                  fontFamily: "var(--font-family-text)",
-                  fontSize: "var(--text-sm)",
-                }}
-              >
-                Advanced configuration options would appear here
+              OIDC claim mapping
+            </Title>
+            <Content className="mb-4">
+              <p className="text-sm text-muted-foreground">
+                Choose which OIDC token claim supplies the console username.
               </p>
-            </div>
-          )}
-        </section>
+            </Content>
+            <ToggleGroup
+              aria-label="Claim mapping mode"
+              className="mb-4"
+            >
+              <ToggleGroupItem
+                text="Use platform defaults"
+                isSelected={claimMappingMode === "default"}
+                onChange={(_e, sel) =>
+                  sel && setClaimMappingMode("default")
+                }
+              />
+              <ToggleGroupItem
+                text="Custom mapping"
+                isSelected={claimMappingMode === "custom"}
+                onChange={(_e, sel) =>
+                  sel && setClaimMappingMode("custom")
+                }
+              />
+            </ToggleGroup>
+            {claimMappingMode === "custom" && (
+              <Form maxWidth="40rem">
+                <FormGroup fieldId="username-claim" label="Username claim">
+                  <TextInput
+                    id="username-claim"
+                    type="text"
+                    value={usernameClaim}
+                    onChange={(_e, v) => setUsernameClaim(v)}
+                    placeholder="sub"
+                  />
+                </FormGroup>
+              </Form>
+            )}
+          </section>
 
-        {/* Informational Message */}
-        <div
-          className="p-4 border mb-6 bg-muted/50"
-          style={{
-            borderRadius: "var(--radius)",
-            borderColor: "var(--border)",
-          }}
-        >
-          <p
-            className="text-muted-foreground"
-            style={{
-              fontFamily: "var(--font-family-text)",
-              fontSize: "var(--text-sm)",
-            }}
-          >
-            The console will restart after you press OK. You
-            will need to authenticate with your chosen provider.
-          </p>
-        </div>
+          <Divider className="my-10" />
 
-        {/* Action Buttons */}
-        <div
-          className="flex gap-3 justify-end pt-4 border-t"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <button
-            className="px-4 py-2 border hover:bg-secondary transition-colors"
-            style={{
-              fontFamily: "var(--font-family-text)",
-              fontSize: "var(--text-sm)",
-              fontWeight: "var(--font-weight-medium)",
-              borderRadius: "var(--radius)",
-              borderColor: "var(--border)",
-            }}
+          <ExpandableSection
+            toggleText="Advanced settings"
+            isExpanded={advancedOpen}
+            onToggle={(_e, expanded) => setAdvancedOpen(expanded)}
+            className="mb-6"
           >
-            Cancel
-          </button>
-          <button
-            onClick={handleComplete}
-            className="px-4 py-2 bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-            style={{
-              fontFamily: "var(--font-family-text)",
-              fontSize: "var(--text-sm)",
-              fontWeight: "var(--font-weight-medium)",
-              borderRadius: "var(--radius)",
-            }}
+            <p className="text-sm text-muted-foreground">
+              Advanced configuration options would appear here
+            </p>
+          </ExpandableSection>
+
+          <Alert
+            variant="info"
+            isInline
+            isPlain
+            title="Console restart"
+            className="mb-6"
           >
-            OK
-          </button>
-        </div>
-      </div>
+            The console will restart after you press OK. You will need to
+            authenticate with your chosen provider.
+          </Alert>
+
+          <Divider />
+          <div className="flex justify-end pt-4">
+            <ActionList>
+              <ActionListItem>
+                <Button variant="secondary">Cancel</Button>
+              </ActionListItem>
+              <ActionListItem>
+                <Button variant="primary" onClick={handleComplete}>
+                  OK
+                </Button>
+              </ActionListItem>
+            </ActionList>
+          </div>
+        </CardBody>
+      </Card>
 
       <ConceptualLabel />
     </div>
