@@ -1863,7 +1863,7 @@ function Step3Content({
                 {/* Canary Selection */}
                 <div>
                   <TinyText muted className="mb-2">
-                    Canary selector
+                    Canary label selector
                   </TinyText>
                   <TextInput
                     value={formData.canarySelector}
@@ -2920,7 +2920,7 @@ function Step5Content({ formData }: { formData: any }) {
                   borderBottom: "1px solid var(--border)",
                 }}
               >
-                <TinyText muted>Canary selector</TinyText>
+                <TinyText muted>Canary label selector</TinyText>
                 <SmallText className="text-right font-mono text-xs">
                   {formData.canarySelector || "tier=canary"}
                 </SmallText>
