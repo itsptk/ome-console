@@ -1980,35 +1980,16 @@ function Step3Content({
                   )}
                 </div>
 
-                {/* Clusters per wave */}
-                <div>
-                  <TinyText muted className="mb-2">
-                    Clusters per wave
-                  </TinyText>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      value={formData.phase1Batch || "2"}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          phase1Batch: e.target.value,
-                        })
-                      }
-                      min="1"
-                      className="w-24 px-3 py-2 border rounded"
-                      style={{
-                        borderRadius: "var(--radius)",
-                        borderColor: "var(--border)",
-                        fontFamily: "var(--font-family-text)",
-                        fontSize: "var(--text-sm)",
-                        backgroundColor: "var(--card)",
-                      }}
-                    />
-                    <TinyText>clusters</TinyText>
-                  </div>
-                  <TinyText muted className="mt-1">
-                    Maximum number of canary clusters to update simultaneously
+                {/* Info about canary deployment */}
+                <div
+                  className="p-3 rounded"
+                  style={{
+                    backgroundColor: "var(--secondary)",
+                    borderRadius: "var(--radius)",
+                  }}
+                >
+                  <TinyText muted>
+                    All canary clusters deploy together, then soak before proceeding to Phase 2.
                   </TinyText>
                 </div>
 
@@ -3010,18 +2991,6 @@ function Step5Content({ formData }: { formData: any }) {
                   </div>
                 );
               })()}
-
-              <div
-                className="flex items-start justify-between py-2"
-                style={{
-                  borderBottom: "1px solid var(--border)",
-                }}
-              >
-                <TinyText muted>Clusters per wave</TinyText>
-                <SmallText className="text-right">
-                  {formData.phase1Batch || "2"} clusters
-                </SmallText>
-              </div>
 
               <div
                 className="flex items-start justify-between py-2"
