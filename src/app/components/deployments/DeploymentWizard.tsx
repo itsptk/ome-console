@@ -3141,6 +3141,44 @@ function Step5Content({ formData }: { formData: any }) {
         </>
       )}
 
+      {/* Execution Policy Section */}
+      <div
+        className="p-6 border rounded"
+        style={{
+          borderRadius: "var(--radius)",
+          borderColor: "var(--border)",
+          backgroundColor: "var(--card)",
+        }}
+      >
+        <SmallText
+          style={{ fontWeight: "var(--font-weight-medium)" }}
+          className="mb-4"
+        >
+          Execution policy
+        </SmallText>
+
+        <div className="space-y-3">
+          <div
+            className="flex items-start justify-between py-2"
+            style={{ borderBottom: "1px solid var(--border)" }}
+          >
+            <TinyText muted>Run as</TinyText>
+            <SmallText className="text-right">
+              {formData.runAs || "Personal (Adi Cluster Admin)"}
+            </SmallText>
+          </div>
+
+          <div className="flex items-start justify-between py-2">
+            <TinyText muted>Manual confirmation</TinyText>
+            <SmallText className="text-right">
+              {formData.requireManualConfirmation
+                ? "Required"
+                : "Not required"}
+            </SmallText>
+          </div>
+        </div>
+      </div>
+
       {/* Estimated Completion */}
       <div
         className="p-4 rounded flex items-start gap-3"
