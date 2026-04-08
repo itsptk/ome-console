@@ -1880,49 +1880,94 @@ function Step3Content({
                   </TinyText>
                 </div>
 
-                {/* Canary Cluster Preview */}
-                {formData.canarySelector && (
-                  <div
-                    className="p-3 border rounded"
-                    style={{
-                      borderRadius: "var(--radius)",
-                      borderColor: "var(--border)",
-                      backgroundColor: "var(--secondary)",
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <TinyText muted>Matched canary clusters</TinyText>
-                      <TinyText
-                        style={{
-                          color: matchClustersBySelector(formData.canarySelector).length > 0
-                            ? "var(--success)"
-                            : "var(--destructive)",
-                        }}
-                      >
-                        {matchClustersBySelector(formData.canarySelector).length} cluster
-                        {matchClustersBySelector(formData.canarySelector).length !== 1 ? "s" : ""}
+                {/* Matched Clusters - similar to Placement step */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <SmallText style={{ fontWeight: "var(--font-weight-medium)" }}>
+                      Matched clusters
+                    </SmallText>
+                    <TinyText muted>
+                      {matchClustersBySelector(formData.canarySelector || "").length} clusters
+                    </TinyText>
+                  </div>
+
+                  {matchClustersBySelector(formData.canarySelector || "").length === 0 ? (
+                    <div
+                      className="p-6 border rounded text-center"
+                      style={{
+                        borderRadius: "var(--radius)",
+                        borderColor: "var(--border)",
+                        backgroundColor: "var(--secondary)",
+                      }}
+                    >
+                      <TinyText muted>
+                        Enter a label selector to see matching clusters (e.g., tier=canary)
                       </TinyText>
                     </div>
-                    {matchClustersBySelector(formData.canarySelector).length > 0 ? (
-                      <div className="space-y-1">
-                        {matchClustersBySelector(formData.canarySelector).map((cluster) => (
-                          <div
-                            key={cluster.name}
-                            className="flex items-center justify-between py-1.5 px-2 rounded"
-                            style={{ backgroundColor: "var(--card)" }}
-                          >
-                            <TinyText className="font-mono">{cluster.name}</TinyText>
-                            <TinyText muted>{cluster.region}</TinyText>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <TinyText muted>
-                        No clusters match this selector. Try "tier=canary" or "env=staging".
-                      </TinyText>
-                    )}
-                  </div>
-                )}
+                  ) : (
+                    <div
+                      className="border rounded overflow-hidden"
+                      style={{
+                        borderRadius: "var(--radius)",
+                        borderColor: "var(--border)",
+                      }}
+                    >
+                      <table className="w-full">
+                        <thead>
+                          <tr style={{ backgroundColor: "var(--secondary)" }}>
+                            <th
+                              className="px-4 py-2 text-left"
+                              style={{ borderBottom: "1px solid var(--border)" }}
+                            >
+                              <TinyText style={{ fontWeight: "var(--font-weight-medium)" }}>
+                                Cluster name
+                              </TinyText>
+                            </th>
+                            <th
+                              className="px-4 py-2 text-left"
+                              style={{ borderBottom: "1px solid var(--border)" }}
+                            >
+                              <TinyText style={{ fontWeight: "var(--font-weight-medium)" }}>
+                                Environment
+                              </TinyText>
+                            </th>
+                            <th
+                              className="px-4 py-2 text-left"
+                              style={{ borderBottom: "1px solid var(--border)" }}
+                            >
+                              <TinyText style={{ fontWeight: "var(--font-weight-medium)" }}>
+                                Region
+                              </TinyText>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {matchClustersBySelector(formData.canarySelector || "").map((cluster, idx, arr) => (
+                            <tr
+                              key={cluster.name}
+                              style={{
+                                borderBottom:
+                                  idx < arr.length - 1
+                                    ? "1px solid var(--border)"
+                                    : "none",
+                              }}
+                            >
+                              <td className="px-4 py-2">
+                                <SmallText>{cluster.name}</SmallText>
+                              </td>
+                              <td className="px-4 py-2">
+                                <TinyText muted>{cluster.env}</TinyText>
+                              </td>
+                              <td className="px-4 py-2">
+                                <TinyText muted>{cluster.region}</TinyText>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
 
                 {/* Clusters per wave */}
                 <div>
