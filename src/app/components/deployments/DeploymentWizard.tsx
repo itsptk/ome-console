@@ -1649,195 +1649,48 @@ function Step3Content({
           style={{ fontWeight: "var(--font-weight-medium)" }}
           className="mb-3"
         >
-          Schedule
+          When to start
         </SmallText>
 
-        <div className="space-y-2 mb-4">
-          <label
-            className="flex items-center gap-3 p-3 border rounded cursor-pointer transition-colors hover:bg-secondary"
+        <div className="space-y-3">
+          {/* Start timing dropdown */}
+          <select
+            value={formData.startTiming || "now"}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                startTiming: e.target.value,
+              })
+            }
+            className="w-full px-3 py-2 border rounded"
             style={{
               borderRadius: "var(--radius)",
-              borderColor:
-                formData.scheduleType === "immediate"
-                  ? "var(--primary)"
-                  : "var(--border)",
-              backgroundColor:
-                formData.scheduleType === "immediate"
-                  ? "var(--secondary)"
-                  : "transparent",
+              borderColor: "var(--border)",
+              fontFamily: "var(--font-family-text)",
+              fontSize: "var(--text-sm)",
+              backgroundColor: "var(--card)",
             }}
           >
-            <input
-              type="radio"
-              name="scheduleType"
-              value="immediate"
-              checked={formData.scheduleType === "immediate"}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  scheduleType: e.target.value,
-                })
-              }
-              className="size-4"
-              style={{ accentColor: "var(--primary)" }}
-            />
-            <div>
-              <SmallText
-                style={{
-                  fontWeight: "var(--font-weight-medium)",
-                }}
-              >
-                Start immediately
-              </SmallText>
-              <TinyText muted className="mt-0.5">
-                Begin deployment as soon as it's submitted
-              </TinyText>
-            </div>
-          </label>
+            <option value="now">Now</option>
+            <option value="1h">In 1 hour</option>
+            <option value="2h">In 2 hours</option>
+            <option value="4h">In 4 hours</option>
+            <option value="6h">In 6 hours</option>
+            <option value="12h">In 12 hours</option>
+            <option value="24h">In 24 hours</option>
+            <option value="specific">At a specific time...</option>
+          </select>
 
-          <label
-            className="flex items-center gap-3 p-3 border rounded cursor-pointer transition-colors hover:bg-secondary"
-            style={{
-              borderRadius: "var(--radius)",
-              borderColor:
-                formData.scheduleType === "delayed"
-                  ? "var(--primary)"
-                  : "var(--border)",
-              backgroundColor:
-                formData.scheduleType === "delayed"
-                  ? "var(--secondary)"
-                  : "transparent",
-            }}
-          >
-            <input
-              type="radio"
-              name="scheduleType"
-              value="delayed"
-              checked={formData.scheduleType === "delayed"}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  scheduleType: e.target.value,
-                })
-              }
-              className="size-4"
-              style={{ accentColor: "var(--primary)" }}
-            />
-            <div>
-              <SmallText
-                style={{
-                  fontWeight: "var(--font-weight-medium)",
-                }}
-              >
-                Delayed start
-              </SmallText>
-              <TinyText muted className="mt-0.5">
-                Start at a specific time or after a delay
-              </TinyText>
-            </div>
-          </label>
-
-          <label
-            className="flex items-center gap-3 p-3 border rounded cursor-pointer transition-colors hover:bg-secondary"
-            style={{
-              borderRadius: "var(--radius)",
-              borderColor:
-                formData.scheduleType === "window"
-                  ? "var(--primary)"
-                  : "var(--border)",
-              backgroundColor:
-                formData.scheduleType === "window"
-                  ? "var(--secondary)"
-                  : "transparent",
-            }}
-          >
-            <input
-              type="radio"
-              name="scheduleType"
-              value="window"
-              checked={formData.scheduleType === "window"}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  scheduleType: e.target.value,
-                })
-              }
-              className="size-4"
-              style={{ accentColor: "var(--primary)" }}
-            />
-            <div>
-              <SmallText
-                style={{
-                  fontWeight: "var(--font-weight-medium)",
-                }}
-              >
-                Scheduled window
-              </SmallText>
-              <TinyText muted className="mt-0.5">
-                Only deploy during defined maintenance windows
-              </TinyText>
-            </div>
-          </label>
-        </div>
-
-        {/* Dynamic: Delayed Start Settings */}
-        {formData.scheduleType === "delayed" && (
-          <div
-            className="pl-4 space-y-3"
-            style={{ borderLeft: "2px solid var(--border)" }}
-          >
-            <div>
-              <TinyText muted className="mb-2">
-                Start timing
-              </TinyText>
-              <div className="flex flex-wrap gap-2">
-                {["1h", "2h", "4h", "6h", "12h", "24h"].map((delay) => (
-                  <button
-                    key={delay}
-                    onClick={() =>
-                      setFormData({
-                        ...formData,
-                        delayedStartType: "relative",
-                        delayedStartValue: delay,
-                      })
-                    }
-                    className="px-3 py-1.5 border rounded text-sm transition-colors"
-                    style={{
-                      borderRadius: "var(--radius)",
-                      borderColor:
-                        formData.delayedStartType === "relative" &&
-                        formData.delayedStartValue === delay
-                          ? "var(--primary)"
-                          : "var(--border)",
-                      backgroundColor:
-                        formData.delayedStartType === "relative" &&
-                        formData.delayedStartValue === delay
-                          ? "var(--secondary)"
-                          : "transparent",
-                      fontFamily: "var(--font-family-text)",
-                      fontSize: "var(--text-sm)",
-                    }}
-                  >
-                    In {delay.replace("h", " hour").replace("hour", "hour")}
-                    {parseInt(delay) > 1 ? "s" : ""}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <TinyText muted>Or start at specific time:</TinyText>
-            </div>
-
+          {/* Show date/time pickers when "specific" is selected */}
+          {formData.startTiming === "specific" && (
             <div className="flex items-center gap-3">
               <input
                 type="date"
-                value={formData.delayedStartDate || ""}
+                value={formData.startDate || ""}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    delayedStartType: "absolute",
-                    delayedStartDate: e.target.value,
+                    startDate: e.target.value,
                   })
                 }
                 className="px-3 py-2 border rounded"
@@ -1851,12 +1704,11 @@ function Step3Content({
               />
               <input
                 type="time"
-                value={formData.delayedStartTime || ""}
+                value={formData.startTime || ""}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    delayedStartType: "absolute",
-                    delayedStartTime: e.target.value,
+                    startTime: e.target.value,
                   })
                 }
                 className="px-3 py-2 border rounded"
@@ -1869,82 +1721,59 @@ function Step3Content({
                 }}
               />
             </div>
+          )}
 
-            {formData.delayedStartType === "relative" && formData.delayedStartValue && (
-              <div
-                className="p-3 rounded"
-                style={{
-                  backgroundColor: "var(--secondary)",
-                  borderRadius: "var(--radius)",
-                }}
-              >
-                <TinyText muted>
-                  Deployment will start in {formData.delayedStartValue.replace("h", " hour")}
-                  {parseInt(formData.delayedStartValue) > 1 ? "s" : ""} from when you click Deploy.
-                </TinyText>
-              </div>
-            )}
-
-            {formData.delayedStartType === "absolute" && formData.delayedStartDate && (
-              <div
-                className="p-3 rounded"
-                style={{
-                  backgroundColor: "var(--secondary)",
-                  borderRadius: "var(--radius)",
-                }}
-              >
-                <TinyText muted>
-                  Deployment will start on {formData.delayedStartDate} at {formData.delayedStartTime || "00:00"}.
-                </TinyText>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Dynamic: Window Settings */}
-        {formData.scheduleType === "window" && (
-          <div
-            className="pl-4 space-y-3"
-            style={{ borderLeft: "2px solid var(--border)" }}
+          {/* Maintenance window checkbox */}
+          <label
+            className="flex items-center gap-3 p-3 border rounded cursor-pointer transition-colors hover:bg-secondary"
+            style={{
+              borderRadius: "var(--radius)",
+              borderColor: formData.useMaintenanceWindow
+                ? "var(--primary)"
+                : "var(--border)",
+              backgroundColor: formData.useMaintenanceWindow
+                ? "var(--secondary)"
+                : "transparent",
+            }}
           >
+            <input
+              type="checkbox"
+              checked={formData.useMaintenanceWindow || false}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  useMaintenanceWindow: e.target.checked,
+                })
+              }
+              className="size-4"
+              style={{ accentColor: "var(--primary)" }}
+            />
             <div>
-              <TinyText muted className="mb-2">
-                Window
+              <SmallText style={{ fontWeight: "var(--font-weight-medium)" }}>
+                Respect maintenance windows
+              </SmallText>
+              <TinyText muted className="mt-0.5">
+                Only deploy during defined maintenance windows
               </TinyText>
-              <select
-                value={formData.scheduleWindow}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    scheduleWindow: e.target.value,
-                  })
-                }
-                className="w-full px-3 py-2 border rounded"
-                style={{
-                  borderRadius: "var(--radius)",
-                  borderColor: "var(--border)",
-                  fontFamily: "var(--font-family-text)",
-                  fontSize: "var(--text-sm)",
-                  backgroundColor: "var(--card)",
-                }}
-              >
-                <option value="weekends">Weekends</option>
-                <option value="weekdays">Weekdays</option>
-                <option value="daily">Daily</option>
-              </select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+          </label>
+
+          {/* Show window settings when checkbox is checked */}
+          {formData.useMaintenanceWindow && (
+            <div
+              className="pl-4 space-y-3"
+              style={{ borderLeft: "2px solid var(--border)" }}
+            >
               <div>
                 <TinyText muted className="mb-2">
-                  Start time
+                  Window
                 </TinyText>
-                <input
-                  type="time"
-                  value={formData.scheduleStartTime}
+                <select
+                  value={formData.scheduleWindow}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      scheduleStartTime: e.target.value,
+                      scheduleWindow: e.target.value,
                     })
                   }
                   className="w-full px-3 py-2 border rounded"
@@ -1955,34 +1784,63 @@ function Step3Content({
                     fontSize: "var(--text-sm)",
                     backgroundColor: "var(--card)",
                   }}
-                />
+                >
+                  <option value="weekends">Weekends</option>
+                  <option value="weekdays">Weekdays</option>
+                  <option value="daily">Daily</option>
+                </select>
               </div>
-              <div>
-                <TinyText muted className="mb-2">
-                  End time
-                </TinyText>
-                <input
-                  type="time"
-                  value={formData.scheduleEndTime}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      scheduleEndTime: e.target.value,
-                    })
-                  }
-                  className="w-full px-3 py-2 border rounded"
-                  style={{
-                    borderRadius: "var(--radius)",
-                    borderColor: "var(--border)",
-                    fontFamily: "var(--font-family-text)",
-                    fontSize: "var(--text-sm)",
-                    backgroundColor: "var(--card)",
-                  }}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <TinyText muted className="mb-2">
+                    Start time
+                  </TinyText>
+                  <input
+                    type="time"
+                    value={formData.scheduleStartTime}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        scheduleStartTime: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded"
+                    style={{
+                      borderRadius: "var(--radius)",
+                      borderColor: "var(--border)",
+                      fontFamily: "var(--font-family-text)",
+                      fontSize: "var(--text-sm)",
+                      backgroundColor: "var(--card)",
+                    }}
+                  />
+                </div>
+                <div>
+                  <TinyText muted className="mb-2">
+                    End time
+                  </TinyText>
+                  <input
+                    type="time"
+                    value={formData.scheduleEndTime}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        scheduleEndTime: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded"
+                    style={{
+                      borderRadius: "var(--radius)",
+                      borderColor: "var(--border)",
+                      fontFamily: "var(--font-family-text)",
+                      fontSize: "var(--text-sm)",
+                      backgroundColor: "var(--card)",
+                    }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Canary Configuration - Only show if Canary is selected */}
@@ -2998,17 +2856,18 @@ function Step5Content({ formData }: { formData: any }) {
             className="flex items-start justify-between py-2"
             style={{ borderBottom: "1px solid var(--border)" }}
           >
-            <TinyText muted>Schedule</TinyText>
+            <TinyText muted>When to start</TinyText>
             <SmallText className="text-right">
-              {formData.scheduleType === "window"
-                ? `${formatLabel(formData.scheduleWindow)} ${formData.scheduleStartTime}-${formData.scheduleEndTime}`
-                : formData.scheduleType === "delayed"
-                  ? formData.delayedStartType === "relative"
-                    ? `Starts in ${formData.delayedStartValue?.replace("h", " hour")}${parseInt(formData.delayedStartValue || "1") > 1 ? "s" : ""}`
-                    : `Starts ${formData.delayedStartDate} at ${formData.delayedStartTime || "00:00"}`
-                  : formData.scheduleType === "immediate"
-                    ? "Immediate"
-                    : `Starts: ${formData.schedule}`}
+              {formData.startTiming === "now" || !formData.startTiming
+                ? "Now"
+                : formData.startTiming === "specific"
+                  ? `${formData.startDate || "Date"} at ${formData.startTime || "00:00"}`
+                  : `In ${formData.startTiming.replace("h", " hour")}${parseInt(formData.startTiming) > 1 ? "s" : ""}`}
+              {formData.useMaintenanceWindow && (
+                <span className="block text-xs opacity-70">
+                  (within {formatLabel(formData.scheduleWindow)} {formData.scheduleStartTime}-{formData.scheduleEndTime})
+                </span>
+              )}
             </SmallText>
           </div>
 
