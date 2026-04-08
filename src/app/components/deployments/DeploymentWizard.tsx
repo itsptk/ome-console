@@ -1686,9 +1686,14 @@ function Step3Content({
 
           {/* Delayed */}
           <button
-            onClick={() =>
-              setFormData({ ...formData, scheduleType: "delayed" })
-            }
+            onClick={() => {
+              const today = new Date().toISOString().split("T")[0];
+              setFormData({
+                ...formData,
+                scheduleType: "delayed",
+                scheduledDate: formData.scheduledDate || today,
+              });
+            }}
             className="p-4 border rounded text-left transition-colors hover:bg-secondary flex flex-col h-full"
             style={{
               borderRadius: "var(--radius)",
