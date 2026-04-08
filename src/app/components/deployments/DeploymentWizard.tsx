@@ -173,7 +173,9 @@ export function DeploymentWizard({
     fleetSelection: "label",
     labelSelector: "env=prod",
     rolloutMethod: "canary", // "immediate" | "canary" | "rolling"
-    scheduleType: "window",
+    scheduleType: "immediate", // "immediate" | "delayed" | "window"
+    scheduledDate: "",
+    scheduledTime: "",
     scheduleWindow: "weekends",
     scheduleStartTime: "22:00",
     scheduleEndTime: "02:00",
@@ -1643,7 +1645,7 @@ function Step3Content({
         </div>
       </div>
 
-      {/* Schedule Configuration */}
+      {/* Schedule */}
       <div>
         <SmallText
           style={{ fontWeight: "var(--font-weight-medium)" }}
@@ -1652,9 +1654,13 @@ function Step3Content({
           Schedule
         </SmallText>
 
-        <div className="space-y-2 mb-4">
-          <label
-            className="flex items-center gap-3 p-3 border rounded cursor-pointer transition-colors hover:bg-secondary"
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          {/* Now */}
+          <button
+            onClick={() =>
+              setFormData({ ...formData, scheduleType: "immediate" })
+            }
+            className="p-4 border rounded text-left transition-colors hover:bg-secondary flex flex-col h-full"
             style={{
               borderRadius: "var(--radius)",
               borderColor:
@@ -1665,38 +1671,52 @@ function Step3Content({
                 formData.scheduleType === "immediate"
                   ? "var(--secondary)"
                   : "transparent",
+              borderWidth:
+                formData.scheduleType === "immediate" ? "2px" : "1px",
             }}
           >
-            <input
-              type="radio"
-              name="scheduleType"
-              value="immediate"
-              checked={formData.scheduleType === "immediate"}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  scheduleType: e.target.value,
-                })
-              }
-              className="size-4"
-              style={{ accentColor: "var(--primary)" }}
-            />
-            <div>
-              <SmallText
-                style={{
-                  fontWeight: "var(--font-weight-medium)",
-                }}
-              >
-                Start immediately
-              </SmallText>
-              <TinyText muted className="mt-0.5">
-                Begin deployment as soon as it's submitted
-              </TinyText>
-            </div>
-          </label>
+            <SmallText style={{ fontWeight: "var(--font-weight-medium)" }}>
+              Now
+            </SmallText>
+            <TinyText muted className="mt-1">
+              Start immediately
+            </TinyText>
+          </button>
 
-          <label
-            className="flex items-center gap-3 p-3 border rounded cursor-pointer transition-colors hover:bg-secondary"
+          {/* Delayed */}
+          <button
+            onClick={() =>
+              setFormData({ ...formData, scheduleType: "delayed" })
+            }
+            className="p-4 border rounded text-left transition-colors hover:bg-secondary flex flex-col h-full"
+            style={{
+              borderRadius: "var(--radius)",
+              borderColor:
+                formData.scheduleType === "delayed"
+                  ? "var(--primary)"
+                  : "var(--border)",
+              backgroundColor:
+                formData.scheduleType === "delayed"
+                  ? "var(--secondary)"
+                  : "transparent",
+              borderWidth:
+                formData.scheduleType === "delayed" ? "2px" : "1px",
+            }}
+          >
+            <SmallText style={{ fontWeight: "var(--font-weight-medium)" }}>
+              Delayed
+            </SmallText>
+            <TinyText muted className="mt-1">
+              Start at a specific time
+            </TinyText>
+          </button>
+
+          {/* Maintenance window */}
+          <button
+            onClick={() =>
+              setFormData({ ...formData, scheduleType: "window" })
+            }
+            className="p-4 border rounded text-left transition-colors hover:bg-secondary flex flex-col h-full"
             style={{
               borderRadius: "var(--radius)",
               borderColor:
@@ -1707,42 +1727,79 @@ function Step3Content({
                 formData.scheduleType === "window"
                   ? "var(--secondary)"
                   : "transparent",
+              borderWidth:
+                formData.scheduleType === "window" ? "2px" : "1px",
             }}
           >
-            <input
-              type="radio"
-              name="scheduleType"
-              value="window"
-              checked={formData.scheduleType === "window"}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  scheduleType: e.target.value,
-                })
-              }
-              className="size-4"
-              style={{ accentColor: "var(--primary)" }}
-            />
-            <div>
-              <SmallText
-                style={{
-                  fontWeight: "var(--font-weight-medium)",
-                }}
-              >
-                Scheduled window
-              </SmallText>
-              <TinyText muted className="mt-0.5">
-                Only deploy during defined maintenance windows
-              </TinyText>
-            </div>
-          </label>
+            <SmallText style={{ fontWeight: "var(--font-weight-medium)" }}>
+              Maintenance window
+            </SmallText>
+            <TinyText muted className="mt-1">
+              During allowed windows
+            </TinyText>
+          </button>
         </div>
 
-        {/* Dynamic: Window Settings */}
+        {/* Delayed settings */}
+        {formData.scheduleType === "delayed" && (
+          <div
+            className="p-4 border rounded space-y-3"
+            style={{
+              borderRadius: "var(--radius)",
+              borderColor: "var(--border)",
+              backgroundColor: "var(--secondary)",
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <input
+                type="date"
+                value={formData.scheduledDate || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    scheduledDate: e.target.value,
+                  })
+                }
+                className="px-3 py-2 border rounded"
+                style={{
+                  borderRadius: "var(--radius)",
+                  borderColor: "var(--border)",
+                  fontFamily: "var(--font-family-text)",
+                  fontSize: "var(--text-sm)",
+                  backgroundColor: "var(--card)",
+                }}
+              />
+              <input
+                type="time"
+                value={formData.scheduledTime || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    scheduledTime: e.target.value,
+                  })
+                }
+                className="px-3 py-2 border rounded"
+                style={{
+                  borderRadius: "var(--radius)",
+                  borderColor: "var(--border)",
+                  fontFamily: "var(--font-family-text)",
+                  fontSize: "var(--text-sm)",
+                  backgroundColor: "var(--card)",
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Maintenance window settings */}
         {formData.scheduleType === "window" && (
           <div
-            className="pl-4 space-y-3"
-            style={{ borderLeft: "2px solid var(--border)" }}
+            className="p-4 border rounded space-y-3"
+            style={{
+              borderRadius: "var(--radius)",
+              borderColor: "var(--border)",
+              backgroundColor: "var(--secondary)",
+            }}
           >
             <div>
               <TinyText muted className="mb-2">
@@ -2837,11 +2894,11 @@ function Step5Content({ formData }: { formData: any }) {
           >
             <TinyText muted>Schedule</TinyText>
             <SmallText className="text-right">
-              {formData.scheduleType === "window"
-                ? ` ${formatLabel(formData.scheduleWindow)} ${formData.scheduleStartTime}-${formData.scheduleEndTime}`
-                : formData.scheduleType === "immediate"
-                  ? "Immediate"
-                  : `Starts: ${formData.schedule}`}
+              {formData.scheduleType === "immediate"
+                ? "Now"
+                : formData.scheduleType === "delayed"
+                  ? `${formData.scheduledDate || "Date"} at ${formData.scheduledTime || "Time"}`
+                  : `${formatLabel(formData.scheduleWindow)} ${formData.scheduleStartTime}-${formData.scheduleEndTime}`}
             </SmallText>
           </div>
 
