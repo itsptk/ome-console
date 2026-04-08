@@ -173,18 +173,21 @@ export function DeploymentWizard({
     fleetSelection: "label",
     labelSelector: "env=prod",
     rolloutMethod: "canary", // "immediate" | "canary" | "rolling"
-    scheduleType: "window",
+    scheduleType: "immediate", // "immediate" | "delayed" | "window"
+    scheduledDate: "",
+    scheduledTime: "",
     scheduleWindow: "weekends",
     scheduleStartTime: "22:00",
     scheduleEndTime: "02:00",
     phase1Count: "10",
-    phase1Batch: "3",
+    phase1Batch: "2",
     phase1MaxParallel: "5",
     phase1Priority: "label:canary",
     phase1Soak: "24h",
     phase1RespectSchedule: true,
     phase1SafetyBrake: "50",
-    phase2Batch: "10",
+    requireApproval: false,
+    phase2Batch: "3",
     phase2MaxParallel: "10",
     phase2StopOnFailure: true,
     phase2FailureThreshold: "1",
@@ -1144,14 +1147,25 @@ function Step1Content({
 
 // Mock cluster data
 const allClusters = [
+  // Production clusters (8 total)
   { name: "virt-prod-01", env: "prod", region: "us-east-1", labels: ["env=prod", "tier=web"] },
   { name: "virt-prod-02", env: "prod", region: "us-west-2", labels: ["env=prod", "tier=web"] },
   { name: "virt-prod-03", env: "prod", region: "eu-west-1", labels: ["env=prod", "tier=web"] },
+  { name: "virt-prod-04", env: "prod", region: "ap-south-1", labels: ["env=prod", "tier=web"] },
+  { name: "virt-prod-05", env: "prod", region: "ap-southeast-1", labels: ["env=prod", "tier=web"] },
   { name: "data-prod-01", env: "prod", region: "us-east-1", labels: ["env=prod", "tier=data"] },
-  { name: "data-prod-02", env: "prod", region: "ap-south-1", labels: ["env=prod", "tier=data"] },
-  { name: "virt-staging-01", env: "staging", region: "us-east-1", labels: ["env=staging", "tier=web", "tier=canary"] },
-  { name: "virt-staging-02", env: "staging", region: "us-west-2", labels: ["env=staging", "tier=web", "tier=canary"] },
+  { name: "data-prod-02", env: "prod", region: "us-west-2", labels: ["env=prod", "tier=data"] },
+  { name: "data-prod-03", env: "prod", region: "eu-west-1", labels: ["env=prod", "tier=data"] },
+  // Canary clusters (4 total) - these get updates first
+  { name: "canary-us-east-01", env: "canary", region: "us-east-1", labels: ["env=canary", "tier=canary", "tier=web"] },
+  { name: "canary-us-west-01", env: "canary", region: "us-west-2", labels: ["env=canary", "tier=canary", "tier=web"] },
+  { name: "canary-eu-west-01", env: "canary", region: "eu-west-1", labels: ["env=canary", "tier=canary", "tier=web"] },
+  { name: "canary-ap-south-01", env: "canary", region: "ap-south-1", labels: ["env=canary", "tier=canary", "tier=web"] },
+  // Staging clusters
+  { name: "virt-staging-01", env: "staging", region: "us-east-1", labels: ["env=staging", "tier=web"] },
+  { name: "virt-staging-02", env: "staging", region: "us-west-2", labels: ["env=staging", "tier=web"] },
   { name: "data-staging-01", env: "staging", region: "us-east-1", labels: ["env=staging", "tier=data"] },
+  // Dev clusters
   { name: "virt-dev-01", env: "dev", region: "us-east-1", labels: ["env=dev", "tier=web"] },
   { name: "virt-dev-02", env: "dev", region: "us-east-1", labels: ["env=dev", "tier=web"] },
 ];
@@ -1632,7 +1646,7 @@ function Step3Content({
         </div>
       </div>
 
-      {/* Schedule Configuration */}
+      {/* Schedule */}
       <div>
         <SmallText
           style={{ fontWeight: "var(--font-weight-medium)" }}
@@ -1641,9 +1655,13 @@ function Step3Content({
           Schedule
         </SmallText>
 
-        <div className="space-y-2 mb-4">
-          <label
-            className="flex items-center gap-3 p-3 border rounded cursor-pointer transition-colors hover:bg-secondary"
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          {/* Now */}
+          <button
+            onClick={() =>
+              setFormData({ ...formData, scheduleType: "immediate" })
+            }
+            className="p-4 border rounded text-left transition-colors hover:bg-secondary flex flex-col h-full"
             style={{
               borderRadius: "var(--radius)",
               borderColor:
@@ -1654,38 +1672,57 @@ function Step3Content({
                 formData.scheduleType === "immediate"
                   ? "var(--secondary)"
                   : "transparent",
+              borderWidth:
+                formData.scheduleType === "immediate" ? "2px" : "1px",
             }}
           >
-            <input
-              type="radio"
-              name="scheduleType"
-              value="immediate"
-              checked={formData.scheduleType === "immediate"}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  scheduleType: e.target.value,
-                })
-              }
-              className="size-4"
-              style={{ accentColor: "var(--primary)" }}
-            />
-            <div>
-              <SmallText
-                style={{
-                  fontWeight: "var(--font-weight-medium)",
-                }}
-              >
-                Start immediately
-              </SmallText>
-              <TinyText muted className="mt-0.5">
-                Begin deployment as soon as it's submitted
-              </TinyText>
-            </div>
-          </label>
+            <SmallText style={{ fontWeight: "var(--font-weight-medium)" }}>
+              Now
+            </SmallText>
+            <TinyText muted className="mt-1">
+              Start immediately
+            </TinyText>
+          </button>
 
-          <label
-            className="flex items-center gap-3 p-3 border rounded cursor-pointer transition-colors hover:bg-secondary"
+          {/* Delayed */}
+          <button
+            onClick={() => {
+              const today = new Date().toISOString().split("T")[0];
+              setFormData({
+                ...formData,
+                scheduleType: "delayed",
+                scheduledDate: formData.scheduledDate || today,
+              });
+            }}
+            className="p-4 border rounded text-left transition-colors hover:bg-secondary flex flex-col h-full"
+            style={{
+              borderRadius: "var(--radius)",
+              borderColor:
+                formData.scheduleType === "delayed"
+                  ? "var(--primary)"
+                  : "var(--border)",
+              backgroundColor:
+                formData.scheduleType === "delayed"
+                  ? "var(--secondary)"
+                  : "transparent",
+              borderWidth:
+                formData.scheduleType === "delayed" ? "2px" : "1px",
+            }}
+          >
+            <SmallText style={{ fontWeight: "var(--font-weight-medium)" }}>
+              Delayed
+            </SmallText>
+            <TinyText muted className="mt-1">
+              Start at a specific time
+            </TinyText>
+          </button>
+
+          {/* Maintenance window */}
+          <button
+            onClick={() =>
+              setFormData({ ...formData, scheduleType: "window" })
+            }
+            className="p-4 border rounded text-left transition-colors hover:bg-secondary flex flex-col h-full"
             style={{
               borderRadius: "var(--radius)",
               borderColor:
@@ -1696,42 +1733,79 @@ function Step3Content({
                 formData.scheduleType === "window"
                   ? "var(--secondary)"
                   : "transparent",
+              borderWidth:
+                formData.scheduleType === "window" ? "2px" : "1px",
             }}
           >
-            <input
-              type="radio"
-              name="scheduleType"
-              value="window"
-              checked={formData.scheduleType === "window"}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  scheduleType: e.target.value,
-                })
-              }
-              className="size-4"
-              style={{ accentColor: "var(--primary)" }}
-            />
-            <div>
-              <SmallText
-                style={{
-                  fontWeight: "var(--font-weight-medium)",
-                }}
-              >
-                Scheduled window
-              </SmallText>
-              <TinyText muted className="mt-0.5">
-                Only deploy during defined maintenance windows
-              </TinyText>
-            </div>
-          </label>
+            <SmallText style={{ fontWeight: "var(--font-weight-medium)" }}>
+              Maintenance window
+            </SmallText>
+            <TinyText muted className="mt-1">
+              During allowed windows
+            </TinyText>
+          </button>
         </div>
 
-        {/* Dynamic: Window Settings */}
+        {/* Delayed settings */}
+        {formData.scheduleType === "delayed" && (
+          <div
+            className="p-4 border rounded space-y-3"
+            style={{
+              borderRadius: "var(--radius)",
+              borderColor: "var(--border)",
+              backgroundColor: "var(--secondary)",
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <input
+                type="date"
+                value={formData.scheduledDate || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    scheduledDate: e.target.value,
+                  })
+                }
+                className="px-3 py-2 border rounded"
+                style={{
+                  borderRadius: "var(--radius)",
+                  borderColor: "var(--border)",
+                  fontFamily: "var(--font-family-text)",
+                  fontSize: "var(--text-sm)",
+                  backgroundColor: "var(--card)",
+                }}
+              />
+              <input
+                type="time"
+                value={formData.scheduledTime || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    scheduledTime: e.target.value,
+                  })
+                }
+                className="px-3 py-2 border rounded"
+                style={{
+                  borderRadius: "var(--radius)",
+                  borderColor: "var(--border)",
+                  fontFamily: "var(--font-family-text)",
+                  fontSize: "var(--text-sm)",
+                  backgroundColor: "var(--card)",
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Maintenance window settings */}
         {formData.scheduleType === "window" && (
           <div
-            className="pl-4 space-y-3"
-            style={{ borderLeft: "2px solid var(--border)" }}
+            className="p-4 border rounded space-y-3"
+            style={{
+              borderRadius: "var(--radius)",
+              borderColor: "var(--border)",
+              backgroundColor: "var(--secondary)",
+            }}
           >
             <div>
               <TinyText muted className="mb-2">
@@ -1863,7 +1937,7 @@ function Step3Content({
                 {/* Canary Selection */}
                 <div>
                   <TinyText muted className="mb-2">
-                    Canary selector
+                    Canary label selector
                   </TinyText>
                   <TextInput
                     value={formData.canarySelector}
@@ -1880,79 +1954,95 @@ function Step3Content({
                   </TinyText>
                 </div>
 
-                {/* Canary Cluster Preview */}
-                {formData.canarySelector && (
-                  <div
-                    className="p-3 border rounded"
-                    style={{
-                      borderRadius: "var(--radius)",
-                      borderColor: "var(--border)",
-                      backgroundColor: "var(--secondary)",
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <TinyText muted>Matched canary clusters</TinyText>
-                      <TinyText
-                        style={{
-                          color: matchClustersBySelector(formData.canarySelector).length > 0
-                            ? "var(--success)"
-                            : "var(--destructive)",
-                        }}
-                      >
-                        {matchClustersBySelector(formData.canarySelector).length} cluster
-                        {matchClustersBySelector(formData.canarySelector).length !== 1 ? "s" : ""}
-                      </TinyText>
-                    </div>
-                    {matchClustersBySelector(formData.canarySelector).length > 0 ? (
-                      <div className="space-y-1">
-                        {matchClustersBySelector(formData.canarySelector).map((cluster) => (
-                          <div
-                            key={cluster.name}
-                            className="flex items-center justify-between py-1.5 px-2 rounded"
-                            style={{ backgroundColor: "var(--card)" }}
-                          >
-                            <TinyText className="font-mono">{cluster.name}</TinyText>
-                            <TinyText muted>{cluster.region}</TinyText>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <TinyText muted>
-                        No clusters match this selector. Try "tier=canary" or "env=staging".
-                      </TinyText>
-                    )}
-                  </div>
-                )}
-
-                {/* Clusters per wave */}
+                {/* Matched Clusters - similar to Placement step */}
                 <div>
-                  <TinyText muted className="mb-2">
-                    Clusters per wave
-                  </TinyText>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      value={formData.phase1Batch || "3"}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          phase1Batch: e.target.value,
-                        })
-                      }
-                      min="1"
-                      className="w-24 px-3 py-2 border rounded"
+                  <div className="flex items-center justify-between mb-3">
+                    <SmallText style={{ fontWeight: "var(--font-weight-medium)" }}>
+                      Matched clusters
+                    </SmallText>
+                    <TinyText muted>
+                      {matchClustersBySelector(formData.canarySelector || "").length} clusters
+                    </TinyText>
+                  </div>
+
+                  {matchClustersBySelector(formData.canarySelector || "").length === 0 ? (
+                    <div
+                      className="p-6 border rounded text-center"
                       style={{
                         borderRadius: "var(--radius)",
                         borderColor: "var(--border)",
-                        fontFamily: "var(--font-family-text)",
-                        fontSize: "var(--text-sm)",
-                        backgroundColor: "var(--card)",
+                        backgroundColor: "var(--secondary)",
                       }}
-                    />
-                    <TinyText>clusters</TinyText>
-                  </div>
-                  <TinyText muted className="mt-1">
-                    Maximum number of canary clusters to update simultaneously
+                    >
+                      <TinyText muted>
+                        Enter a label selector to see matching clusters (e.g., tier=canary)
+                      </TinyText>
+                    </div>
+                  ) : (
+                    <div
+                      className="border rounded overflow-hidden"
+                      style={{
+                        borderRadius: "var(--radius)",
+                        borderColor: "var(--border)",
+                      }}
+                    >
+                      <table className="w-full">
+                        <thead>
+                          <tr style={{ backgroundColor: "var(--secondary)" }}>
+                            <th
+                              className="px-4 py-2 text-left"
+                              style={{ borderBottom: "1px solid var(--border)" }}
+                            >
+                              <TinyText style={{ fontWeight: "var(--font-weight-medium)" }}>
+                                Cluster name
+                              </TinyText>
+                            </th>
+                            <th
+                              className="px-4 py-2 text-left"
+                              style={{ borderBottom: "1px solid var(--border)" }}
+                            >
+                              <TinyText style={{ fontWeight: "var(--font-weight-medium)" }}>
+                                Environment
+                              </TinyText>
+                            </th>
+                            <th
+                              className="px-4 py-2 text-left"
+                              style={{ borderBottom: "1px solid var(--border)" }}
+                            >
+                              <TinyText style={{ fontWeight: "var(--font-weight-medium)" }}>
+                                Region
+                              </TinyText>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {matchClustersBySelector(formData.canarySelector || "").map((cluster, idx, arr) => (
+                            <tr
+                              key={cluster.name}
+                              style={{
+                                borderBottom:
+                                  idx < arr.length - 1
+                                    ? "1px solid var(--border)"
+                                    : "none",
+                              }}
+                            >
+                              <td className="px-4 py-2">
+                                <SmallText>{cluster.name}</SmallText>
+                              </td>
+                              <td className="px-4 py-2">
+                                <TinyText muted>{cluster.env}</TinyText>
+                              </td>
+                              <td className="px-4 py-2">
+                                <TinyText muted>{cluster.region}</TinyText>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  <TinyText muted className="mt-2">
+                    All canary clusters deploy together, then soak before proceeding to Phase 2.
                   </TinyText>
                 </div>
 
@@ -2027,7 +2117,7 @@ function Step3Content({
                   </TinyText>
                 </div>
 
-                {/* Auto-promote */}
+                {/* Require approval */}
                 <div>
                   <label
                     className="flex items-center gap-3 p-3 border rounded cursor-pointer hover:bg-secondary"
@@ -2035,27 +2125,27 @@ function Step3Content({
                       borderRadius: "var(--radius)",
                       borderColor: "var(--border)",
                       backgroundColor:
-                        formData.autoPromote
+                        formData.requireApproval
                           ? "var(--secondary)"
                           : "transparent",
                     }}
                   >
                     <input
                       type="checkbox"
-                      checked={formData.autoPromote !== false}
+                      checked={formData.requireApproval === true}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          autoPromote: e.target.checked,
+                          requireApproval: e.target.checked,
                         })
                       }
                       className="size-4"
                       style={{ accentColor: "var(--primary)" }}
                     />
                     <div>
-                      <SmallText>Auto-promote after soak</SmallText>
+                      <SmallText>Require approval before Phase 2</SmallText>
                       <TinyText muted className="mt-0.5">
-                        Automatically proceed to full rollout if soak passes without errors
+                        Manual approval required after soak period completes
                       </TinyText>
                     </div>
                   </label>
@@ -2118,7 +2208,7 @@ function Step3Content({
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
-                      value={formData.phase2Batch || "10"}
+                      value={formData.phase2Batch || "3"}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
@@ -2800,11 +2890,11 @@ function Step5Content({ formData }: { formData: any }) {
           >
             <TinyText muted>Schedule</TinyText>
             <SmallText className="text-right">
-              {formData.scheduleType === "window"
-                ? ` ${formatLabel(formData.scheduleWindow)} ${formData.scheduleStartTime}-${formData.scheduleEndTime}`
-                : formData.scheduleType === "immediate"
-                  ? "Immediate"
-                  : `Starts: ${formData.schedule}`}
+              {formData.scheduleType === "immediate"
+                ? "Now"
+                : formData.scheduleType === "delayed"
+                  ? `${formData.scheduledDate || "Date"} at ${formData.scheduledTime || "Time"}`
+                  : `${formatLabel(formData.scheduleWindow)} ${formData.scheduleStartTime}-${formData.scheduleEndTime}`}
             </SmallText>
           </div>
 
@@ -2875,7 +2965,7 @@ function Step5Content({ formData }: { formData: any }) {
                   borderBottom: "1px solid var(--border)",
                 }}
               >
-                <TinyText muted>Canary selector</TinyText>
+                <TinyText muted>Canary label selector</TinyText>
                 <SmallText className="text-right font-mono text-xs">
                   {formData.canarySelector || "tier=canary"}
                 </SmallText>
@@ -2888,23 +2978,72 @@ function Step5Content({ formData }: { formData: any }) {
                 }}
               >
                 <TinyText muted>Canary clusters</TinyText>
-                <SmallText className="text-right">
+                <SmallText
+                  className="text-right"
+                  style={{ fontWeight: "var(--font-weight-medium)" }}
+                >
                   {matchClustersBySelector(formData.canarySelector || "tier=canary").length} cluster
                   {matchClustersBySelector(formData.canarySelector || "tier=canary").length !== 1 ? "s" : ""}
                 </SmallText>
               </div>
 
-              <div
-                className="flex items-start justify-between py-2"
-                style={{
-                  borderBottom: "1px solid var(--border)",
-                }}
-              >
-                <TinyText muted>Clusters per wave</TinyText>
-                <SmallText className="text-right">
-                  {formData.phase1Batch || "3"} clusters
-                </SmallText>
-              </div>
+              {/* Canary cluster list - similar to Placement view */}
+              {(() => {
+                const canaryClusters = matchClustersBySelector(formData.canarySelector || "tier=canary");
+                const previewCanaryClusters = canaryClusters.slice(0, 3);
+                const remainingCanaryCount = canaryClusters.length - 3;
+                
+                if (canaryClusters.length === 0) return null;
+                
+                return (
+                  <div className="pt-2 pb-3" style={{ borderBottom: "1px solid var(--border)" }}>
+                    <div
+                      className="border rounded overflow-hidden"
+                      style={{
+                        borderRadius: "var(--radius)",
+                        borderColor: "var(--border)",
+                      }}
+                    >
+                      <table className="w-full text-sm">
+                        <tbody>
+                          {previewCanaryClusters.map((cluster, idx) => (
+                            <tr
+                              key={cluster.name}
+                              style={{
+                                borderBottom:
+                                  idx < previewCanaryClusters.length - 1
+                                    ? "1px solid var(--border)"
+                                    : "none",
+                              }}
+                            >
+                              <td className="px-3 py-1.5">
+                                <TinyText>{cluster.name}</TinyText>
+                              </td>
+                              <td className="px-3 py-1.5">
+                                <TinyText muted>{cluster.env}</TinyText>
+                              </td>
+                              <td className="px-3 py-1.5">
+                                <TinyText muted>{cluster.region}</TinyText>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {remainingCanaryCount > 0 && (
+                        <div
+                          className="px-3 py-1.5 text-center"
+                          style={{
+                            backgroundColor: "var(--secondary)",
+                            borderTop: "1px solid var(--border)",
+                          }}
+                        >
+                          <TinyText muted>+{remainingCanaryCount} more clusters</TinyText>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div
                 className="flex items-start justify-between py-2"
@@ -2937,11 +3076,11 @@ function Step5Content({ formData }: { formData: any }) {
               </div>
 
               <div className="flex items-start justify-between py-2">
-                <TinyText muted>Auto-promote</TinyText>
+                <TinyText muted>Approval</TinyText>
                 <SmallText className="text-right">
-                  {formData.autoPromote !== false
-                    ? "Yes (automatic)"
-                    : "No (manual approval)"}
+                  {formData.requireApproval
+                    ? "Required before Phase 2"
+                    : "Auto-promote after soak"}
                 </SmallText>
               </div>
             </div>
@@ -2974,7 +3113,7 @@ function Step5Content({ formData }: { formData: any }) {
               >
                 <TinyText muted>Clusters per wave</TinyText>
                 <SmallText className="text-right">
-                  {formData.phase2Batch || "10"} clusters
+                  {formData.phase2Batch || "3"} clusters
                 </SmallText>
               </div>
 
@@ -3006,6 +3145,44 @@ function Step5Content({ formData }: { formData: any }) {
           </div>
         </>
       )}
+
+      {/* Execution Policy Section */}
+      <div
+        className="p-6 border rounded"
+        style={{
+          borderRadius: "var(--radius)",
+          borderColor: "var(--border)",
+          backgroundColor: "var(--card)",
+        }}
+      >
+        <SmallText
+          style={{ fontWeight: "var(--font-weight-medium)" }}
+          className="mb-4"
+        >
+          Execution policy
+        </SmallText>
+
+        <div className="space-y-3">
+          <div
+            className="flex items-start justify-between py-2"
+            style={{ borderBottom: "1px solid var(--border)" }}
+          >
+            <TinyText muted>Run as</TinyText>
+            <SmallText className="text-right">
+              {formData.runAs || "Personal (Adi Cluster Admin)"}
+            </SmallText>
+          </div>
+
+          <div className="flex items-start justify-between py-2">
+            <TinyText muted>Manual confirmation</TinyText>
+            <SmallText className="text-right">
+              {formData.requireManualConfirmation
+                ? "Required"
+                : "Not required"}
+            </SmallText>
+          </div>
+        </div>
+      </div>
 
       {/* Estimated Completion */}
       <div
