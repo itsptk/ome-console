@@ -173,7 +173,7 @@ export function DeploymentWizard({
     fleetSelection: "label",
     labelSelector: "env=prod",
     rolloutMethod: "canary", // "immediate" | "canary" | "rolling"
-    scheduleType: "now",
+    scheduleType: "window",
     scheduleWindow: "weekends",
     scheduleStartTime: "22:00",
     scheduleEndTime: "02:00",
@@ -1643,7 +1643,7 @@ function Step3Content({
         </div>
       </div>
 
-      {/* Schedule */}
+      {/* Schedule Configuration */}
       <div>
         <SmallText
           style={{ fontWeight: "var(--font-weight-medium)" }}
@@ -1652,18 +1652,17 @@ function Step3Content({
           Schedule
         </SmallText>
 
-        <div className="space-y-2">
-          {/* Now */}
+        <div className="space-y-2 mb-4">
           <label
             className="flex items-center gap-3 p-3 border rounded cursor-pointer transition-colors hover:bg-secondary"
             style={{
               borderRadius: "var(--radius)",
               borderColor:
-                formData.scheduleType === "now"
+                formData.scheduleType === "immediate"
                   ? "var(--primary)"
                   : "var(--border)",
               backgroundColor:
-                formData.scheduleType === "now"
+                formData.scheduleType === "immediate"
                   ? "var(--secondary)"
                   : "transparent",
             }}
@@ -1671,8 +1670,8 @@ function Step3Content({
             <input
               type="radio"
               name="scheduleType"
-              value="now"
-              checked={formData.scheduleType === "now" || !formData.scheduleType}
+              value="immediate"
+              checked={formData.scheduleType === "immediate"}
               onChange={(e) =>
                 setFormData({
                   ...formData,
@@ -1683,26 +1682,29 @@ function Step3Content({
               style={{ accentColor: "var(--primary)" }}
             />
             <div>
-              <SmallText style={{ fontWeight: "var(--font-weight-medium)" }}>
-                Now
+              <SmallText
+                style={{
+                  fontWeight: "var(--font-weight-medium)",
+                }}
+              >
+                Start immediately
               </SmallText>
               <TinyText muted className="mt-0.5">
-                Start deployment immediately
+                Begin deployment as soon as it's submitted
               </TinyText>
             </div>
           </label>
 
-          {/* Scheduled */}
           <label
             className="flex items-center gap-3 p-3 border rounded cursor-pointer transition-colors hover:bg-secondary"
             style={{
               borderRadius: "var(--radius)",
               borderColor:
-                formData.scheduleType === "scheduled"
+                formData.scheduleType === "window"
                   ? "var(--primary)"
                   : "var(--border)",
               backgroundColor:
-                formData.scheduleType === "scheduled"
+                formData.scheduleType === "window"
                   ? "var(--secondary)"
                   : "transparent",
             }}
@@ -1710,8 +1712,8 @@ function Step3Content({
             <input
               type="radio"
               name="scheduleType"
-              value="scheduled"
-              checked={formData.scheduleType === "scheduled"}
+              value="window"
+              checked={formData.scheduleType === "window"}
               onChange={(e) =>
                 setFormData({
                   ...formData,
@@ -1722,32 +1724,67 @@ function Step3Content({
               style={{ accentColor: "var(--primary)" }}
             />
             <div>
-              <SmallText style={{ fontWeight: "var(--font-weight-medium)" }}>
-                Scheduled
+              <SmallText
+                style={{
+                  fontWeight: "var(--font-weight-medium)",
+                }}
+              >
+                Scheduled window
               </SmallText>
               <TinyText muted className="mt-0.5">
-                Start at a specific date and time
+                Only deploy during defined maintenance windows
               </TinyText>
             </div>
           </label>
+        </div>
 
-          {/* Date/time picker when scheduled */}
-          {formData.scheduleType === "scheduled" && (
-            <div
-              className="pl-4 pt-2"
-              style={{ borderLeft: "2px solid var(--border)" }}
-            >
-              <div className="flex items-center gap-3">
+        {/* Dynamic: Window Settings */}
+        {formData.scheduleType === "window" && (
+          <div
+            className="pl-4 space-y-3"
+            style={{ borderLeft: "2px solid var(--border)" }}
+          >
+            <div>
+              <TinyText muted className="mb-2">
+                Window
+              </TinyText>
+              <select
+                value={formData.scheduleWindow}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    scheduleWindow: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 border rounded"
+                style={{
+                  borderRadius: "var(--radius)",
+                  borderColor: "var(--border)",
+                  fontFamily: "var(--font-family-text)",
+                  fontSize: "var(--text-sm)",
+                  backgroundColor: "var(--card)",
+                }}
+              >
+                <option value="weekends">Weekends</option>
+                <option value="weekdays">Weekdays</option>
+                <option value="daily">Daily</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <TinyText muted className="mb-2">
+                  Start time
+                </TinyText>
                 <input
-                  type="date"
-                  value={formData.scheduledDate || ""}
+                  type="time"
+                  value={formData.scheduleStartTime}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      scheduledDate: e.target.value,
+                      scheduleStartTime: e.target.value,
                     })
                   }
-                  className="px-3 py-2 border rounded"
+                  className="w-full px-3 py-2 border rounded"
                   style={{
                     borderRadius: "var(--radius)",
                     borderColor: "var(--border)",
@@ -1756,16 +1793,21 @@ function Step3Content({
                     backgroundColor: "var(--card)",
                   }}
                 />
+              </div>
+              <div>
+                <TinyText muted className="mb-2">
+                  End time
+                </TinyText>
                 <input
                   type="time"
-                  value={formData.scheduledTime || ""}
+                  value={formData.scheduleEndTime}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      scheduledTime: e.target.value,
+                      scheduleEndTime: e.target.value,
                     })
                   }
-                  className="px-3 py-2 border rounded"
+                  className="w-full px-3 py-2 border rounded"
                   style={{
                     borderRadius: "var(--radius)",
                     borderColor: "var(--border)",
@@ -1776,8 +1818,8 @@ function Step3Content({
                 />
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Canary Configuration - Only show if Canary is selected */}
@@ -2795,9 +2837,11 @@ function Step5Content({ formData }: { formData: any }) {
           >
             <TinyText muted>Schedule</TinyText>
             <SmallText className="text-right">
-              {formData.scheduleType === "scheduled"
-                ? `${formData.scheduledDate || "Date"} at ${formData.scheduledTime || "00:00"}`
-                : "Now"}
+              {formData.scheduleType === "window"
+                ? ` ${formatLabel(formData.scheduleWindow)} ${formData.scheduleStartTime}-${formData.scheduleEndTime}`
+                : formData.scheduleType === "immediate"
+                  ? "Immediate"
+                  : `Starts: ${formData.schedule}`}
             </SmallText>
           </div>
 
