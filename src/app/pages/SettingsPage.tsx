@@ -15,6 +15,11 @@ import {
   Container,
 } from "../../imports/UIComponents";
 import {
+  DEFAULT_RUN_AS_STORAGE_KEY,
+  RUN_AS_PLATFORM_VALUE,
+  RUN_AS_YOU_VALUE,
+} from "../../imports/CreateClusterWizard";
+import {
   readDayOneConsoleConfig,
   writeDayOneConsoleConfig,
 } from "./day-one/dayOneConsoleConfig";
@@ -27,6 +32,38 @@ const ROTATION_OPTIONS = [
 ] as const;
 
 const GITHUB_SIGNING_PUB_KEY_STORAGE = "ome-prototype-github-signing-public-key";
+
+/** Preset service accounts (same names as Run as in Create cluster wizard). */
+const INITIAL_SERVICE_ACCOUNTS: { id: string; name: string }[] = [
+  { id: "sa-ome-system-manager", name: "ome-system-manager-sa" },
+  { id: "sa-bulk-upgrade-worker", name: "bulk-upgrade-worker-v4" },
+];
+
+function serviceAccountRunAsValue(name: string): string {
+  return `Service account: ${name}`;
+}
+
+const RUN_AS_OPTIONS: { value: string; label: string }[] = [
+  { value: RUN_AS_PLATFORM_VALUE, label: "Platform" },
+  { value: RUN_AS_YOU_VALUE, label: "You (cluster admin)" },
+  ...INITIAL_SERVICE_ACCOUNTS.map((sa) => ({
+    value: serviceAccountRunAsValue(sa.name),
+    label: serviceAccountRunAsValue(sa.name),
+  })),
+];
+
+function readStoredDefaultRunAs(): string {
+  if (typeof sessionStorage === "undefined") {
+    return RUN_AS_PLATFORM_VALUE;
+  }
+  try {
+    const v = sessionStorage.getItem(DEFAULT_RUN_AS_STORAGE_KEY);
+    if (v && RUN_AS_OPTIONS.some((o) => o.value === v)) return v;
+  } catch {
+    /* ignore */
+  }
+  return RUN_AS_PLATFORM_VALUE;
+}
 
 const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -54,6 +91,7 @@ export function SettingsPage() {
   /** Illustrative product setting — not wired to a backend in this prototype. */
   const [signingKeyRotationPolicy, setSigningKeyRotationPolicy] =
     useState<string>("90d");
+  const [defaultRunAs, setDefaultRunAs] = useState<string>(readStoredDefaultRunAs);
 
   useEffect(() => {
     setConfig(readDayOneConsoleConfig());
@@ -122,6 +160,15 @@ export function SettingsPage() {
     setConfig(readDayOneConsoleConfig());
   };
 
+  const onDefaultRunAsChange = (value: string) => {
+    setDefaultRunAs(value);
+    try {
+      sessionStorage.setItem(DEFAULT_RUN_AS_STORAGE_KEY, value);
+    } catch {
+      /* ignore */
+    }
+  };
+
   return (
     <Container className="p-8">
       <div className="mb-8">
@@ -130,6 +177,182 @@ export function SettingsPage() {
           Configure system preferences and options
         </BodyText>
       </div>
+
+      <section
+        className="mb-8 max-w-2xl rounded-lg border p-6"
+        style={{ borderColor: "var(--border)" }}
+      >
+        <h2
+          className="mb-2"
+          style={{
+            fontFamily: "var(--font-family-display)",
+            fontSize: "var(--text-lg)",
+            fontWeight: "var(--font-weight-medium)",
+          }}
+        >
+          Default execution identity
+        </h2>
+        <p
+          className="mb-4 text-muted-foreground"
+          style={{
+            fontFamily: "var(--font-family-text)",
+            fontSize: "var(--text-sm)",
+          }}
+        >
+          Default for cluster operations when the wizard does not override it.
+        </p>
+        <label
+          htmlFor="default-run-as"
+          className="mb-2 block"
+          style={{
+            fontFamily: "var(--font-family-text)",
+            fontSize: "var(--text-sm)",
+            fontWeight: "var(--font-weight-medium)",
+          }}
+        >
+          Run as
+        </label>
+        <select
+          id="default-run-as"
+          value={defaultRunAs}
+          onChange={(e) => onDefaultRunAsChange(e.target.value)}
+          className="max-w-md rounded-md border bg-background px-3 py-2"
+          style={{
+            fontFamily: "var(--font-family-text)",
+            fontSize: "var(--text-sm)",
+            borderColor: "var(--border)",
+          }}
+        >
+          {RUN_AS_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </section>
+
+      <section
+        className="mb-8 max-w-2xl rounded-lg border p-6"
+        style={{ borderColor: "var(--border)" }}
+      >
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2
+              className="mb-2"
+              style={{
+                fontFamily: "var(--font-family-display)",
+                fontSize: "var(--text-lg)",
+                fontWeight: "var(--font-weight-medium)",
+              }}
+            >
+              Service accounts
+            </h2>
+            <p
+              className="text-muted-foreground"
+              style={{
+                fontFamily: "var(--font-family-text)",
+                fontSize: "var(--text-sm)",
+              }}
+            >
+              Accounts that can appear as Run as options for cluster operations.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="shrink-0 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-secondary"
+            style={{
+              fontFamily: "var(--font-family-text)",
+              borderColor: "var(--border)",
+            }}
+          >
+            Add service account
+          </button>
+        </div>
+
+        <div
+          className="overflow-hidden rounded-md border"
+          style={{ borderColor: "var(--border)" }}
+        >
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr
+                className="border-b"
+                style={{
+                  borderColor: "var(--border)",
+                  backgroundColor: "var(--muted)",
+                }}
+              >
+                <th
+                  className="px-4 py-3"
+                  style={{
+                    fontFamily: "var(--font-family-text)",
+                    fontSize: "var(--text-xs)",
+                    fontWeight: "var(--font-weight-semibold)",
+                    color: "var(--foreground)",
+                  }}
+                >
+                  Name
+                </th>
+                <th
+                  className="px-4 py-3 text-right"
+                  style={{
+                    fontFamily: "var(--font-family-text)",
+                    fontSize: "var(--text-xs)",
+                    fontWeight: "var(--font-weight-semibold)",
+                    color: "var(--foreground)",
+                  }}
+                >
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {INITIAL_SERVICE_ACCOUNTS.map((sa) => (
+                <tr
+                  key={sa.id}
+                  className="border-b last:border-b-0"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <td
+                    className="px-4 py-3"
+                    style={{
+                      fontFamily: "var(--font-family-text)",
+                      fontSize: "var(--text-sm)",
+                      color: "var(--foreground)",
+                    }}
+                  >
+                    {sa.name}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        className="rounded border px-2 py-1 text-xs font-medium transition-colors hover:bg-secondary"
+                        style={{
+                          fontFamily: "var(--font-family-text)",
+                          borderColor: "var(--border)",
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded border px-2 py-1 text-xs font-medium transition-colors hover:bg-secondary"
+                        style={{
+                          fontFamily: "var(--font-family-text)",
+                          borderColor: "var(--border)",
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <section
         className="mb-8 max-w-2xl rounded-lg border p-6"
