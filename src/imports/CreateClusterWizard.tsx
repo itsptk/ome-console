@@ -16,6 +16,28 @@ export const RUN_AS_PLATFORM_VALUE = "Platform Service";
 /** Stored `runAs` value for the logged-in user (“You”) in Identity & Approval. */
 export const RUN_AS_YOU_VALUE = "Personal (Adi Cluster Admin)";
 
+/** Session key shared with Settings default execution identity. */
+export const DEFAULT_RUN_AS_STORAGE_KEY = "ome-prototype-default-run-as";
+
+function readInitialRunAsFromSettings(): string {
+  const allowed = new Set<string>([
+    RUN_AS_YOU_VALUE,
+    RUN_AS_PLATFORM_VALUE,
+    "Service account: ome-system-manager-sa",
+    "Service account: bulk-upgrade-worker-v4",
+  ]);
+  if (typeof sessionStorage === "undefined") {
+    return RUN_AS_PLATFORM_VALUE;
+  }
+  try {
+    const v = sessionStorage.getItem(DEFAULT_RUN_AS_STORAGE_KEY);
+    if (v && allowed.has(v)) return v;
+  } catch {
+    /* ignore */
+  }
+  return RUN_AS_PLATFORM_VALUE;
+}
+
 interface CreateClusterWizardProps {
   onComplete: (formData: any) => void;
   onCancel: () => void;
@@ -41,7 +63,7 @@ export function CreateClusterWizard({
     baseDomain: "example.com",
     cpuArchitecture: "x86_64",
     saveAsTemplate: false,
-    runAs: RUN_AS_YOU_VALUE,
+    runAs: readInitialRunAsFromSettings(),
     requireManualConfirmation: false,
   });
 
@@ -844,6 +866,14 @@ function ExecutionPolicyStep({
                     </tr>
                   </tbody>
                 </table>
+                <SmallText
+                  className="mt-3 block max-w-md"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Platform uses client-side signing (WebAuthn). It is only
+                  available on certain provisioning paths—not every environment
+                  (for example, not ROSA).
+                </SmallText>
               </div>
             )}
           </button>
@@ -874,6 +904,47 @@ function ExecutionPolicyStep({
           </option>
           <option value={RUN_AS_PLATFORM_VALUE}>Platform</option>
         </select>
+        {formData.runAs === RUN_AS_YOU_VALUE && (
+          <div
+            className="flex gap-3 p-4 border-l-4 mt-4"
+            style={{
+              backgroundColor: "#E7F1FA",
+              borderLeftColor: "#0066CC",
+              borderRadius: "var(--radius)",
+            }}
+          >
+            <svg
+              className="w-5 h-5 flex-shrink-0 mt-0.5"
+              fill="none"
+              viewBox="0 0 20 20"
+              style={{ color: "#0066CC" }}
+              aria-hidden
+            >
+              <circle
+                cx="10"
+                cy="10"
+                r="8"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <path
+                d="M10 6V10M10 14H10.01"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+            <SmallText style={{ color: "#151515" }}>
+              Your interactive session is short-lived (about 10 minutes).
+              Long-running work may pause and ask you to sign in again—for
+              example with a phone notification (CIBA)—before it can continue.
+            </SmallText>
+          </div>
+        )}
+        <TinyText muted className="mt-2 block">
+          Options shown are for understanding the security model; a shipped
+          product may offer fewer choices depending on environment.
+        </TinyText>
       </div>
 
       {/* Require Manual Confirmation Checkbox */}

@@ -11,6 +11,7 @@ export type PlatformSigningPhase =
   | "passkey-setup"
   | "browser-prompt"
   | "authorize"
+  | "qr-authorize"
   | "success";
 
 interface PlatformSigningFlowProps {
@@ -134,7 +135,7 @@ function PermIcon({ kind }: { kind: (typeof SIGNING_PERMISSIONS)[0]["icon"] }) {
 
 /**
  * Mocked WebAuthn / passkey signing flow (run as platform), aligned with the
- * passkey enrollment + browser prompt + consent pattern from the team demo.
+ * passkey enrollment, signing consent, QR login, then success.
  */
 export function PlatformSigningFlow({
   clusterName,
@@ -253,7 +254,7 @@ export function PlatformSigningFlow({
               <SecondaryButton onClick={() => setPhase("passkey-setup")}>Back</SecondaryButton>
               <SecondaryButton onClick={onCancel}>Cancel</SecondaryButton>
               <PrimaryButton onClick={() => setPhase("authorize")}>
-                Simulate passkey verified
+                Simulate passkey created
               </PrimaryButton>
             </div>
           </div>
@@ -304,7 +305,7 @@ export function PlatformSigningFlow({
               </li>
             ))}
           </ul>
-          <PrimaryButton className="w-full" onClick={() => setPhase("success")}>
+          <PrimaryButton className="w-full" onClick={() => setPhase("qr-authorize")}>
             Sign with passkey
           </PrimaryButton>
           <TinyText muted className="text-center block mt-3">
@@ -312,6 +313,37 @@ export function PlatformSigningFlow({
           </TinyText>
           <div className="mt-6 flex justify-center">
             <SecondaryButton onClick={() => setPhase("browser-prompt")}>Back</SecondaryButton>
+          </div>
+        </div>
+      )}
+
+      {phase === "qr-authorize" && (
+        <div
+          className="w-full max-w-md rounded-lg border p-8 shadow-xl"
+          style={{
+            backgroundColor: "var(--card)",
+            borderColor: "var(--border)",
+            borderRadius: "var(--radius)",
+          }}
+        >
+          <CardTitle className="text-center mb-2">Sign in to authorize</CardTitle>
+          <SmallText muted className="text-center block mb-6">
+            Scan this code with your phone to sign in and approve this session for{" "}
+            <strong style={{ color: "var(--foreground)" }}>{clusterName}</strong>. This is
+            separate from creating your passkey—it completes login so the platform can run this
+            deployment as you.
+          </SmallText>
+          <MockQrBlock />
+          <TinyText muted className="text-center block mt-4">
+            Use the same identity provider you use for the console (for example OpenID Connect or
+            CIBA on your device).
+          </TinyText>
+          <div className="mt-8 flex flex-wrap justify-end gap-3">
+            <SecondaryButton onClick={() => setPhase("authorize")}>Back</SecondaryButton>
+            <SecondaryButton onClick={onCancel}>Cancel</SecondaryButton>
+            <PrimaryButton onClick={() => setPhase("success")}>
+              Simulate login complete
+            </PrimaryButton>
           </div>
         </div>
       )}
