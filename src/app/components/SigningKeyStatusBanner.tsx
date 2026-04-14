@@ -30,7 +30,8 @@ export function SigningKeyStatusBanner() {
       <div className="inline-flex max-w-none flex-nowrap items-center gap-x-1.5">
         <span className="whitespace-nowrap">
           Signing keys use an external registry ({externalProviderLabel}). Until
-          your public key is published there, you can&apos;t choose{" "}
+          your public key is published and your passkey is registered in Settings,
+          you can&apos;t choose{" "}
           <strong className="font-semibold">Platform Service</strong> under{" "}
           <strong className="font-semibold">Run as</strong> for deployments.
         </span>
@@ -53,16 +54,17 @@ export function SigningKeyStatusBanner() {
             <p className="m-0 text-popover-foreground">
               Choosing <strong className="font-semibold">Platform Service</strong>{" "}
               under <strong className="font-semibold">Run as</strong> for a
-              deployment uses the platform&apos;s managed identity and only
-              becomes available once your key is on the registry.
+              deployment uses the platform&apos;s managed identity. You complete
+              passkey registration in Settings alongside publishing your signing
+              key to the registry.
             </p>
           </PopoverContent>
         </Popover>
         <Link
-          to="/settings#prototype-setting"
+          to="/settings"
           className="whitespace-nowrap font-medium text-primary underline-offset-2 hover:underline"
         >
-          Publish your public key
+          Complete signing setup
         </Link>
       </div>
     </div>

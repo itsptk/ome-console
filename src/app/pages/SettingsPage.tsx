@@ -23,6 +23,13 @@ import {
   readDayOneConsoleConfig,
   writeDayOneConsoleConfig,
 } from "./day-one/dayOneConsoleConfig";
+import { PasskeyEnrollmentMock } from "../components/signing/PasskeyEnrollmentMock";
+import {
+  GITHUB_SIGNING_PUB_KEY_STORAGE,
+  clearPasskeyEnrollment,
+  isPasskeyEnrollmentComplete,
+  setPasskeyEnrollmentComplete,
+} from "../signing/signingPrototypeState";
 
 const ROTATION_OPTIONS = [
   { value: "manual", label: "Manual only (rotate when initiated)" },
@@ -30,8 +37,6 @@ const ROTATION_OPTIONS = [
   { value: "180d", label: "Every 180 days" },
   { value: "365d", label: "Every 365 days" },
 ] as const;
-
-const GITHUB_SIGNING_PUB_KEY_STORAGE = "ome-prototype-github-signing-public-key";
 
 /** Preset service accounts (same names as Run as in Create cluster wizard). */
 const INITIAL_SERVICE_ACCOUNTS: { id: string; name: string }[] = [
@@ -83,6 +88,9 @@ export function SettingsPage() {
   const [published, setPublished] = useState(false);
   const [config, setConfig] = useState(readDayOneConsoleConfig());
   const [signingKeyDialogOpen, setSigningKeyDialogOpen] = useState(false);
+  const [signingKeyDialogStep, setSigningKeyDialogStep] = useState<
+    "pubkey" | "passkey"
+  >("pubkey");
   const [generatedPublicKey, setGeneratedPublicKey] = useState<string | null>(
     null,
   );
@@ -139,8 +147,12 @@ export function SettingsPage() {
   };
 
   const runGenerateSigningKeyPair = () => {
+    const wasRegenerate = Boolean(generatedPublicKey);
     setIsGeneratingKey(true);
     window.setTimeout(() => {
+      if (wasRegenerate) {
+        clearPasskeyEnrollment();
+      }
       const key = generateIllustrativeSigningPublicKey();
       setGeneratedPublicKey(key);
       try {
@@ -149,6 +161,7 @@ export function SettingsPage() {
         /* ignore */
       }
       setIsGeneratingKey(false);
+      setSigningKeyDialogStep("pubkey");
       setSigningKeyDialogOpen(true);
     }, 650);
   };
@@ -453,11 +466,13 @@ export function SettingsPage() {
                 fontSize: "var(--text-sm)",
               }}
             >
-              Generate a signing key pair here, then add the{" "}
+              Generate a signing key pair here, add the{" "}
               <strong className="font-medium text-foreground">
                 public key
               </strong>{" "}
-              to GitHub as a signing key.
+              to GitHub as a signing key, then register a passkey for console
+              signing. Deployments only ask you to verify with your device after
+              this one-time setup.
             </p>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -477,7 +492,10 @@ export function SettingsPage() {
               {generatedPublicKey && !isGeneratingKey && (
                 <button
                   type="button"
-                  onClick={() => setSigningKeyDialogOpen(true)}
+                  onClick={() => {
+                    setSigningKeyDialogStep("pubkey");
+                    setSigningKeyDialogOpen(true);
+                  }}
                   className="rounded-md border px-4 py-2 text-sm font-medium transition-colors hover:bg-secondary"
                   style={{
                     fontFamily: "var(--font-family-text)",
@@ -498,100 +516,146 @@ export function SettingsPage() {
               >
                 A key is stored for this browser session so you can reopen the
                 instructions anytime.
+                {isPasskeyEnrollmentComplete() ? (
+                  <>
+                    {" "}
+                    <span className="font-medium text-foreground">
+                      Passkey registered for console signing.
+                    </span>
+                  </>
+                ) : null}
               </p>
             )}
 
             <Dialog
               open={signingKeyDialogOpen}
-              onOpenChange={setSigningKeyDialogOpen}
+              onOpenChange={(open) => {
+                setSigningKeyDialogOpen(open);
+                if (!open) setSigningKeyDialogStep("pubkey");
+              }}
             >
-              <DialogContent className="sm:max-w-xl">
-                <DialogHeader>
-                  <DialogTitle>Your SSH signing public key</DialogTitle>
-                  <DialogDescription>
-                    Copy this entire line into GitHub as a{" "}
-                    <strong className="text-foreground">Signing Key</strong>.
-                  </DialogDescription>
-                </DialogHeader>
-
-                {generatedPublicKey && (
+              <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+                {signingKeyDialogStep === "pubkey" ? (
                   <>
-                    <div className="relative">
-                      <pre
-                        className="max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-md border bg-muted p-3 pr-12 font-mono text-xs text-foreground"
-                        style={{ borderColor: "var(--border)" }}
-                      >
-                        {generatedPublicKey}
-                      </pre>
+                    <DialogHeader>
+                      <DialogTitle>Your SSH signing public key</DialogTitle>
+                      <DialogDescription>
+                        Copy this entire line into GitHub as a{" "}
+                        <strong className="text-foreground">Signing Key</strong>.
+                        Then continue to register a passkey for deployments.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    {generatedPublicKey && (
+                      <>
+                        <div className="relative">
+                          <pre
+                            className="max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-md border bg-muted p-3 pr-12 font-mono text-xs text-foreground"
+                            style={{ borderColor: "var(--border)" }}
+                          >
+                            {generatedPublicKey}
+                          </pre>
+                          <button
+                            type="button"
+                            onClick={() => copyPublicKey(generatedPublicKey)}
+                            className="absolute right-2 top-2 rounded p-1.5 text-muted-foreground hover:bg-background hover:text-foreground"
+                            aria-label="Copy public key"
+                          >
+                            {copiedKey ? (
+                              <Check className="size-4" aria-hidden />
+                            ) : (
+                              <Copy className="size-4" aria-hidden />
+                            )}
+                          </button>
+                        </div>
+
+                        <ol
+                          className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground"
+                          style={{ fontFamily: "var(--font-family-text)" }}
+                        >
+                          <li>
+                            Open GitHub:{" "}
+                            <strong className="font-medium text-foreground">
+                              Settings
+                            </strong>{" "}
+                            →{" "}
+                            <strong className="font-medium text-foreground">
+                              SSH and GPG keys
+                            </strong>{" "}
+                            →{" "}
+                            <strong className="font-medium text-foreground">
+                              New SSH key
+                            </strong>
+                            .
+                          </li>
+                          <li>
+                            Set{" "}
+                            <strong className="font-medium text-foreground">
+                              Key type
+                            </strong>{" "}
+                            to{" "}
+                            <strong className="font-medium text-foreground">
+                              Signing Key
+                            </strong>
+                            , paste the public key above, title it (for example
+                            &quot;OME signing&quot;), and save.
+                          </li>
+                          <li>
+                            <a
+                              href="https://github.com/settings/ssh/new"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium text-primary underline-offset-2 hover:underline"
+                            >
+                              Open GitHub: new SSH key
+                            </a>
+                          </li>
+                        </ol>
+                      </>
+                    )}
+
+                    <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
                       <button
                         type="button"
-                        onClick={() => copyPublicKey(generatedPublicKey)}
-                        className="absolute right-2 top-2 rounded p-1.5 text-muted-foreground hover:bg-background hover:text-foreground"
-                        aria-label="Copy public key"
+                        onClick={() => setSigningKeyDialogOpen(false)}
+                        className="rounded-md border px-4 py-2 text-sm font-medium transition-colors hover:bg-secondary"
+                        style={{
+                          fontFamily: "var(--font-family-text)",
+                          borderColor: "var(--border)",
+                        }}
                       >
-                        {copiedKey ? (
-                          <Check className="size-4" aria-hidden />
-                        ) : (
-                          <Copy className="size-4" aria-hidden />
-                        )}
+                        Close
                       </button>
-                    </div>
-
-                    <ol
-                      className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground"
-                      style={{ fontFamily: "var(--font-family-text)" }}
-                    >
-                      <li>
-                        Open GitHub:{" "}
-                        <strong className="font-medium text-foreground">
-                          Settings
-                        </strong>{" "}
-                        →{" "}
-                        <strong className="font-medium text-foreground">
-                          SSH and GPG keys
-                        </strong>{" "}
-                        →{" "}
-                        <strong className="font-medium text-foreground">
-                          New SSH key
-                        </strong>
-                        .
-                      </li>
-                      <li>
-                        Set{" "}
-                        <strong className="font-medium text-foreground">
-                          Key type
-                        </strong>{" "}
-                        to{" "}
-                        <strong className="font-medium text-foreground">
-                          Signing Key
-                        </strong>
-                        , paste the public key above, title it (for example
-                        &quot;OME signing&quot;), and save.
-                      </li>
-                      <li>
-                        <a
-                          href="https://github.com/settings/ssh/new"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium text-primary underline-offset-2 hover:underline"
-                        >
-                          Open GitHub: new SSH key
-                        </a>
-                      </li>
-                    </ol>
+                      <button
+                        type="button"
+                        onClick={() => setSigningKeyDialogStep("passkey")}
+                        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+                        style={{ fontFamily: "var(--font-family-text)" }}
+                      >
+                        Continue to passkey setup
+                      </button>
+                    </DialogFooter>
+                  </>
+                ) : (
+                  <>
+                    <DialogHeader>
+                      <DialogTitle>Register a passkey</DialogTitle>
+                      <DialogDescription>
+                        One-time setup for console signing. After this, deployments
+                        only prompt for verification (for example fingerprint).
+                      </DialogDescription>
+                    </DialogHeader>
+                    <PasskeyEnrollmentMock
+                      titleId="settings-passkey-title"
+                      onEnrollmentComplete={() => {
+                        setPasskeyEnrollmentComplete();
+                        setSigningKeyDialogOpen(false);
+                        setSigningKeyDialogStep("pubkey");
+                      }}
+                      onCancel={() => setSigningKeyDialogStep("pubkey")}
+                    />
                   </>
                 )}
-
-                <DialogFooter>
-                  <button
-                    type="button"
-                    onClick={() => setSigningKeyDialogOpen(false)}
-                    className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-                    style={{ fontFamily: "var(--font-family-text)" }}
-                  >
-                    Done
-                  </button>
-                </DialogFooter>
               </DialogContent>
             </Dialog>
           </div>

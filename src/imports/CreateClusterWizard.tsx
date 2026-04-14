@@ -870,9 +870,10 @@ function ExecutionPolicyStep({
                   className="mt-3 block max-w-md"
                   style={{ color: "var(--muted-foreground)" }}
                 >
-                  Platform uses client-side signing (WebAuthn). It is only
-                  available on certain provisioning paths—not every environment
-                  (for example, not ROSA).
+                  Platform uses client-side signing (WebAuthn). Register your
+                  passkey in Settings when you set up external signing; deployment
+                  only asks you to verify (for example with a fingerprint). Not
+                  available on every environment (for example, not ROSA).
                 </SmallText>
               </div>
             )}
