@@ -152,6 +152,12 @@ export function SettingsPage() {
     window.setTimeout(() => {
       if (wasRegenerate) {
         clearPasskeyEnrollment();
+        const c = readDayOneConsoleConfig();
+        if (c?.signingKeyRegistry === "external") {
+          writeDayOneConsoleConfig({ signingKeyPublished: false });
+          setPublished(false);
+          setConfig(readDayOneConsoleConfig());
+        }
       }
       const key = generateIllustrativeSigningPublicKey();
       setGeneratedPublicKey(key);
@@ -170,6 +176,15 @@ export function SettingsPage() {
     if (!config || !external) return;
     setPublished(checked);
     writeDayOneConsoleConfig({ signingKeyPublished: checked });
+    setConfig(readDayOneConsoleConfig());
+  };
+
+  /** Prototype: mark key as published after the full generate + passkey flow completes. */
+  const markSigningKeyPublishedAfterFlow = () => {
+    const c = readDayOneConsoleConfig();
+    if (c?.signingKeyRegistry !== "external") return;
+    writeDayOneConsoleConfig({ signingKeyPublished: true });
+    setPublished(true);
     setConfig(readDayOneConsoleConfig());
   };
 
@@ -649,6 +664,7 @@ export function SettingsPage() {
                       titleId="settings-passkey-title"
                       onEnrollmentComplete={() => {
                         setPasskeyEnrollmentComplete();
+                        markSigningKeyPublishedAfterFlow();
                         setSigningKeyDialogOpen(false);
                         setSigningKeyDialogStep("pubkey");
                       }}

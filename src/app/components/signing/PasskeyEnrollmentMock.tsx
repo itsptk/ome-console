@@ -144,66 +144,44 @@ export function PasskeyEnrollmentMock({
       )}
 
       {phase === "browser-prompt" && (
-        <div className="w-full max-w-lg mx-auto">
-          <div
-            className="rounded-t-lg px-4 py-2 flex items-center gap-2"
+        <div className="w-full">
+          <h3
+            className="text-center mb-4"
             style={{
-              backgroundColor: "var(--secondary)",
-              borderBottom: "1px solid var(--border)",
+              fontFamily: "var(--font-family-display)",
+              fontSize: "var(--text-base)",
+              fontWeight: "var(--font-weight-medium)",
             }}
           >
-            <div className="flex gap-1.5">
-              <span className="size-3 rounded-full" style={{ backgroundColor: "#EE5F5B" }} />
-              <span className="size-3 rounded-full" style={{ backgroundColor: "#F0C14C" }} />
-              <span className="size-3 rounded-full" style={{ backgroundColor: "#5CB85C" }} />
-            </div>
-            <TinyText className="truncate flex-1 text-center opacity-80">
-              Passkeys &amp; Security Keys — mock browser UI
-            </TinyText>
-          </div>
-          <div
-            className="rounded-b-lg border border-t-0 p-6 shadow-xl"
-            style={{
-              backgroundColor: "#fafafa",
-              borderColor: "var(--border)",
-            }}
-          >
-            <h3
-              className="text-center mb-4"
-              style={{
-                fontFamily: "var(--font-family-display)",
-                fontSize: "var(--text-lg)",
-                fontWeight: "var(--font-weight-medium)",
-              }}
-            >
-              Passkeys &amp; Security Keys
-            </h3>
-            <SmallText className="block mb-3 text-center">
-              Use your phone or tablet: scan this QR code with the device where you want to create
-              your passkey.
-            </SmallText>
+            Continue on your device
+          </h3>
+          <SmallText className="block mb-4 text-center text-muted-foreground">
+            Use your phone or tablet: scan this QR code with the device where you want to create
+            your passkey.
+          </SmallText>
+          <div className="flex justify-center mb-6">
             <MockQrBlock />
-            <div className="mt-6 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
-              <SmallText className="flex items-center gap-2 justify-center">
-                <svg
-                  className="size-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  <rect x="4" y="7" width="16" height="10" rx="1" stroke="currentColor" strokeWidth="1.5" />
-                  <path d="M9 17v2h6v-2" stroke="currentColor" strokeWidth="1.5" />
-                </svg>
-                Or insert and touch your security key.
-              </SmallText>
-            </div>
-            <div className="mt-6 flex justify-end gap-3 flex-wrap">
-              <SecondaryButton onClick={() => setPhase("passkey-setup")}>Back</SecondaryButton>
-              {showCancel && onCancel && (
-                <SecondaryButton onClick={onCancel}>Cancel</SecondaryButton>
-              )}
-              <PrimaryButton onClick={onEnrollmentComplete}>Simulate passkey created</PrimaryButton>
-            </div>
+          </div>
+          <div className="mb-6 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+            <SmallText className="flex items-center gap-2 justify-center text-muted-foreground">
+              <svg
+                className="size-5 shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                <rect x="4" y="7" width="16" height="10" rx="1" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M9 17v2h6v-2" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+              Or insert and touch your security key.
+            </SmallText>
+          </div>
+          <div className="flex justify-end gap-3 flex-wrap">
+            <SecondaryButton onClick={() => setPhase("passkey-setup")}>Back</SecondaryButton>
+            {showCancel && onCancel && (
+              <SecondaryButton onClick={onCancel}>Cancel</SecondaryButton>
+            )}
+            <PrimaryButton onClick={onEnrollmentComplete}>Simulate passkey created</PrimaryButton>
           </div>
         </div>
       )}
