@@ -8,7 +8,6 @@ import {
   SmallText,
   TinyText,
   Container,
-  PrimaryButton,
   SecondaryButton,
   Badge,
   Card,
@@ -20,18 +19,15 @@ import {
   filterDeploymentsByTab,
   type DeploymentResourceCategory,
   type DeploymentTabId,
-  type WizardEntryMode,
 } from "./deploymentTabPresets";
+import {
+  CreateDeploymentSplitButton,
+  type OpenDeploymentWizardOptions,
+} from "./CreateDeploymentSplitButton";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
 interface ActivityStreamScreenProps {
-  onCreateDeployment: (opts: {
-    tab: DeploymentTabId;
-    mode?: WizardEntryMode;
-    initialLabelSelector?: string;
-    /** Narrow wizard focused on fleet platform upgrades (prototype). */
-    upgradeCorridor?: boolean;
-  }) => void;
+  onCreateDeployment: (opts: OpenDeploymentWizardOptions) => void;
   executionPolicy?: {
     runAs: string;
     requireManualConfirmation: boolean;
@@ -211,6 +207,9 @@ export function ActivityStreamScreen({
   const [sortMode, setSortMode] = useState<"priority" | "recent">(
     "priority",
   );
+  /** Narrow list to placement-style fleet targeting (labels, regions, pools). */
+  const [placementScopedOnly, setPlacementScopedOnly] =
+    useState(false);
 
   // New deployment data - always starts as "waiting"
   const newDeploymentData: Activity = {
@@ -436,10 +435,15 @@ export function ActivityStreamScreen({
     }
   };
 
-  const tabFilteredActivities = useMemo(
-    () => filterDeploymentsByTab(activities, activeTab),
-    [activities, activeTab],
-  );
+  const tabFilteredActivities = useMemo(() => {
+    let rows = filterDeploymentsByTab(activities, activeTab);
+    if (placementScopedOnly) {
+      rows = rows.filter(
+        (a) => a.resourceCategory === "placement",
+      );
+    }
+    return rows;
+  }, [activities, activeTab, placementScopedOnly]);
 
   const tableFilteredActivities = useMemo(() => {
     let rows = tabFilteredActivities.filter((a) =>
@@ -683,10 +687,21 @@ export function ActivityStreamScreen({
     <div className="space-y-6">
       {/* Page header + scope navigation (same band as title — no floating card) */}
       <header className="pb-2">
-        <PageTitle>Deployments</PageTitle>
-        <BodyText muted className="mt-1 mb-0">
-          Monitor and manage fleet-wide changes
-        </BodyText>
+        <div className="flex flex-col items-end gap-3 min-[400px]:flex-row min-[400px]:items-start min-[400px]:justify-between min-[400px]:gap-4">
+          <div className="min-w-0 w-full min-[400px]:w-auto self-start min-[400px]:self-auto text-left">
+            <PageTitle className="!mb-0">Deployments</PageTitle>
+            <BodyText muted className="mt-1 mb-0">
+              Monitor and manage fleet-wide changes
+            </BodyText>
+          </div>
+          <div className="shrink-0 min-[400px]:pt-0.5">
+            <CreateDeploymentSplitButton
+              scopeTab={activeTab}
+              onCreate={onCreateDeployment}
+              showCorridorOption={activeTab === "clusters"}
+            />
+          </div>
+        </div>
 
         <Tabs
           value={activeTab}
@@ -710,7 +725,7 @@ export function ActivityStreamScreen({
           </TabsList>
         </Tabs>
 
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="mt-4">
           <TinyText muted className="max-w-3xl leading-relaxed">
             {
               DEPLOYMENT_TAB_ORDER.find((x) => x.id === activeTab)
@@ -719,41 +734,6 @@ export function ActivityStreamScreen({
             Create picks default actions and placement labels for this context
             (prototype).
           </TinyText>
-          <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
-            <PrimaryButton
-              type="button"
-              onClick={() => onCreateDeployment({ tab: activeTab })}
-            >
-              Create deployment
-            </PrimaryButton>
-            {activeTab !== "placements" && (
-              <SecondaryButton
-                type="button"
-                onClick={() =>
-                  onCreateDeployment({
-                    tab: activeTab,
-                    mode: "placement-first",
-                  })
-                }
-              >
-                Create (placement-first)
-              </SecondaryButton>
-            )}
-            {activeTab === "clusters" && (
-              <SecondaryButton
-                type="button"
-                onClick={() =>
-                  onCreateDeployment({
-                    tab: "clusters",
-                    mode: "action-first",
-                    upgradeCorridor: true,
-                  })
-                }
-              >
-                Multicluster upgrade corridor
-              </SecondaryButton>
-            )}
-          </div>
         </div>
       </header>
 
@@ -1228,6 +1208,34 @@ export function ActivityStreamScreen({
                 {label}
               </button>
             ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 gap-y-2">
+            <TinyText muted className="shrink-0">
+              Fleet filters
+            </TinyText>
+            <button
+              type="button"
+              onClick={() =>
+                setPlacementScopedOnly((prev) => !prev)
+              }
+              className="px-2.5 py-1 rounded text-xs transition-colors"
+              style={{
+                borderRadius: "9999px",
+                backgroundColor: placementScopedOnly
+                  ? "var(--primary)"
+                  : "var(--secondary)",
+                color: placementScopedOnly
+                  ? "var(--primary-foreground)"
+                  : "var(--muted-foreground)",
+                fontWeight: placementScopedOnly ? 600 : 400,
+              }}
+            >
+              Placement-scoped only
+            </button>
+            <TinyText muted className="max-w-xl leading-snug">
+              Labels, regions, pools, and placement-driven rollouts. Replaces the
+              old Fleet targeting tab—use this with any resource tab.
+            </TinyText>
           </div>
         </div>
       </div>

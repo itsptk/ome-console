@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { PageTitle, BodyText, Container } from '../../imports/UIComponents';
 import { EmptyStateScreen } from '../components/deployments/EmptyStateScreen';
+import { CreateDeploymentSplitButton } from '../components/deployments/CreateDeploymentSplitButton';
 import {
   DeploymentWizard,
   type DeploymentTabId,
@@ -12,6 +13,7 @@ import { ActivityStreamScreen } from '../components/deployments/ActivityStreamSc
 export function DeploymentsPage() {
   const [hasDeployments, setHasDeployments] = useState(false);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [wizardSessionId, setWizardSessionId] = useState(0);
   const [wizardEntryMode, setWizardEntryMode] =
     useState<WizardEntryMode>('action-first');
   const [wizardLaunchTab, setWizardLaunchTab] =
@@ -34,18 +36,27 @@ export function DeploymentsPage() {
     upgradeCorridor?: boolean;
   };
 
-  const openWizard = ({
-    tab,
-    mode,
-    initialLabelSelector,
-    upgradeCorridor,
-  }: OpenWizardOptions) => {
+  const applyWizardLaunch = (
+    { tab, mode, initialLabelSelector, upgradeCorridor }: OpenWizardOptions,
+    alsoOpen: boolean,
+  ) => {
     const preset = getWizardPresetForTab(tab);
     setWizardLaunchTab(tab);
     setWizardEntryMode(mode ?? preset.entryMode);
     setWizardInitialLabel(initialLabelSelector);
     setWizardUpgradeCorridor(!!upgradeCorridor);
-    setIsWizardOpen(true);
+    setWizardSessionId((n) => n + 1);
+    if (alsoOpen) {
+      setIsWizardOpen(true);
+    }
+  };
+
+  const openWizard = (opts: OpenWizardOptions) => {
+    applyWizardLaunch(opts, true);
+  };
+
+  const reconfigureWizard = (opts: OpenWizardOptions) => {
+    applyWizardLaunch(opts, false);
   };
 
   const handleWizardComplete = (wizardFormData?: any) => {
@@ -78,22 +89,27 @@ export function DeploymentsPage() {
       {/* Page title only when empty — populated view owns title + scope tabs */}
       {!hasDeployments && (
         <div className="mb-8">
-          <PageTitle>Deployments</PageTitle>
-          <BodyText muted>
-            Monitor and manage fleet-wide changes
-          </BodyText>
+          <div className="flex flex-col items-end gap-3 min-[400px]:flex-row min-[400px]:items-start min-[400px]:justify-between min-[400px]:gap-4">
+            <div className="min-w-0 w-full min-[400px]:w-auto self-start min-[400px]:self-auto text-left">
+              <PageTitle className="!mb-0">Deployments</PageTitle>
+              <BodyText muted className="mt-1">
+                Monitor and manage fleet-wide changes
+              </BodyText>
+            </div>
+            <div className="shrink-0 min-[400px]:pt-0.5">
+              <CreateDeploymentSplitButton
+                scopeTab="all"
+                onCreate={openWizard}
+                showCorridorOption
+              />
+            </div>
+          </div>
         </div>
       )}
 
       {/* Content */}
       {!hasDeployments ? (
         <EmptyStateScreen
-          onCreateFromPlacement={() =>
-            openWizard({ tab: 'placements' })
-          }
-          onCreateFromAction={() =>
-            openWizard({ tab: 'clusters' })
-          }
           onFastForwardToDeployments={handleFastForwardToDeployments}
         />
       ) : (
@@ -106,11 +122,12 @@ export function DeploymentsPage() {
       {/* Wizard Modal */}
       {isWizardOpen && (
         <DeploymentWizard
-          key={`${wizardLaunchTab}-${wizardEntryMode}-${wizardInitialLabel ?? ''}-${wizardUpgradeCorridor ? 'c' : ''}`}
+          key={`w-${wizardSessionId}-${wizardLaunchTab}-${wizardEntryMode}-${wizardInitialLabel ?? ''}-${wizardUpgradeCorridor ? 'c' : ''}`}
           entryMode={wizardEntryMode}
           launchTab={wizardLaunchTab}
           initialLabelSelector={wizardInitialLabel}
           upgradeCorridor={wizardUpgradeCorridor}
+          onReconfigure={reconfigureWizard}
           onComplete={handleWizardComplete}
           onCancel={handleWizardCancel}
         />

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import {
   ModalOverlay,
   CardTitle,
@@ -8,10 +9,18 @@ import {
   LabelText,
   PrimaryButton,
   SecondaryButton,
+  TertiaryButton,
   TextInput,
   LinkButton,
   SearchInput,
 } from "../../../imports/UIComponents";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+import { CreateDeploymentMenuContent } from "./CreateDeploymentSplitButton";
+import type { OpenDeploymentWizardOptions } from "./CreateDeploymentSplitButton";
 import { Alert } from "@patternfly/react-core";
 // Use base-no-reset to get PF styling without global CSS resets affecting other elements
 import "@patternfly/react-core/dist/styles/base-no-reset.css";
@@ -34,6 +43,8 @@ interface DeploymentWizardProps {
   launchTab?: DeploymentTabId;
   /** Narrow catalog to platform upgrade actions and corridor defaults (prototype). */
   upgradeCorridor?: boolean;
+  /** Change launch tab / entry mode / corridor without leaving the modal (restarts the wizard). */
+  onReconfigure?: (opts: OpenDeploymentWizardOptions) => void;
 }
 
 type WizardContentId = 1 | 2 | 3 | 4 | 5;
@@ -348,6 +359,7 @@ export function DeploymentWizard({
   initialLabelSelector,
   launchTab: launchTabProp = "all",
   upgradeCorridor = false,
+  onReconfigure,
 }: DeploymentWizardProps) {
   const entryMode = entryModeProp;
   const launchTab = launchTabProp;
@@ -542,28 +554,54 @@ export function DeploymentWizard({
                 </TinyText>
               </div>
 
-              {/* Close Button */}
-              <button
-                onClick={onCancel}
-                className="p-1.5 rounded transition-colors hover:bg-muted"
-                style={{ borderRadius: "var(--radius)" }}
-                aria-label="Close wizard"
-              >
-                <svg
-                  className="size-5"
-                  fill="none"
-                  viewBox="0 0 16 16"
-                  style={{ color: "var(--muted-foreground)" }}
+              <div className="flex flex-shrink-0 items-center gap-1">
+                {onReconfigure && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <TertiaryButton
+                        type="button"
+                        className="inline-flex items-center gap-1 px-2"
+                      >
+                        Start differently
+                        <ChevronDown
+                          className="size-4 opacity-80"
+                          aria-hidden
+                        />
+                      </TertiaryButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="end"
+                      className="z-[200] max-h-72 w-56 overflow-y-auto"
+                    >
+                      <CreateDeploymentMenuContent
+                        onPick={onReconfigure}
+                        showCorridorOption
+                      />
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+                <button
+                  onClick={onCancel}
+                  className="p-1.5 rounded transition-colors hover:bg-muted"
+                  style={{ borderRadius: "var(--radius)" }}
+                  aria-label="Close wizard"
                 >
-                  <path
-                    d="M12 4L4 12M4 4L12 12"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                  <svg
+                    className="size-5"
+                    fill="none"
+                    viewBox="0 0 16 16"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    <path
+                      d="M12 4L4 12M4 4L12 12"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                 </svg>
-              </button>
+                </button>
+              </div>
             </div>
 
             {/* Step Content - Scrollable */}

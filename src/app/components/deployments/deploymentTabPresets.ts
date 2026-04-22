@@ -1,13 +1,16 @@
 /** Matches DeploymentWizard entry flows */
 export type WizardEntryMode = "action-first" | "placement-first";
 
-/** Tabs on the Deployments page — each scopes the list and seeds the create wizard. */
+/**
+ * Deployments scope tabs (four). Each is a *resource / layer* lens for platform
+ * and cluster admins. Addressing the fleet (labels, regions, pools) lives under
+ * **filters** on the list, not a fifth tab.
+ */
 export type DeploymentTabId =
   | "all"
-  | "applications"
-  | "virtual-machines"
   | "clusters"
-  | "placements";
+  | "applications"
+  | "virtual-machines";
 
 export const DEPLOYMENT_TAB_ORDER: {
   id: DeploymentTabId;
@@ -17,27 +20,26 @@ export const DEPLOYMENT_TAB_ORDER: {
   {
     id: "all",
     label: "All",
-    description: "Every deployment across resource types",
-  },
-  {
-    id: "applications",
-    label: "Applications",
-    description: "Rollouts tied to workloads and GitOps-driven apps",
-  },
-  {
-    id: "virtual-machines",
-    label: "Virtual machines",
-    description: "KubeVirt / migration and VM-adjacent changes",
+    description:
+      "Full workspace activity—incident triage, cross-scope search, and anything you have not narrowed yet.",
   },
   {
     id: "clusters",
-    label: "Clusters",
-    description: "Platform, etcd, and cluster-scoped fleet actions",
+    label: "Platform",
+    description:
+      "Infrastructure you run as cluster admin: version paths, etcd, MachineConfig, cluster operators, CNI add-ons—change at the control plane or fleet scope, not tenant manifests.",
   },
   {
-    id: "placements",
-    label: "Placements",
-    description: "Changes defined by labels, regions, and placement rules",
+    id: "applications",
+    label: "Workloads",
+    description:
+      "What runs in namespaces: charts, GitOps syncs, rollouts, and mesh/logging where app teams share ownership with you.",
+  },
+  {
+    id: "virtual-machines",
+    label: "Virtualization",
+    description:
+      "KubeVirt, migration, and hypervisor-class steps—different blast radius and pacing from controllers and normal workloads.",
   },
 ];
 
@@ -58,6 +60,16 @@ export type WizardTabPreset = {
   rolloutMethod?: "immediate" | "canary" | "rolling";
 };
 
+/**
+ * Default wizard args when users choose placement-first without a dedicated tab.
+ * List scoping for placement-style work uses the **Placement-scoped only** filter.
+ */
+export const PLACEMENT_FIRST_WIZARD_OPTS = {
+  tab: "all" as DeploymentTabId,
+  mode: "placement-first" as WizardEntryMode,
+  initialLabelSelector: "region:us-north",
+};
+
 /** Default wizard seeding when opening Create from a given tab (prototype). */
 export function getWizardPresetForTab(
   tab: DeploymentTabId,
@@ -67,6 +79,13 @@ export function getWizardPresetForTab(
       return {
         entryMode: "action-first",
         initialLabelSelector: "env=prod",
+        primaryActionId: "update-ocp-4.18",
+        rolloutMethod: "canary",
+      };
+    case "clusters":
+      return {
+        entryMode: "action-first",
+        initialLabelSelector: "env=prod,tier=platform",
         primaryActionId: "update-ocp-4.18",
         rolloutMethod: "canary",
       };
@@ -82,20 +101,6 @@ export function getWizardPresetForTab(
         entryMode: "action-first",
         initialLabelSelector: "kubevirt.io/schedulable=true,workload=vm",
         primaryActionId: "vm-migration-hypervisor",
-        rolloutMethod: "canary",
-      };
-    case "clusters":
-      return {
-        entryMode: "action-first",
-        initialLabelSelector: "env=prod,tier=platform",
-        primaryActionId: "update-ocp-4.18",
-        rolloutMethod: "canary",
-      };
-    case "placements":
-      return {
-        entryMode: "placement-first",
-        initialLabelSelector: "region:us-north",
-        primaryActionId: undefined,
         rolloutMethod: "canary",
       };
     default:
@@ -117,7 +122,6 @@ export function filterDeploymentsByTab<
     applications: "application",
     "virtual-machines": "virtual_machine",
     clusters: "cluster",
-    placements: "placement",
   };
   const cat = map[tab as Exclude<DeploymentTabId, "all">];
   return items.filter((a) => a.resourceCategory === cat);
