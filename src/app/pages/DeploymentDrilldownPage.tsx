@@ -18,7 +18,8 @@ type EventCategory =
   | "infrastructure"
   | "workload"
   | "network"
-  | "storage";
+  | "storage"
+  | "readiness";
 
 type TimelineEvent = {
   id: string;
@@ -46,7 +47,13 @@ export function DeploymentDrilldownPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<
     EventCategory[]
-  >(["infrastructure", "workload", "network", "storage"]);
+  >([
+    "infrastructure",
+    "workload",
+    "network",
+    "storage",
+    "readiness",
+  ]);
   const [hoveredEvent, setHoveredEvent] =
     useState<TimelineEvent | null>(null);
   const [popoverPosition, setPopoverPosition] = useState({
@@ -128,6 +135,39 @@ export function DeploymentDrilldownPage() {
   // Phase 1 processes 10 clusters from 22:05 to 00:20 (when threshold hit)
   // Mixed successes and failures, threshold triggers on 6th failure
   const allEvents: TimelineEvent[] = [
+    {
+      id: "rdy-0",
+      timestamp: new Date("2026-03-24T22:06:00Z"),
+      category: "readiness",
+      severity: "info",
+      title: "Pre-flight configuration validated",
+      description:
+        "MachineConfigPools synced; no pending reboots before canary start.",
+      affectedResources: ["mcp/worker"],
+      ranAs: ranAsValue,
+    },
+    {
+      id: "rdy-1",
+      timestamp: new Date("2026-03-24T22:10:00Z"),
+      category: "readiness",
+      severity: "warning",
+      title: "API server readiness probe slow",
+      description:
+        "kube-apiserver health checks exceeded SLO for 90s; rollout continued under watch.",
+      affectedResources: ["kube-apiserver"],
+      ranAs: ranAsValue,
+    },
+    {
+      id: "rdy-2",
+      timestamp: new Date("2026-03-24T22:18:00Z"),
+      category: "readiness",
+      severity: "info",
+      title: "Cluster operators healthy",
+      description:
+        "All required ClusterOperators Available=True before first cluster upgrade.",
+      affectedResources: ["clusterversion/version"],
+      ranAs: ranAsValue,
+    },
     // Early successes
     {
       id: "evt-1",
@@ -967,6 +1007,7 @@ export function DeploymentDrilldownPage() {
                 "workload",
                 "network",
                 "storage",
+                "readiness",
               ] as EventCategory[]
             ).map((category) => {
               const isSelected = selectedCategories.includes(category);
@@ -1128,13 +1169,21 @@ export function DeploymentDrilldownPage() {
                 />
                 <TinyText muted style={{ fontSize: "11px" }}>Full rollout</TinyText>
               </div>
+              <div className="w-px h-3" style={{ backgroundColor: "var(--border)" }} />
+              <div className="flex items-center gap-1.5">
+                <div
+                  className="size-2.5 rotate-45"
+                  style={{ backgroundColor: "#40199A" }}
+                />
+                <TinyText muted style={{ fontSize: "11px" }}>Readiness</TinyText>
+              </div>
             </div>
 
             {/* Timeline Track - Swimlane Layout */}
             <div
               ref={timelineTrackRef}
               className="relative cursor-crosshair"
-              style={{ height: "120px", marginLeft: "65px" }}
+              style={{ height: "132px", marginLeft: "65px" }}
               onMouseMove={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const x = e.clientX - rect.left;
@@ -1192,7 +1241,19 @@ export function DeploymentDrilldownPage() {
                   muted
                   style={{
                     position: "absolute",
-                    top: "44px",
+                    top: "36px",
+                    right: "0",
+                    fontSize: "11px",
+                    textAlign: "right",
+                  }}
+                >
+                  Readiness
+                </TinyText>
+                <TinyText
+                  muted
+                  style={{
+                    position: "absolute",
+                    top: "52px",
                     right: "0",
                     fontSize: "11px",
                     textAlign: "right",
@@ -1204,7 +1265,7 @@ export function DeploymentDrilldownPage() {
                   muted
                   style={{
                     position: "absolute",
-                    top: "84px",
+                    top: "96px",
                     right: "0",
                     fontSize: "11px",
                     textAlign: "right",
@@ -1227,7 +1288,7 @@ export function DeploymentDrilldownPage() {
               <div
                 className="absolute w-full"
                 style={{
-                  top: "72px",
+                  top: "44px",
                   height: "1px",
                   backgroundColor: "var(--border)",
                   opacity: 0.5,
@@ -1236,7 +1297,16 @@ export function DeploymentDrilldownPage() {
               <div
                 className="absolute w-full"
                 style={{
-                  top: "112px",
+                  top: "80px",
+                  height: "1px",
+                  backgroundColor: "var(--border)",
+                  opacity: 0.5,
+                }}
+              />
+              <div
+                className="absolute w-full"
+                style={{
+                  top: "120px",
                   height: "1px",
                   backgroundColor: "var(--border)",
                   opacity: 0.5,
@@ -1598,7 +1668,10 @@ export function DeploymentDrilldownPage() {
               {/* Success Events - Green dots (middle swimlane) with clustering */}
               {(() => {
                 const successEvents = allEvents.filter(
-                  (e) => e.severity === "info" && isVisible(e.timestamp)
+                  (e) =>
+                    e.severity === "info" &&
+                    e.category !== "readiness" &&
+                    isVisible(e.timestamp),
                 );
                 
                 // Cluster events that are too close together (within 3% of visible width)
@@ -1628,7 +1701,7 @@ export function DeploymentDrilldownPage() {
                       className="absolute cursor-pointer transition-all"
                       style={{
                         left: `${cluster.position * 100}%`,
-                        top: "52px",
+                        top: "60px",
                         transform: `translate(-50%, -50%) ${isHighlighted ? "scale(1.5)" : "scale(1)"}`,
                         zIndex: isHighlighted ? 15 : 10,
                       }}
@@ -1711,7 +1784,7 @@ export function DeploymentDrilldownPage() {
                       className="absolute cursor-pointer transition-all"
                       style={{
                         left: `${cluster.position * 100}%`,
-                        top: "92px",
+                        top: "104px",
                         transform: `translate(-50%, -50%) ${isHighlighted ? "scale(1.5)" : "scale(1)"}`,
                         zIndex: isHighlighted ? 15 : 10,
                       }}
@@ -1757,6 +1830,64 @@ export function DeploymentDrilldownPage() {
                           </span>
                         )}
                       </div>
+                    </div>
+                  );
+                });
+              })()}
+
+              {/* Readiness & configuration signals */}
+              {(() => {
+                const readinessEvents = allEvents.filter(
+                  (e) =>
+                    e.category === "readiness" &&
+                    selectedCategories.includes("readiness") &&
+                    isVisible(e.timestamp),
+                );
+                return readinessEvents.map((event) => {
+                  const pos = getVisiblePosition(event.timestamp);
+                  const fill =
+                    event.severity === "warning" ? "#F0AB00" : "#40199A";
+                  return (
+                    <div
+                      key={event.id}
+                      className="absolute cursor-pointer transition-all"
+                      style={{
+                        left: `${pos * 100}%`,
+                        top: "34px",
+                        transform: "translate(-50%, -50%)",
+                        zIndex: 12,
+                      }}
+                      onMouseEnter={(e) => {
+                        setHoveredEvent(event);
+                        const rect =
+                          e.currentTarget.getBoundingClientRect();
+                        setPopoverPosition({
+                          x: rect.left,
+                          y: rect.top - 10,
+                        });
+                      }}
+                      onMouseLeave={() => setHoveredEvent(null)}
+                      onClick={() =>
+                        setSelectedTimeWindow({
+                          start: new Date(
+                            event.timestamp.getTime() - 10 * 60 * 1000,
+                          ),
+                          end: new Date(
+                            event.timestamp.getTime() + 10 * 60 * 1000,
+                          ),
+                        })
+                      }
+                    >
+                      <div
+                        className="size-2.5 rotate-45"
+                        style={{
+                          backgroundColor: fill,
+                          boxShadow:
+                            highlightedEventId === event.id
+                              ? "0 0 0 3px rgba(64, 25, 154, 0.25)"
+                              : "none",
+                        }}
+                      />
                     </div>
                   );
                 });

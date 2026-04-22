@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ModalOverlay,
   CardTitle,
@@ -15,10 +15,94 @@ import {
 import { Alert } from "@patternfly/react-core";
 // Use base-no-reset to get PF styling without global CSS resets affecting other elements
 import "@patternfly/react-core/dist/styles/base-no-reset.css";
+import {
+  getWizardPresetForTab,
+  type DeploymentTabId,
+  type WizardEntryMode,
+} from "./deploymentTabPresets";
+
+export type { WizardEntryMode, DeploymentTabId } from "./deploymentTabPresets";
 
 interface DeploymentWizardProps {
   onComplete: (formData?: any) => void;
   onCancel: () => void;
+  /** Reorders wizard: placement before action when placement-first. Default action-first. */
+  entryMode?: WizardEntryMode;
+  /** When opening from list search, seed label selector (e.g. env=prod). */
+  initialLabelSelector?: string;
+  /** Which Deployments tab opened the wizard — drives default actions and labels. */
+  launchTab?: DeploymentTabId;
+  /** Narrow catalog to platform upgrade actions and corridor defaults (prototype). */
+  upgradeCorridor?: boolean;
+}
+
+type WizardContentId = 1 | 2 | 3 | 4 | 5;
+
+type WizardStepDef = {
+  number: number;
+  label: string;
+  hint: string;
+  contentId: WizardContentId;
+};
+
+function buildWizardSteps(
+  entryMode: WizardEntryMode,
+): WizardStepDef[] {
+  const h = {
+    action:
+      "Choose an action: Update, Install, Apply, Delete, or Create",
+    placement:
+      "Select clusters to include in this deployment",
+    rollout: "Choose how the deployment is sequenced",
+    execution:
+      "Choose execution permissions and confirmation settings",
+    review:
+      "Review your deployment configuration before creating it",
+  };
+
+  if (entryMode === "placement-first") {
+    return [
+      {
+        number: 1,
+        label: "Placement",
+        hint:
+          "Define scope first — suggested actions in the next step reflect inventory and risk signals for this placement",
+        contentId: 2,
+      },
+      {
+        number: 2,
+        label: "Action",
+        hint: h.action,
+        contentId: 1,
+      },
+      { number: 3, label: "Rollout", hint: h.rollout, contentId: 3 },
+      {
+        number: 4,
+        label: "Execution policy",
+        hint: h.execution,
+        contentId: 4,
+      },
+      { number: 5, label: "Review & create", hint: h.review, contentId: 5 },
+    ];
+  }
+
+  return [
+    { number: 1, label: "Action", hint: h.action, contentId: 1 },
+    {
+      number: 2,
+      label: "Placement",
+      hint: h.placement,
+      contentId: 2,
+    },
+    { number: 3, label: "Rollout", hint: h.rollout, contentId: 3 },
+    {
+      number: 4,
+      label: "Execution policy",
+      hint: h.execution,
+      contentId: 4,
+    },
+    { number: 5, label: "Review & create", hint: h.review, contentId: 5 },
+  ];
 }
 
 type ActionType = "update" | "install" | "apply" | "delete" | "create";
@@ -73,6 +157,15 @@ const availableActions: ActionOption[] = [
     category: "Update",
     name: "Update etcd 3.5.9 → 3.5.12",
     description: "Critical stability and security fixes",
+    requiresVersion: false,
+  },
+  {
+    id: "vm-migration-hypervisor",
+    type: "update",
+    category: "Update",
+    name: "VM migration — ESXi / hypervisor rollover (fleet)",
+    description:
+      "Coordinate rolling migration for OpenShift Virtualization worker nodes",
     requiresVersion: false,
   },
   // Install actions
@@ -163,17 +256,62 @@ const availableActions: ActionOption[] = [
   },
 ];
 
-export function DeploymentWizard({
-  onComplete,
-  onCancel,
-}: DeploymentWizardProps) {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState({
-    selectedActions: [] as SelectedAction[],
+function actionOptionToSelected(action: ActionOption): SelectedAction {
+  return {
+    id: action.id,
+    type: action.type,
+    name: action.name,
+    description: action.description,
+    sourceVersion: action.requiresVersion ? "4.15.12" : undefined,
+    targetVersion: action.requiresVersion ? "4.16.2" : undefined,
+  };
+}
+
+function formatTargetsSnapshotAt(iso: string | undefined): string {
+  const raw = iso || new Date().toISOString();
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  return (
+    d.toLocaleString("en-US", {
+      timeZone: "America/New_York",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }) + " EST"
+  );
+}
+
+function buildInitialFormData(
+  initialLabelSelector: string | undefined,
+  launchTab: DeploymentTabId,
+  upgradeCorridor?: boolean,
+) {
+  const preset = getWizardPresetForTab(launchTab);
+  const label =
+    initialLabelSelector?.trim() || preset.initialLabelSelector;
+
+  const selectedActions: SelectedAction[] = [];
+  if (upgradeCorridor) {
+    const ocp = availableActions.find((a) => a.id === "update-ocp-4.18");
+    if (ocp) selectedActions.push(actionOptionToSelected(ocp));
+  } else if (preset.primaryActionId) {
+    const opt = availableActions.find(
+      (a) => a.id === preset.primaryActionId,
+    );
+    if (opt) selectedActions.push(actionOptionToSelected(opt));
+  }
+
+  return {
+    selectedActions,
     fleetSelection: "label",
-    labelSelector: "env=prod",
-    rolloutMethod: "canary", // "immediate" | "canary" | "rolling"
-    scheduleType: "immediate", // "immediate" | "delayed" | "window"
+    labelSelector: upgradeCorridor
+      ? "env=prod,tier=platform"
+      : label,
+    rolloutMethod: preset.rolloutMethod ?? "canary",
+    scheduleType: "immediate",
     scheduledDate: "",
     scheduledTime: "",
     scheduleWindow: "weekends",
@@ -196,7 +334,36 @@ export function DeploymentWizard({
     schedule: "Global Maint Window",
     runAs: "Personal (Adi Cluster Admin)",
     requireManualConfirmation: false,
-  });
+    targetsSnapshotAt: new Date().toISOString(),
+    rolloutStrategyPreset: upgradeCorridor
+      ? "corridor-balanced"
+      : "balanced-canary",
+  };
+}
+
+export function DeploymentWizard({
+  onComplete,
+  onCancel,
+  entryMode: entryModeProp = "action-first",
+  initialLabelSelector,
+  launchTab: launchTabProp = "all",
+  upgradeCorridor = false,
+}: DeploymentWizardProps) {
+  const entryMode = entryModeProp;
+  const launchTab = launchTabProp;
+  const steps = useMemo(
+    () => buildWizardSteps(entryMode),
+    [entryMode],
+  );
+
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState(() =>
+    buildInitialFormData(
+      initialLabelSelector,
+      launchTab,
+      upgradeCorridor,
+    ),
+  );
 
   const totalSteps = 5;
 
@@ -213,32 +380,14 @@ export function DeploymentWizard({
   };
 
   const handleSubmit = () => {
-    onComplete(formData);
+    onComplete({
+      ...formData,
+      wizardEntryMode: entryMode,
+      wizardLaunchTab: launchTab,
+    });
   };
 
-  const steps = [
-    {
-      number: 1,
-      label: "Action", // Action verb: Update, Delete, Create, etc.
-      name: "action",
-    },
-    {
-      number: 2,
-      label: "Placement", // WHERE it goes (which clusters)
-      name: "placement",
-    },
-    {
-      number: 3,
-      label: "Rollout", // HOW it's sequenced (Immediate, Canary, Rolling)
-      name: "rollout",
-    },
-    {
-      number: 4,
-      label: "Execution policy",
-      name: "execution-policy",
-    },
-    { number: 5, label: "Review & submit", name: "review" },
-  ];
+  const activeStep = steps[currentStep - 1];
 
   return (
     <ModalOverlay onClose={onCancel}>
@@ -263,9 +412,15 @@ export function DeploymentWizard({
           >
             {/* Wizard Title */}
             <div className="mb-6">
-              <CardTitle>Create deployment</CardTitle>
+              <CardTitle>
+                {upgradeCorridor
+                  ? "Multicluster upgrade"
+                  : "Create deployment"}
+              </CardTitle>
               <TinyText muted className="mt-2">
-                Configure your fleet-wide deployment strategy
+                {upgradeCorridor
+                  ? "Narrow corridor for coordinated platform upgrades across clusters (prototype)."
+                  : "Configure your fleet-wide deployment strategy"}
               </TinyText>
             </div>
 
@@ -380,19 +535,10 @@ export function DeploymentWizard({
                     color: "var(--foreground)",
                   }}
                 >
-                  {steps[currentStep - 1].label}
+                  {activeStep.label}
                 </h4>
                 <TinyText muted className="mt-1">
-                  {currentStep === 1 &&
-                    "Choose an action: Update, Install, Apply, Delete, or Create"}
-                  {currentStep === 2 &&
-                    "Select clusters to include in this deployment"}
-                  {currentStep === 3 &&
-                    "Choose how the deployment is sequenced"}
-                  {currentStep === 4 &&
-                    "Choose execution permissions and confirmation settings"}
-                  {currentStep === 5 &&
-                    "Review your deployment configuration before submitting"}
+                  {activeStep.hint}
                 </TinyText>
               </div>
 
@@ -425,32 +571,38 @@ export function DeploymentWizard({
               className="flex-1 overflow-y-auto px-6 py-6"
               style={{ backgroundColor: "var(--background)" }}
             >
-              {currentStep === 1 && (
+              {activeStep.contentId === 1 && (
                 <Step1Content
                   formData={formData}
                   setFormData={setFormData}
+                  entryMode={entryMode}
+                  upgradeCorridor={upgradeCorridor}
                 />
               )}
-              {currentStep === 2 && (
+              {activeStep.contentId === 2 && (
                 <Step2Content
                   formData={formData}
                   setFormData={setFormData}
+                  entryMode={entryMode}
                 />
               )}
-              {currentStep === 3 && (
+              {activeStep.contentId === 3 && (
                 <Step3Content
                   formData={formData}
                   setFormData={setFormData}
                 />
               )}
-              {currentStep === 4 && (
+              {activeStep.contentId === 4 && (
                 <Step4Content
                   formData={formData}
                   setFormData={setFormData}
                 />
               )}
-              {currentStep === 5 && (
-                <Step5Content formData={formData} />
+              {activeStep.contentId === 5 && (
+                <Step5Content
+                  formData={formData}
+                  wizardEntryMode={entryMode}
+                />
               )}
             </div>
 
@@ -491,9 +643,13 @@ export function DeploymentWizard({
 function Step1Content({
   formData,
   setFormData,
+  entryMode = "action-first",
+  upgradeCorridor = false,
 }: {
   formData: any;
   setFormData: (data: any) => void;
+  entryMode?: WizardEntryMode;
+  upgradeCorridor?: boolean;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -504,11 +660,21 @@ function Step1Content({
   const [isDependentDropdownOpen, setIsDependentDropdownOpen] =
     useState(false);
 
+  const actionCatalog = upgradeCorridor
+    ? availableActions.filter(
+        (a) =>
+          a.category === "Update" &&
+          (a.id.startsWith("update-ocp") ||
+            a.id.startsWith("update-etcd") ||
+            a.id === "vm-migration-hypervisor"),
+      )
+    : availableActions;
+
   const selectedActions: SelectedAction[] =
     formData.selectedActions || [];
 
   // Filter available actions based on search
-  const filteredActions = availableActions.filter((action) => {
+  const filteredActions = actionCatalog.filter((action) => {
     const query = searchQuery.toLowerCase();
     return (
       action.name.toLowerCase().includes(query) ||
@@ -518,7 +684,7 @@ function Step1Content({
   });
 
   // Filter dependent actions - only show compatible ones
-  const filteredDependentActions = availableActions.filter(
+  const filteredDependentActions = actionCatalog.filter(
     (action) => {
       const query = dependentSearchQuery.toLowerCase();
       const matchesQuery =
@@ -528,7 +694,7 @@ function Step1Content({
 
       // If we have a primary action selected, filter by compatibility
       if (selectedActions.length > 0 && selectedActions[0].id) {
-        const primaryAction = availableActions.find(
+        const primaryAction = actionCatalog.find(
           (c) => c.id === selectedActions[0].id,
         );
         if (primaryAction?.compatibleWith) {
@@ -640,6 +806,23 @@ function Step1Content({
 
   return (
     <div className="space-y-6">
+      {upgradeCorridor && (
+        <Alert variant="info" isInline title="Upgrade corridor">
+          <p style={{ margin: 0 }}>
+            This flow limits the catalog to coordinated platform updates so teams
+            can move clusters in lockstep with shared guardrails.
+          </p>
+        </Alert>
+      )}
+      {entryMode === "placement-first" && (
+        <Alert variant="info" isInline title="Actions for your placement">
+          <p style={{ margin: 0 }}>
+            You defined scope in the previous step. Choose actions here; in a full
+            product, recommendations would be driven by versions, policy posture,
+            and cost signals for that placement.
+          </p>
+        </Alert>
+      )}
       {/* Primary Action Selector */}
       <div>
         <LabelText className="mb-2">
@@ -1181,36 +1364,146 @@ const matchClustersBySelector = (selector: string) => {
   );
 };
 
+type ClusterInventoryRow = (typeof allClusters)[number];
+
+/** Deterministic, selection-driven copy for the in-wizard assistant (prototype — swap for a real agent). */
+function buildPlacementAssistantAnalysis(
+  formData: {
+    fleetSelection: string;
+    labelSelector?: string;
+    selectedClusters?: string[];
+  },
+  matchedClusters: ClusterInventoryRow[],
+): {
+  lead: string;
+  sections: { label: string; text: string }[];
+  disclaimer: string;
+} {
+  const disclaimer =
+    "Prototype: in-context assistant summarizes this placement using wizard inventory only. Wire your agent or LLM here for live posture and policy checks.";
+
+  const n = matchedClusters.length;
+  if (n === 0) {
+    return {
+      lead:
+        "Define placement first—set a label selector or pick clusters from the list. I’ll analyze environment mix, regions, and risk notes for whatever lands in scope.",
+      sections: [],
+      disclaimer,
+    };
+  }
+
+  const regions = [...new Set(matchedClusters.map((c) => c.region))].sort();
+  const envCounts: Record<string, number> = {};
+  for (const c of matchedClusters) {
+    envCounts[c.env] = (envCounts[c.env] ?? 0) + 1;
+  }
+  const hasCanary = matchedClusters.some(
+    (c) =>
+      c.env === "canary" ||
+      c.name.toLowerCase().includes("canary") ||
+      c.labels.some((l) => l.toLowerCase().includes("canary")),
+  );
+
+  const sections: { label: string; text: string }[] = [];
+
+  sections.push({
+    label: "Coverage",
+    text: `${n} cluster${n === 1 ? "" : "s"} across ${regions.length} region${regions.length === 1 ? "" : "s"}: ${regions.join(", ")}.`,
+  });
+
+  const envParts = Object.entries(envCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([e, ct]) => `${ct} × ${e}`);
+  sections.push({
+    label: "Environment mix",
+    text: `${envParts.join("; ")}.`,
+  });
+
+  if (hasCanary) {
+    sections.push({
+      label: "Risk note",
+      text: "Canary-tier clusters are in scope—prefer phased rollouts with a soak before promoting similar changes to broader production.",
+    });
+  }
+
+  if (envCounts.prod && envCounts.prod > 0) {
+    sections.push({
+      label: "Production",
+      text: `${envCounts.prod} production cluster(s) included—treat failures as high impact and confirm rollback and observability for this change class.`,
+    });
+  }
+
+  if (regions.length >= 2) {
+    sections.push({
+      label: "Multi-region",
+      text: "Placement spans multiple regions; stagger or align waves if dependencies or maintenance windows differ by site.",
+    });
+  }
+
+  if (formData.fleetSelection === "label" && formData.labelSelector?.trim()) {
+    sections.push({
+      label: "How this placement resolves",
+      text: `The selector \`${formData.labelSelector.trim()}\` defines a dynamic membership set (new clusters that match may be included when policies reconcile).`,
+    });
+  } else if (
+    formData.fleetSelection === "searchable" &&
+    (formData.selectedClusters?.length ?? 0) > 0
+  ) {
+    sections.push({
+      label: "How this placement resolves",
+      text: `You chose ${formData.selectedClusters?.length} specific cluster(s)—membership is fixed until you change the selection.`,
+    });
+  }
+
+  return {
+    lead:
+      "Here’s an analysis of the placement you’ve selected for this deployment:",
+    sections,
+    disclaimer,
+  };
+}
+
 function Step2Content({
   formData,
   setFormData,
+  entryMode = "action-first",
 }: {
   formData: any;
   setFormData: (data: any) => void;
+  entryMode?: WizardEntryMode;
 }) {
   const [clusterSearch, setClusterSearch] = useState("");
 
   // Get selected clusters from formData or default to empty array
   const selectedClusterNames: string[] = formData.selectedClusters || [];
 
-  // Filter clusters based on label selector
-  const getMatchedClusters = () => {
+  const matchedClusters = useMemo(() => {
     if (formData.fleetSelection === "label") {
       const selector = formData.labelSelector?.trim() || "";
       if (!selector) return [];
-      // Simple label matching simulation
       return allClusters.filter((c) =>
         c.labels.some((label) =>
           label.toLowerCase().includes(selector.toLowerCase())
         )
       );
-    } else {
-      // Manual selection - return selected clusters
-      return allClusters.filter((c) => selectedClusterNames.includes(c.name));
     }
-  };
+    const names = formData.selectedClusters || [];
+    return allClusters.filter((c) => names.includes(c.name));
+  }, [
+    formData.fleetSelection,
+    formData.labelSelector,
+    formData.selectedClusters,
+  ]);
 
-  const matchedClusters = getMatchedClusters();
+  const placementAnalysis = useMemo(
+    () => buildPlacementAssistantAnalysis(formData, matchedClusters),
+    [
+      formData.fleetSelection,
+      formData.labelSelector,
+      formData.selectedClusters,
+      matchedClusters,
+    ],
+  );
 
   // Filter available clusters for the searchable list
   const filteredClusters = clusterSearch
@@ -1229,6 +1522,47 @@ function Step2Content({
 
   return (
     <div className="space-y-6">
+      {entryMode === "placement-first" && (
+        <Alert variant="info" isInline title="Start from placement">
+          <p style={{ margin: 0 }}>
+            Ops teams can begin with scope (region, environment, labels) and
+            then review suggested work. The next step lists actions—often the
+            same catalog as action-first, but ordered after you confirm where
+            change applies.
+          </p>
+        </Alert>
+      )}
+      <div
+        className="flex flex-wrap items-center justify-between gap-3 rounded border px-4 py-3"
+        style={{
+          borderColor: "var(--border)",
+          borderRadius: "var(--radius)",
+          backgroundColor: "var(--card)",
+        }}
+      >
+        <TinyText muted>
+          Targets as of{" "}
+          <span
+            style={{
+              fontWeight: "var(--font-weight-medium)",
+              color: "var(--foreground)",
+            }}
+          >
+            {formatTargetsSnapshotAt(formData.targetsSnapshotAt)}
+          </span>
+        </TinyText>
+        <SecondaryButton
+          type="button"
+          onClick={() =>
+            setFormData({
+              ...formData,
+              targetsSnapshotAt: new Date().toISOString(),
+            })
+          }
+        >
+          Refresh target list
+        </SecondaryButton>
+      </div>
       {/* 1. Cluster Placement */}
       <div>
         <div className="flex items-center gap-2 mb-3">
@@ -1521,6 +1855,101 @@ function Step2Content({
           </div>
         )}
       </div>
+
+      {/* In-context placement assistant (prototype — replace with real agent/LLM) */}
+      <div
+        className="rounded-lg border overflow-hidden"
+        style={{
+          borderColor: "var(--border)",
+          borderRadius: "var(--radius)",
+        }}
+      >
+        <div
+          className="flex items-center gap-2.5 px-4 py-2.5"
+          style={{
+            borderBottom: "1px solid var(--border)",
+            backgroundColor: "var(--secondary)",
+          }}
+        >
+          <div
+            className="flex size-8 items-center justify-center rounded-md shrink-0"
+            style={{
+              backgroundColor: "color-mix(in srgb, var(--primary) 12%, transparent)",
+            }}
+            aria-hidden
+          >
+            <svg
+              className="size-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              style={{ color: "var(--primary)" }}
+            >
+              <path
+                d="M12 2L9 8l-6 .9 4.5 4.4L6 22l6-3.2L18 22l-1.5-8.7L21 8.9 15 8 12 2z"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+          <div className="min-w-0 flex-1">
+            <SmallText style={{ fontWeight: "var(--font-weight-semibold)" }}>
+              Placement assistant
+            </SmallText>
+            <TinyText muted className="block">
+              In-context analysis for your current selection
+            </TinyText>
+          </div>
+        </div>
+        <div
+          className="p-4 space-y-4"
+          style={{ backgroundColor: "var(--background)" }}
+        >
+          <BodyText
+            style={{
+              fontSize: "var(--text-sm)",
+              lineHeight: 1.55,
+              color: "var(--foreground)",
+            }}
+          >
+            {placementAnalysis.lead}
+          </BodyText>
+          {placementAnalysis.sections.length > 0 && (
+            <ul className="list-none space-y-3 pl-0 m-0">
+              {placementAnalysis.sections.map((s, idx) => (
+                <li key={idx}>
+                  <TinyText
+                    style={{
+                      fontWeight: "var(--font-weight-semibold)",
+                      color: "var(--foreground)",
+                    }}
+                  >
+                    {s.label}
+                  </TinyText>
+                  <TinyText
+                    muted
+                    className="block mt-1 leading-relaxed"
+                    style={{ fontSize: "var(--text-xs)" }}
+                  >
+                    {s.text}
+                  </TinyText>
+                </li>
+              ))}
+            </ul>
+          )}
+          <TinyText
+            muted
+            className="block pt-3"
+            style={{
+              fontSize: "11px",
+              lineHeight: 1.45,
+              borderTop: "1px solid var(--border)",
+            }}
+          >
+            {placementAnalysis.disclaimer}
+          </TinyText>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1643,6 +2072,93 @@ function Step3Content({
               All at once
             </TinyText>
           </button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <SmallText
+          style={{ fontWeight: "var(--font-weight-medium)" }}
+        >
+          Saved rollout strategy
+        </SmallText>
+        <select
+          className="w-full max-w-md px-3 py-2 border rounded"
+          style={{
+            borderRadius: "var(--radius)",
+            borderColor: "var(--border)",
+            fontFamily: "var(--font-family-text)",
+            fontSize: "var(--text-sm)",
+            color: "var(--foreground)",
+            backgroundColor: "var(--background)",
+          }}
+          value={formData.rolloutStrategyPreset ?? "balanced-canary"}
+          onChange={(e) =>
+            setFormData({
+              ...formData,
+              rolloutStrategyPreset: e.target.value,
+            })
+          }
+        >
+          <option value="balanced-canary">
+            Balanced canary (default)
+          </option>
+          <option value="corridor-balanced">
+            Corridor — steady platform wave
+          </option>
+          <option value="weekend-push">
+            Aggressive weekend window
+          </option>
+          <option value="gitops-aligned">GitOps-aligned pacing</option>
+        </select>
+        <TinyText muted>
+          Presets map to the pacing fields below in a full build; here they are a
+          saved-strategy picker prototype.
+        </TinyText>
+      </div>
+
+      <Alert variant="info" isInline title="Repeatable placement + rollout blocks">
+        <p style={{ margin: 0 }}>
+          Large fleets are often sliced into blocks (for example production vs
+          staging). Each block pairs a placement slice with its own rollout cadence
+          before the next block starts.
+        </p>
+      </Alert>
+      <div className="grid gap-3 md:grid-cols-2">
+        <div
+          className="border rounded p-4 space-y-2"
+          style={{
+            borderRadius: "var(--radius)",
+            borderColor: "var(--border)",
+            backgroundColor: "var(--card)",
+          }}
+        >
+          <SmallText
+            style={{ fontWeight: "var(--font-weight-medium)" }}
+          >
+            Block 1 — Production
+          </SmallText>
+          <TinyText muted>
+            Placement <code>env=prod</code>. Canary 10 clusters → 24h soak →
+            remainder of fleet.
+          </TinyText>
+        </div>
+        <div
+          className="border rounded p-4 space-y-2"
+          style={{
+            borderRadius: "var(--radius)",
+            borderColor: "var(--border)",
+            backgroundColor: "var(--card)",
+          }}
+        >
+          <SmallText
+            style={{ fontWeight: "var(--font-weight-medium)" }}
+          >
+            Block 2 — Staging
+          </SmallText>
+          <TinyText muted>
+            Placement <code>env=stage</code>. Rolling waves of five clusters with
+            shared health gates.
+          </TinyText>
         </div>
       </div>
 
@@ -2684,7 +3200,13 @@ function Step4Content({
   );
 }
 
-function Step5Content({ formData }: { formData: any }) {
+function Step5Content({
+  formData,
+  wizardEntryMode = "action-first",
+}: {
+  formData: any;
+  wizardEntryMode?: WizardEntryMode;
+}) {
   const selectedActions: SelectedAction[] =
     formData.selectedActions || [];
 
@@ -2695,6 +3217,12 @@ function Step5Content({ formData }: { formData: any }) {
 
   return (
     <div className="space-y-6">
+      <TinyText muted>
+        Flow:{" "}
+        {wizardEntryMode === "placement-first"
+          ? "Placement-first (scope → actions → rollout)"
+          : "Action-first (actions → placement → rollout)"}
+      </TinyText>
       {/* Action Section */}
       <div
         className="p-6 border rounded"
@@ -2794,6 +3322,18 @@ function Step5Content({ formData }: { formData: any }) {
                 className="flex items-start justify-between py-2"
                 style={{ borderBottom: "1px solid var(--border)" }}
               >
+                <TinyText muted>Targets as of</TinyText>
+                <SmallText className="text-right">
+                  {formatTargetsSnapshotAt(
+                    formData.targetsSnapshotAt,
+                  )}
+                </SmallText>
+              </div>
+
+              <div
+                className="flex items-start justify-between py-2"
+                style={{ borderBottom: "1px solid var(--border)" }}
+              >
                 <TinyText muted>Matched clusters</TinyText>
                 <SmallText
                   className="text-right"
@@ -2881,6 +3421,24 @@ function Step5Content({ formData }: { formData: any }) {
             <TinyText muted>Rollout</TinyText>
             <SmallText className="text-right capitalize">
               {formData.rolloutMethod}
+            </SmallText>
+          </div>
+
+          <div
+            className="flex items-start justify-between py-2"
+            style={{ borderBottom: "1px solid var(--border)" }}
+          >
+            <TinyText muted>Saved strategy</TinyText>
+            <SmallText className="text-right">
+              {formData.rolloutStrategyPreset === "balanced-canary"
+                ? "Balanced canary (default)"
+                : formData.rolloutStrategyPreset === "corridor-balanced"
+                  ? "Corridor — steady platform wave"
+                  : formData.rolloutStrategyPreset === "weekend-push"
+                    ? "Aggressive weekend window"
+                    : formData.rolloutStrategyPreset === "gitops-aligned"
+                      ? "GitOps-aligned pacing"
+                      : "Balanced canary (default)"}
             </SmallText>
           </div>
 

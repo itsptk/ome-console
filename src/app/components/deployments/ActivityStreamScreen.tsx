@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import {
   PageTitle,
   SectionTitle,
@@ -14,9 +15,23 @@ import {
 } from "../../../imports/UIComponents";
 import { SmartphoneAuth } from "./SmartphoneAuth";
 import { YamlConfirmationModal } from "./YamlConfirmationModal";
+import {
+  DEPLOYMENT_TAB_ORDER,
+  filterDeploymentsByTab,
+  type DeploymentResourceCategory,
+  type DeploymentTabId,
+  type WizardEntryMode,
+} from "./deploymentTabPresets";
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
 interface ActivityStreamScreenProps {
-  onCreateClick: () => void;
+  onCreateDeployment: (opts: {
+    tab: DeploymentTabId;
+    mode?: WizardEntryMode;
+    initialLabelSelector?: string;
+    /** Narrow wizard focused on fleet platform upgrades (prototype). */
+    upgradeCorridor?: boolean;
+  }) => void;
   executionPolicy?: {
     runAs: string;
     requireManualConfirmation: boolean;
@@ -65,7 +80,88 @@ type Activity = {
   created: string;
   drilldownAvailable?: boolean;
   labels?: string[];
+  /** Which Deployments tab lists this row */
+  resourceCategory: DeploymentResourceCategory;
+  /** Historical / completed rows — shown in Archive view */
+  archived?: boolean;
+  /** Sort key for “last updated” (prototype) */
+  updatedAtMs: number;
+  /** How the rollout was initiated — GitOps vs console wizard */
+  gitopsSource?: "wizard" | "gitops-sync";
 };
+
+function parseClusterScope(resource: string): number | null {
+  const m = resource.match(/\((\d+)\)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/** Human-readable progress for an in-flight deployment (prototype). */
+function summarizeRolloutProgress(a: Activity): string {
+  if (a.progressType === "simple" && a.simpleProgress) {
+    const { current, total, unit } = a.simpleProgress;
+    return `${current}/${total} ${unit}`;
+  }
+  if (a.canaryProgress) {
+    const cp = a.canaryProgress;
+    if (cp.p1.status === "active") {
+      return `Canary phase ${cp.p1.current}/${cp.p1.total} clusters`;
+    }
+    if (cp.soak.status === "active") {
+      return cp.soak.remaining
+        ? `Soak · ${cp.soak.remaining} left`
+        : "Soak in progress";
+    }
+    if (cp.p2.status === "active") {
+      return `Full rollout ${cp.p2.current}/${cp.p2.total} clusters`;
+    }
+    if (cp.p1.status === "complete" && cp.soak.status === "pending") {
+      return "Canary complete · soak next";
+    }
+  }
+  return "In progress";
+}
+
+type GitOpsRepoRow = {
+  name: string;
+  branch: string;
+  revision: string;
+  status: "synced" | "out_of_sync" | "progressing";
+  age: string;
+  detail?: string;
+};
+
+/** Static GitOps detail for the prototype (one repo intentionally needs attention). */
+const GITOPS_REPO_DETAIL: GitOpsRepoRow[] = [
+  {
+    name: "fleet-gitops",
+    branch: "main",
+    revision: "a1b2c3d",
+    status: "synced",
+    age: "3m ago",
+  },
+  {
+    name: "cluster-apps",
+    branch: "main",
+    revision: "e4f5a6b",
+    status: "synced",
+    age: "3m ago",
+  },
+  {
+    name: "policy-baselines",
+    branch: "release-4.17",
+    revision: "9aa12ff",
+    status: "synced",
+    age: "12m ago",
+  },
+  {
+    name: "observability",
+    branch: "main",
+    revision: "77d9012",
+    status: "out_of_sync",
+    age: "1h ago",
+    detail: "1 manifest diff vs cluster",
+  },
+];
 
 // Suggested filter options based on table data
 const suggestedFilters = [
@@ -80,7 +176,7 @@ const suggestedFilters = [
 ];
 
 export function ActivityStreamScreen({
-  onCreateClick,
+  onCreateDeployment,
   executionPolicy,
 }: ActivityStreamScreenProps) {
   const navigate = useNavigate();
@@ -97,6 +193,24 @@ export function ActivityStreamScreen({
   const [showSmartphoneAuth, setShowSmartphoneAuth] = useState(false);
   const [showYamlConfirmation, setShowYamlConfirmation] = useState(false);
   const [hasAuthorized, setHasAuthorized] = useState(false);
+  const [deploymentOverviewExpanded, setDeploymentOverviewExpanded] =
+    useState(false);
+  const [activeTab, setActiveTab] =
+    useState<DeploymentTabId>("all");
+  const [listScope, setListScope] = useState<"active" | "archive">(
+    "active",
+  );
+  const [quickFilter, setQuickFilter] = useState<
+    | null
+    | "failed"
+    | "in_progress"
+    | "soaking"
+    | "waiting"
+    | "gitops"
+  >(null);
+  const [sortMode, setSortMode] = useState<"priority" | "recent">(
+    "priority",
+  );
 
   // New deployment data - always starts as "waiting"
   const newDeploymentData: Activity = {
@@ -116,6 +230,10 @@ export function ActivityStreamScreen({
     created: "Mar 27, 2026 10:15",
     drilldownAvailable: false,
     labels: ["env=prod", "OpenShift cluster update"],
+    resourceCategory: "cluster",
+    archived: false,
+    updatedAtMs: Date.parse("2026-03-27T10:15:00"),
+    gitopsSource: "wizard",
   };
 
   const [activities, setActivities] = useState<Activity[]>([
@@ -146,6 +264,10 @@ export function ActivityStreamScreen({
         "OpenShift cluster update",
         "Failed",
       ],
+      resourceCategory: "cluster",
+      archived: false,
+      updatedAtMs: Date.parse("2026-03-26T22:00:00"),
+      gitopsSource: "wizard",
     },
     {
       id: "security-policy-002",
@@ -162,6 +284,10 @@ export function ActivityStreamScreen({
       },
       created: "Mar 25, 2026 18:30",
       labels: ["region:us-north", "Security Policy"],
+      resourceCategory: "placement",
+      archived: false,
+      updatedAtMs: Date.parse("2026-03-25T18:30:00"),
+      gitopsSource: "wizard",
     },
     {
       id: "vm-migration-003",
@@ -178,18 +304,68 @@ export function ActivityStreamScreen({
       },
       created: "Mar 25, 2026 14:00",
       labels: ["region:eu-west", "VM Migration"],
+      resourceCategory: "virtual_machine",
+      archived: false,
+      updatedAtMs: Date.parse("2026-03-25T14:00:00"),
+      gitopsSource: "wizard",
     },
     {
       id: "fleet-patch-004",
       action: "Fleet Patch",
-      status: "active",
+      status: "completed",
       statusColor: "#3E8635",
       resource: "env=prod (100)",
       actionTargets: "CVE-2026-1234 fix",
       progressType: "simple",
-      simpleProgress: { current: 15, total: 100, unit: "done" },
+      simpleProgress: { current: 100, total: 100, unit: "done" },
       created: "Mar 24, 2026 20:00",
       labels: ["env=prod", "Fleet Patch"],
+      resourceCategory: "cluster",
+      archived: true,
+      updatedAtMs: Date.parse("2026-03-24T20:00:00"),
+      gitopsSource: "wizard",
+    },
+    {
+      id: "argocd-app-rollout-005",
+      action: "Argo CD application sync",
+      status: "running",
+      statusColor: "#3E8635",
+      resource: "app=storefront (8)",
+      actionTargets: "chart 2.4.1 → 2.5.0",
+      progressType: "simple",
+      simpleProgress: {
+        current: 5,
+        total: 8,
+        unit: "synced",
+      },
+      created: "Mar 27, 2026 09:00",
+      labels: ["app=storefront", "Argo CD", "GitOps"],
+      resourceCategory: "application",
+      archived: false,
+      updatedAtMs: Date.parse("2026-03-27T09:00:00"),
+      gitopsSource: "gitops-sync",
+    },
+    {
+      id: "placement-canary-006",
+      action: "Regional placement expansion",
+      status: "waiting",
+      statusColor: "#3E8635",
+      resource: "region:eu-central (12)",
+      actionTargets: "Add AZ-b nodes to placement",
+      progressType: "canary",
+      canaryProgress: {
+        p1: { current: 0, total: 3, status: "pending" },
+        soak: { status: "pending" },
+        p2: { current: 0, total: 9, status: "pending" },
+      },
+      note: "Waiting for maintenance window",
+      created: "Mar 27, 2026 08:00",
+      labels: ["region:eu-central", "Placement"],
+      drilldownAvailable: false,
+      resourceCategory: "placement",
+      archived: false,
+      updatedAtMs: Date.parse("2026-03-27T08:00:00"),
+      gitopsSource: "wizard",
     },
   ]);
 
@@ -260,10 +436,159 @@ export function ActivityStreamScreen({
     }
   };
 
-  // Sorted activities - errors first
-  const sortedActivities = [...activities].sort(
-    (a, b) => getStatusPriority(a.status) - getStatusPriority(b.status),
+  const tabFilteredActivities = useMemo(
+    () => filterDeploymentsByTab(activities, activeTab),
+    [activities, activeTab],
   );
+
+  const tableFilteredActivities = useMemo(() => {
+    let rows = tabFilteredActivities.filter((a) =>
+      listScope === "active" ? !a.archived : !!a.archived,
+    );
+    if (selectedFilters.length > 0) {
+      rows = rows.filter((a) =>
+        selectedFilters.every((f) => {
+          const hay = [
+            a.action,
+            a.resource,
+            a.note ?? "",
+            ...(a.labels ?? []),
+          ]
+            .join(" ")
+            .toLowerCase();
+          return hay.includes(f.toLowerCase());
+        }),
+      );
+    }
+    if (quickFilter === "failed") {
+      rows = rows.filter((a) => a.status === "stopped");
+    } else if (quickFilter === "in_progress") {
+      rows = rows.filter((a) =>
+        ["running", "active", "soaking"].includes(a.status),
+      );
+    } else if (quickFilter === "soaking") {
+      rows = rows.filter((a) => a.status === "soaking");
+    } else if (quickFilter === "waiting") {
+      rows = rows.filter((a) => a.status === "waiting");
+    } else if (quickFilter === "gitops") {
+      rows = rows.filter(
+        (a) =>
+          a.gitopsSource === "gitops-sync" ||
+          a.labels?.some((l) => l.toLowerCase().includes("gitops")),
+      );
+    }
+    return rows;
+  }, [
+    tabFilteredActivities,
+    listScope,
+    selectedFilters,
+    quickFilter,
+  ]);
+
+  const sortedActivities = useMemo(() => {
+    const copy = [...tableFilteredActivities];
+    if (sortMode === "recent") {
+      copy.sort(
+        (a, b) => b.updatedAtMs - a.updatedAtMs,
+      );
+    } else {
+      copy.sort(
+        (a, b) =>
+          getStatusPriority(a.status) - getStatusPriority(b.status),
+      );
+    }
+    return copy;
+  }, [tableFilteredActivities, sortMode]);
+
+  const deploymentInsights = useMemo(() => {
+    const scope = tabFilteredActivities.filter((a) => !a.archived);
+    const activeDeployments = scope.filter((a) =>
+      ["running", "soaking", "active"].includes(a.status),
+    );
+    const active = activeDeployments.length;
+    const waiting = scope.filter((a) => a.status === "waiting").length;
+    const failed = scope.filter((a) => a.status === "stopped").length;
+
+    let clusterScopeTotal = 0;
+    let clusterScopeKnown = false;
+    for (const a of activeDeployments) {
+      const n = parseClusterScope(a.resource);
+      if (n != null) {
+        clusterScopeTotal += n;
+        clusterScopeKnown = true;
+      }
+    }
+
+    let inCanary = 0;
+    let inSoak = 0;
+    let inFullOrSimple = 0;
+    for (const a of activeDeployments) {
+      if (a.progressType === "simple") {
+        inFullOrSimple++;
+        continue;
+      }
+      if (a.canaryProgress) {
+        const cp = a.canaryProgress;
+        if (cp.p1.status === "active") inCanary++;
+        else if (cp.soak.status === "active") inSoak++;
+        else inFullOrSimple++;
+      } else {
+        inFullOrSimple++;
+      }
+    }
+
+    const activeRolloutLines = activeDeployments.slice(0, 5).map((a) => ({
+      id: a.id,
+      action: a.action,
+      phaseLine: summarizeRolloutProgress(a),
+      scopeLabel: a.resource,
+      target: a.actionTargets ?? "",
+    }));
+
+    const failedItems = scope
+      .filter((a) => a.status === "stopped")
+      .map((a) => ({
+        id: a.id,
+        action: a.action,
+        note: a.note ?? "Stopped",
+      }));
+
+    const waitingItems = scope
+      .filter((a) => a.status === "waiting")
+      .map((a) => ({
+        id: a.id,
+        action: a.action,
+        note: a.note ?? "Pending",
+      }));
+
+    const gitOpsSynced = GITOPS_REPO_DETAIL.filter(
+      (r) => r.status === "synced",
+    ).length;
+    const gitOpsAttention = GITOPS_REPO_DETAIL.some(
+      (r) => r.status !== "synced",
+    );
+
+    return {
+      active,
+      waiting,
+      failed,
+      inFlight: active + waiting,
+      clusterScopeTotal: clusterScopeKnown ? clusterScopeTotal : null,
+      phaseDistribution: { inCanary, inSoak, inFullOrSimple },
+      activeRolloutLines,
+      failedItems,
+      waitingItems,
+      gitOps: {
+        repos: GITOPS_REPO_DETAIL,
+        syncedRepoCount: gitOpsSynced,
+        totalRepos: GITOPS_REPO_DETAIL.length,
+        anyAttention: gitOpsAttention,
+        argoHealthy: 11,
+        argoDegraded: 1,
+        lastControllerReconcile: "3m ago",
+      },
+    };
+  }, [tabFilteredActivities]);
 
   const getStatusVariant = (
     status: ActivityStatus,
@@ -356,6 +681,82 @@ export function ActivityStreamScreen({
 
   return (
     <div className="space-y-6">
+      {/* Page header + scope navigation (same band as title — no floating card) */}
+      <header className="pb-2">
+        <PageTitle>Deployments</PageTitle>
+        <BodyText muted className="mt-1 mb-0">
+          Monitor and manage fleet-wide changes
+        </BodyText>
+
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) =>
+            setActiveTab(v as DeploymentTabId)
+          }
+          className="mt-5 gap-0"
+        >
+          <TabsList
+            className="flex h-auto w-full min-h-0 flex-wrap items-stretch justify-start gap-0 rounded-none border-0 border-b border-[var(--border)] bg-transparent p-0"
+          >
+            {DEPLOYMENT_TAB_ORDER.map((t) => (
+              <TabsTrigger
+                key={t.id}
+                value={t.id}
+                className="shrink-0 rounded-none border-0 border-b-2 border-transparent bg-transparent px-3 py-2.5 text-sm font-medium text-[var(--muted-foreground)] shadow-none transition-colors hover:text-[var(--foreground)] data-[state=active]:border-[var(--primary)] data-[state=active]:bg-transparent data-[state=active]:text-[var(--foreground)] data-[state=active]:shadow-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2"
+              >
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <TinyText muted className="max-w-3xl leading-relaxed">
+            {
+              DEPLOYMENT_TAB_ORDER.find((x) => x.id === activeTab)
+                ?.description
+            }{" "}
+            Create picks default actions and placement labels for this context
+            (prototype).
+          </TinyText>
+          <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+            <PrimaryButton
+              type="button"
+              onClick={() => onCreateDeployment({ tab: activeTab })}
+            >
+              Create deployment
+            </PrimaryButton>
+            {activeTab !== "placements" && (
+              <SecondaryButton
+                type="button"
+                onClick={() =>
+                  onCreateDeployment({
+                    tab: activeTab,
+                    mode: "placement-first",
+                  })
+                }
+              >
+                Create (placement-first)
+              </SecondaryButton>
+            )}
+            {activeTab === "clusters" && (
+              <SecondaryButton
+                type="button"
+                onClick={() =>
+                  onCreateDeployment({
+                    tab: "clusters",
+                    mode: "action-first",
+                    upgradeCorridor: true,
+                  })
+                }
+              >
+                Multicluster upgrade corridor
+              </SecondaryButton>
+            )}
+          </div>
+        </div>
+      </header>
+
       {/* Search and Filter Bar */}
       <div
         className="border rounded-lg p-4"
@@ -365,9 +766,9 @@ export function ActivityStreamScreen({
           backgroundColor: "var(--background)",
         }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Search Input */}
-          <div className="flex-1 relative">
+          <div className="flex-1 min-w-[200px] relative">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
               <svg
                 className="size-5"
@@ -518,6 +919,32 @@ export function ActivityStreamScreen({
             )}
           </div>
 
+          <button
+            type="button"
+            disabled={!searchQuery.trim()}
+            title={
+              searchQuery.trim()
+                ? "Open create flow with this text as a label selector"
+                : "Type a label or selector in search first"
+            }
+            onClick={() =>
+              onCreateDeployment({
+                tab: activeTab,
+                mode: "placement-first",
+                initialLabelSelector: searchQuery.trim(),
+              })
+            }
+            className="inline-flex px-3 py-2 rounded border text-sm shrink-0 disabled:opacity-40 disabled:pointer-events-none hover:bg-secondary transition-colors"
+            style={{
+              borderColor: "var(--border)",
+              fontFamily: "var(--font-family-text)",
+              color: "var(--foreground)",
+              backgroundColor: "var(--background)",
+            }}
+          >
+            Use search as placement
+          </button>
+
           {/* Workspace Dropdown */}
           <div className="relative">
             <button
@@ -608,11 +1035,6 @@ export function ActivityStreamScreen({
               </>
             )}
           </div>
-
-          {/* Create Button */}
-          <PrimaryButton onClick={onCreateClick}>
-            Create deployment
-          </PrimaryButton>
         </div>
 
         {/* Active Filters */}
@@ -676,435 +1098,735 @@ export function ActivityStreamScreen({
             </button>
           </div>
         )}
+
+        <div
+          className="mt-3 pt-3 flex flex-col gap-3"
+          style={{ borderTop: "1px solid var(--border)" }}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <TinyText muted className="shrink-0">
+              List
+            </TinyText>
+            <button
+              type="button"
+              onClick={() => setListScope("active")}
+              className="px-2.5 py-1 rounded text-xs transition-colors"
+              style={{
+                borderRadius: "var(--radius)",
+                backgroundColor:
+                  listScope === "active"
+                    ? "var(--primary)"
+                    : "var(--secondary)",
+                color:
+                  listScope === "active"
+                    ? "var(--primary-foreground)"
+                    : "var(--muted-foreground)",
+                fontWeight: listScope === "active" ? 600 : 400,
+              }}
+            >
+              Active
+            </button>
+            <button
+              type="button"
+              onClick={() => setListScope("archive")}
+              className="px-2.5 py-1 rounded text-xs transition-colors"
+              style={{
+                borderRadius: "var(--radius)",
+                backgroundColor:
+                  listScope === "archive"
+                    ? "var(--primary)"
+                    : "var(--secondary)",
+                color:
+                  listScope === "archive"
+                    ? "var(--primary-foreground)"
+                    : "var(--muted-foreground)",
+                fontWeight: listScope === "archive" ? 600 : 400,
+              }}
+            >
+              Archive
+            </button>
+            <div
+              className="w-px h-4 mx-1 shrink-0"
+              style={{ backgroundColor: "var(--border)" }}
+              aria-hidden
+            />
+            <TinyText muted className="shrink-0">
+              Sort
+            </TinyText>
+            <button
+              type="button"
+              onClick={() => setSortMode("priority")}
+              className="px-2.5 py-1 rounded text-xs transition-colors"
+              style={{
+                borderRadius: "var(--radius)",
+                backgroundColor:
+                  sortMode === "priority"
+                    ? "var(--primary)"
+                    : "var(--secondary)",
+                color:
+                  sortMode === "priority"
+                    ? "var(--primary-foreground)"
+                    : "var(--muted-foreground)",
+                fontWeight: sortMode === "priority" ? 600 : 400,
+              }}
+            >
+              Failure-first
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortMode("recent")}
+              className="px-2.5 py-1 rounded text-xs transition-colors"
+              style={{
+                borderRadius: "var(--radius)",
+                backgroundColor:
+                  sortMode === "recent"
+                    ? "var(--primary)"
+                    : "var(--secondary)",
+                color:
+                  sortMode === "recent"
+                    ? "var(--primary-foreground)"
+                    : "var(--muted-foreground)",
+                fontWeight: sortMode === "recent" ? 600 : 400,
+              }}
+            >
+              Last updated
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <TinyText muted className="shrink-0">
+              Quick filters
+            </TinyText>
+            {(
+              [
+                { id: "failed" as const, label: "Failed" },
+                { id: "in_progress" as const, label: "In progress" },
+                { id: "soaking" as const, label: "Soaking" },
+                { id: "waiting" as const, label: "Waiting" },
+                { id: "gitops" as const, label: "GitOps" },
+              ] as const
+            ).map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() =>
+                  setQuickFilter((prev) => (prev === id ? null : id))
+                }
+                className="px-2.5 py-1 rounded text-xs transition-colors"
+                style={{
+                  borderRadius: "9999px",
+                  backgroundColor:
+                    quickFilter === id
+                      ? "var(--primary)"
+                      : "var(--secondary)",
+                  color:
+                    quickFilter === id
+                      ? "var(--primary-foreground)"
+                      : "var(--muted-foreground)",
+                  fontWeight: quickFilter === id ? 600 : 400,
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Fleet Insights Panel */}
-      <div className="grid grid-cols-6 gap-4">
-        {/* Fleet Health */}
-        <div
-          className="border rounded-lg p-4"
-          style={{
-            borderColor: "var(--border)",
-            borderRadius: "var(--radius)",
-            backgroundColor: "var(--card)",
-          }}
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <div
-              className="size-8 rounded flex items-center justify-center flex-shrink-0"
-              style={{
-                backgroundColor: "rgba(62, 134, 53, 0.1)",
-                borderRadius: "calc(var(--radius) - 2px)",
-              }}
-            >
-              <svg
-                className="size-5"
-                fill="none"
-                viewBox="0 0 20 20"
-                style={{ color: "#3E8635" }}
-              >
-                <path
-                  d="M16.5 10C16.5 13.5899 13.5899 16.5 10 16.5C6.41015 16.5 3.5 13.5899 3.5 10C3.5 6.41015 6.41015 3.5 10 3.5C13.5899 3.5 16.5 6.41015 16.5 10Z"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                />
-                <path
-                  d="M7 10L9 12L13 8"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-          </div>
-          <div className="mb-1">
-            <div
-              style={{
-                fontFamily: "var(--font-family-display)",
-                fontSize: "var(--text-2xl)",
-                fontWeight: "var(--font-weight-semibold)",
-                color: "var(--foreground)",
-              }}
-            >
-              98.2%
-            </div>
-          </div>
-          <TinyText style={{ color: "var(--foreground)" }}>
-            Fleet health
-          </TinyText>
+      {/* Deployment snapshot: compact collapsed strip by default; expand for tiles */}
+      <div
+        className="border rounded-md overflow-hidden max-w-full"
+        style={{
+          borderColor: "var(--border)",
+          borderRadius: "var(--radius)",
+          backgroundColor: "var(--card)",
+        }}
+      >
+        <div className="flex items-center justify-between gap-2 py-1.5 px-2 sm:px-3 min-h-9">
           <div
-            className="mt-2 pt-2"
-            style={{ borderTop: "1px solid var(--border)" }}
+            className="flex flex-wrap items-center gap-x-2 sm:gap-x-2.5 gap-y-0.5 min-w-0 text-[11px] sm:text-xs leading-snug"
+            style={{ fontFamily: "var(--font-family-text)" }}
           >
-            <TinyText
+            <span
+              className="text-muted-foreground uppercase tracking-wide shrink-0"
+              style={{ fontSize: "10px" }}
+            >
+              Snapshot
+            </span>
+            <span style={{ fontWeight: "var(--font-weight-semibold)" }}>
+              {deploymentInsights.active} active
+            </span>
+            <span className="text-muted-foreground" aria-hidden>
+              ·
+            </span>
+            <span
               style={{
-                color: "var(--foreground)",
-                fontWeight: "var(--font-weight-medium)",
+                fontWeight: "var(--font-weight-semibold)",
+                color:
+                  deploymentInsights.failed > 0 ? "#C9190B" : "var(--foreground)",
               }}
             >
-              245/250 healthy
-            </TinyText>
+              {deploymentInsights.failed} failed
+            </span>
+            <span className="text-muted-foreground" aria-hidden>
+              ·
+            </span>
+            <span style={{ fontWeight: "var(--font-weight-semibold)" }}>
+              {deploymentInsights.waiting} waiting
+            </span>
+            <span className="text-muted-foreground" aria-hidden>
+              ·
+            </span>
+            <span
+              style={{
+                fontWeight: "var(--font-weight-medium)",
+                color: deploymentInsights.gitOps.anyAttention
+                  ? "#C46100"
+                  : "var(--foreground)",
+              }}
+            >
+              {deploymentInsights.gitOps.anyAttention
+                ? `GitOps ${deploymentInsights.gitOps.totalRepos - deploymentInsights.gitOps.syncedRepoCount} need attention`
+                : "GitOps all synced"}
+            </span>
           </div>
+          <button
+            type="button"
+            onClick={() =>
+              setDeploymentOverviewExpanded((open) => !open)
+            }
+            className="flex items-center gap-0.5 shrink-0 rounded px-1.5 py-0.5 hover:bg-secondary text-primary"
+            style={{
+              fontFamily: "var(--font-family-text)",
+              fontSize: "var(--text-xs)",
+              fontWeight: "var(--font-weight-medium)",
+            }}
+            aria-expanded={deploymentOverviewExpanded}
+          >
+            {deploymentOverviewExpanded ? "Hide" : "Details"}
+            {deploymentOverviewExpanded ? (
+              <ChevronUp className="size-3.5" aria-hidden />
+            ) : (
+              <ChevronDown className="size-3.5" aria-hidden />
+            )}
+          </button>
         </div>
+        {deploymentOverviewExpanded && (
+          <div
+            className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 border-t"
+            style={{
+              borderColor: "var(--border)",
+              maxHeight: "min(60vh, 560px)",
+              overflowY: "auto",
+            }}
+          >
+            {/* Active rollouts — derived from live activities */}
+            <div
+              className="rounded border p-3 flex flex-col gap-2 min-h-0"
+              style={{
+                borderColor: "var(--border)",
+                backgroundColor: "var(--background)",
+              }}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div
+                    className="size-7 rounded flex items-center justify-center shrink-0"
+                    style={{
+                      backgroundColor: "rgba(62, 134, 53, 0.1)",
+                      borderRadius: "calc(var(--radius) - 2px)",
+                    }}
+                  >
+                    <svg
+                      className="size-4"
+                      fill="none"
+                      viewBox="0 0 20 20"
+                      style={{ color: "#3E8635" }}
+                    >
+                      <path
+                        d="M10 3V10L14 14"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <circle
+                        cx="10"
+                        cy="10"
+                        r="7"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      />
+                    </svg>
+                  </div>
+                  <div className="min-w-0">
+                    <TinyText
+                      style={{
+                        color: "var(--foreground)",
+                        fontWeight: "var(--font-weight-semibold)",
+                      }}
+                    >
+                      Active rollouts
+                    </TinyText>
+                    <TinyText
+                      className="block"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      In-flight changes across the fleet
+                    </TinyText>
+                  </div>
+                </div>
+                <div
+                  className="shrink-0 text-right"
+                  style={{
+                    fontFamily: "var(--font-family-display)",
+                    fontSize: "var(--text-xl)",
+                    fontWeight: "var(--font-weight-semibold)",
+                    color: "var(--foreground)",
+                  }}
+                >
+                  {deploymentInsights.active}
+                </div>
+              </div>
+              {deploymentInsights.clusterScopeTotal != null && (
+                <div
+                  className="flex flex-wrap gap-1.5 items-center"
+                  style={{ fontSize: "var(--text-xs)" }}
+                >
+                  <Badge variant="info">
+                    ~{deploymentInsights.clusterScopeTotal.toLocaleString()}{" "}
+                    clusters in scope
+                  </Badge>
+                </div>
+              )}
+              <div
+                className="flex flex-wrap gap-1"
+                style={{ fontSize: "10px" }}
+              >
+                {deploymentInsights.phaseDistribution.inCanary > 0 && (
+                  <span
+                    className="px-1.5 py-0.5 rounded border"
+                    style={{ borderColor: "var(--border)" }}
+                  >
+                    Canary: {deploymentInsights.phaseDistribution.inCanary}
+                  </span>
+                )}
+                {deploymentInsights.phaseDistribution.inSoak > 0 && (
+                  <span
+                    className="px-1.5 py-0.5 rounded border"
+                    style={{ borderColor: "var(--border)" }}
+                  >
+                    Soak: {deploymentInsights.phaseDistribution.inSoak}
+                  </span>
+                )}
+                {deploymentInsights.phaseDistribution.inFullOrSimple > 0 && (
+                  <span
+                    className="px-1.5 py-0.5 rounded border"
+                    style={{ borderColor: "var(--border)" }}
+                  >
+                    Full / batch:{" "}
+                    {deploymentInsights.phaseDistribution.inFullOrSimple}
+                  </span>
+                )}
+              </div>
+              <ul
+                className="space-y-2 mt-1 pl-0 list-none border-t pt-2"
+                style={{ borderColor: "var(--border)" }}
+              >
+                {deploymentInsights.activeRolloutLines.length === 0 ? (
+                  <TinyText style={{ color: "var(--muted-foreground)" }}>
+                    No active rollouts in this workspace.
+                  </TinyText>
+                ) : (
+                  deploymentInsights.activeRolloutLines.map((line) => (
+                    <li key={line.id}>
+                      <div
+                        style={{
+                          fontWeight: "var(--font-weight-medium)",
+                          fontSize: "var(--text-xs)",
+                          color: "var(--foreground)",
+                        }}
+                        className="truncate"
+                        title={line.action}
+                      >
+                        {line.action}
+                      </div>
+                      <TinyText
+                        className="block leading-snug"
+                        style={{ color: "var(--muted-foreground)" }}
+                      >
+                        {line.phaseLine}
+                        {line.target ? ` · ${line.target}` : ""}
+                      </TinyText>
+                      <TinyText
+                        className="block"
+                        style={{
+                          color: "var(--muted-foreground)",
+                          fontSize: "10px",
+                        }}
+                      >
+                        {line.scopeLabel}
+                      </TinyText>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
 
-        {/* Active Rollouts */}
-        <div
-          className="border rounded-lg p-4"
-          style={{
-            borderColor: "var(--border)",
-            borderRadius: "var(--radius)",
-            backgroundColor: "var(--card)",
-          }}
-        >
-          <div className="flex items-center gap-2 mb-3">
+            {/* GitOps — repo + Argo application health */}
             <div
-              className="size-8 rounded flex items-center justify-center flex-shrink-0"
+              className="rounded border p-3 flex flex-col gap-2"
               style={{
-                backgroundColor: "rgba(62, 134, 53, 0.1)",
-                borderRadius: "calc(var(--radius) - 2px)",
+                borderColor: "var(--border)",
+                backgroundColor: "var(--background)",
               }}
             >
-              <svg
-                className="size-5"
-                fill="none"
-                viewBox="0 0 20 20"
-                style={{ color: "#3E8635" }}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div
+                    className="size-7 rounded flex items-center justify-center shrink-0"
+                    style={{
+                      backgroundColor: deploymentInsights.gitOps.anyAttention
+                        ? "rgba(196, 97, 0, 0.12)"
+                        : "rgba(62, 134, 53, 0.1)",
+                      borderRadius: "calc(var(--radius) - 2px)",
+                    }}
+                  >
+                    <svg
+                      className="size-4"
+                      fill="none"
+                      viewBox="0 0 20 20"
+                      style={{
+                        color: deploymentInsights.gitOps.anyAttention
+                          ? "#C46100"
+                          : "#3E8635",
+                      }}
+                    >
+                      <path
+                        d="M4.5 6.5H11.5C12.8807 6.5 14 7.61929 14 9V14.5M4.5 6.5C3.11929 6.5 2 7.61929 2 9V14.5C2 15.8807 3.11929 17 4.5 17H11.5C12.8807 17 14 15.8807 14 14.5V9C14 7.61929 12.8807 6.5 11.5 6.5H4.5Z"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M6 10H10M6 12.5H10"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </div>
+                  <div className="min-w-0">
+                    <TinyText
+                      style={{
+                        color: "var(--foreground)",
+                        fontWeight: "var(--font-weight-semibold)",
+                      }}
+                    >
+                      GitOps & sync
+                    </TinyText>
+                    <TinyText
+                      className="block"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      Sources that drive deployment intent
+                    </TinyText>
+                  </div>
+                </div>
+                <Badge
+                  variant={
+                    deploymentInsights.gitOps.anyAttention
+                      ? "warning"
+                      : "success"
+                  }
+                >
+                  {deploymentInsights.gitOps.syncedRepoCount}/
+                  {deploymentInsights.gitOps.totalRepos} repos synced
+                </Badge>
+              </div>
+              <TinyText style={{ color: "var(--muted-foreground)" }}>
+                Argo CD applications:{" "}
+                <span style={{ color: "var(--foreground)" }}>
+                  {deploymentInsights.gitOps.argoHealthy} healthy
+                </span>
+                {" · "}
+                <span
+                  style={{
+                    color:
+                      deploymentInsights.gitOps.argoDegraded > 0
+                        ? "#C46100"
+                        : "var(--muted-foreground)",
+                  }}
+                >
+                  {deploymentInsights.gitOps.argoDegraded} degraded
+                </span>
+                {" · controller reconciled "}
+                {deploymentInsights.gitOps.lastControllerReconcile}
+              </TinyText>
+              <ul
+                className="space-y-1.5 list-none pl-0 m-0 border-t pt-2"
+                style={{ borderColor: "var(--border)" }}
               >
-                <path
-                  d="M10 3V10L14 14"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle
-                  cx="10"
-                  cy="10"
-                  r="7"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                />
-              </svg>
+                {deploymentInsights.gitOps.repos.map((repo) => (
+                  <li
+                    key={repo.name}
+                    className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5"
+                  >
+                    <span
+                      style={{
+                        fontSize: "var(--text-xs)",
+                        fontWeight: "var(--font-weight-medium)",
+                        color: "var(--foreground)",
+                      }}
+                    >
+                      {repo.name}
+                    </span>
+                    <Badge
+                      variant={
+                        repo.status === "synced"
+                          ? "success"
+                          : repo.status === "out_of_sync"
+                            ? "warning"
+                            : "info"
+                      }
+                      className="text-[10px] px-1.5 py-0"
+                    >
+                      {repo.status === "synced"
+                        ? "Synced"
+                        : repo.status === "out_of_sync"
+                          ? "Out of sync"
+                          : "Progressing"}
+                    </Badge>
+                    <TinyText
+                      className="w-full"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      {repo.branch} @ {repo.revision.slice(0, 7)} ·{" "}
+                      {repo.age}
+                      {repo.detail ? ` · ${repo.detail}` : ""}
+                    </TinyText>
+                  </li>
+                ))}
+              </ul>
             </div>
-          </div>
-          <div className="mb-1">
-            <div
-              style={{
-                fontFamily: "var(--font-family-display)",
-                fontSize: "var(--text-2xl)",
-                fontWeight: "var(--font-weight-semibold)",
-                color: "var(--foreground)",
-              }}
-            >
-              4
-            </div>
-          </div>
-          <TinyText style={{ color: "var(--foreground)" }}>
-            Active rollouts
-          </TinyText>
-          <div
-            className="mt-2 pt-2"
-            style={{ borderTop: "1px solid var(--border)" }}
-          >
-            <TinyText
-              style={{
-                color: "var(--foreground)",
-                fontWeight: "var(--font-weight-medium)",
-              }}
-            >
-              2 in P1, 1 soaking
-            </TinyText>
-          </div>
-        </div>
 
-        {/* VM Migrations */}
-        <div
-          className="border rounded-lg p-4"
-          style={{
-            borderColor: "var(--border)",
-            borderRadius: "var(--radius)",
-            backgroundColor: "var(--card)",
-          }}
-        >
-          <div className="flex items-center gap-2 mb-3">
+            {/* Failed — names + last known reason */}
             <div
-              className="size-8 rounded flex items-center justify-center flex-shrink-0"
+              className="rounded border p-3 flex flex-col gap-2"
               style={{
-                backgroundColor: "rgba(62, 134, 53, 0.1)",
-                borderRadius: "calc(var(--radius) - 2px)",
+                borderColor: "var(--border)",
+                backgroundColor: "var(--background)",
               }}
             >
-              <svg
-                className="size-5"
-                fill="none"
-                viewBox="0 0 20 20"
-                style={{ color: "#3E8635" }}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div
+                    className="size-7 rounded flex items-center justify-center shrink-0"
+                    style={{
+                      backgroundColor:
+                        deploymentInsights.failed > 0
+                          ? "rgba(201, 25, 11, 0.1)"
+                          : "rgba(62, 134, 53, 0.1)",
+                      borderRadius: "calc(var(--radius) - 2px)",
+                    }}
+                  >
+                    <svg
+                      className="size-4"
+                      fill="none"
+                      viewBox="0 0 20 20"
+                      style={{
+                        color:
+                          deploymentInsights.failed > 0
+                            ? "#C9190B"
+                            : "#3E8635",
+                      }}
+                    >
+                      <path
+                        d="M10 6V11M10 14V14.01"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M10 3.5L16.5 16.5H3.5L10 3.5Z"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+                  <div className="min-w-0">
+                    <TinyText
+                      style={{
+                        color: "var(--foreground)",
+                        fontWeight: "var(--font-weight-semibold)",
+                      }}
+                    >
+                      Failed or stopped
+                    </TinyText>
+                    <TinyText
+                      className="block"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      Safety brakes, thresholds, or user abort
+                    </TinyText>
+                  </div>
+                </div>
+                <div
+                  className="shrink-0 text-right"
+                  style={{
+                    fontFamily: "var(--font-family-display)",
+                    fontSize: "var(--text-xl)",
+                    fontWeight: "var(--font-weight-semibold)",
+                    color:
+                      deploymentInsights.failed > 0
+                        ? "#C9190B"
+                        : "var(--foreground)",
+                  }}
+                >
+                  {deploymentInsights.failed}
+                </div>
+              </div>
+              <ul
+                className="space-y-2 list-none pl-0 m-0 border-t pt-2 min-h-[3rem]"
+                style={{ borderColor: "var(--border)" }}
               >
-                <path
-                  d="M3.5 10H16.5M16.5 10L12.5 6M16.5 10L12.5 14"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+                {deploymentInsights.failedItems.length === 0 ? (
+                  <TinyText style={{ color: "var(--muted-foreground)" }}>
+                    No failed deployments — fleet changes are within policy.
+                  </TinyText>
+                ) : (
+                  deploymentInsights.failedItems.map((f) => (
+                    <li key={f.id}>
+                      <div
+                        style={{
+                          fontSize: "var(--text-xs)",
+                          fontWeight: "var(--font-weight-medium)",
+                          color: "var(--foreground)",
+                        }}
+                        className="truncate"
+                        title={f.action}
+                      >
+                        {f.action}
+                      </div>
+                      <TinyText
+                        className="block leading-snug"
+                        style={{ color: "#C9190B" }}
+                      >
+                        {f.note}
+                      </TinyText>
+                    </li>
+                  ))
+                )}
+              </ul>
             </div>
-          </div>
-          <div className="mb-1">
-            <div
-              style={{
-                fontFamily: "var(--font-family-display)",
-                fontSize: "var(--text-2xl)",
-                fontWeight: "var(--font-weight-semibold)",
-                color: "var(--foreground)",
-              }}
-            >
-              5/25
-            </div>
-          </div>
-          <TinyText style={{ color: "var(--foreground)" }}>
-            VM migrations
-          </TinyText>
-          <div
-            className="mt-2 pt-2"
-            style={{ borderTop: "1px solid var(--border)" }}
-          >
-            <TinyText
-              style={{
-                color: "var(--foreground)",
-                fontWeight: "var(--font-weight-medium)",
-              }}
-            >
-              20% complete
-            </TinyText>
-          </div>
-        </div>
 
-        {/* GitOps Sync */}
-        <div
-          className="border rounded-lg p-4"
-          style={{
-            borderColor: "var(--border)",
-            borderRadius: "var(--radius)",
-            backgroundColor: "var(--card)",
-          }}
-        >
-          <div className="flex items-center gap-2 mb-3">
+            {/* Waiting — queue + blocking reason */}
             <div
-              className="size-8 rounded flex items-center justify-center flex-shrink-0"
+              className="rounded border p-3 flex flex-col gap-2"
               style={{
-                backgroundColor: "rgba(62, 134, 53, 0.1)",
-                borderRadius: "calc(var(--radius) - 2px)",
+                borderColor: "var(--border)",
+                backgroundColor: "var(--background)",
               }}
             >
-              <svg
-                className="size-5"
-                fill="none"
-                viewBox="0 0 20 20"
-                style={{ color: "#3E8635" }}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div
+                    className="size-7 rounded flex items-center justify-center shrink-0"
+                    style={{
+                      backgroundColor: "rgba(0, 102, 204, 0.1)",
+                      borderRadius: "calc(var(--radius) - 2px)",
+                    }}
+                  >
+                    <svg
+                      className="size-4"
+                      fill="none"
+                      viewBox="0 0 20 20"
+                      style={{ color: "#0066CC" }}
+                    >
+                      <path
+                        d="M10 4V10L13 13"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <circle
+                        cx="10"
+                        cy="10"
+                        r="7"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      />
+                    </svg>
+                  </div>
+                  <div className="min-w-0">
+                    <TinyText
+                      style={{
+                        color: "var(--foreground)",
+                        fontWeight: "var(--font-weight-semibold)",
+                      }}
+                    >
+                      Waiting to run
+                    </TinyText>
+                    <TinyText
+                      className="block"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      Not yet executing (window, approval, prerequisite)
+                    </TinyText>
+                  </div>
+                </div>
+                <div
+                  className="shrink-0 text-right"
+                  style={{
+                    fontFamily: "var(--font-family-display)",
+                    fontSize: "var(--text-xl)",
+                    fontWeight: "var(--font-weight-semibold)",
+                    color: "var(--foreground)",
+                  }}
+                >
+                  {deploymentInsights.waiting}
+                </div>
+              </div>
+              <ul
+                className="space-y-2 list-none pl-0 m-0 border-t pt-2 min-h-[3rem]"
+                style={{ borderColor: "var(--border)" }}
               >
-                <path
-                  d="M16.5 6.5L8.5 14.5L4.5 10.5"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+                {deploymentInsights.waitingItems.length === 0 ? (
+                  <TinyText style={{ color: "var(--muted-foreground)" }}>
+                    Nothing queued — create a deployment or change policy to
+                    enqueue work.
+                  </TinyText>
+                ) : (
+                  deploymentInsights.waitingItems.map((w) => (
+                    <li key={w.id}>
+                      <div
+                        style={{
+                          fontSize: "var(--text-xs)",
+                          fontWeight: "var(--font-weight-medium)",
+                          color: "var(--foreground)",
+                        }}
+                        className="truncate"
+                        title={w.action}
+                      >
+                        {w.action}
+                      </div>
+                      <TinyText
+                        className="block leading-snug"
+                        style={{ color: "var(--muted-foreground)" }}
+                      >
+                        {w.note}
+                      </TinyText>
+                    </li>
+                  ))
+                )}
+              </ul>
             </div>
           </div>
-          <div className="mb-1">
-            <div
-              style={{
-                fontFamily: "var(--font-family-display)",
-                fontSize: "var(--text-2xl)",
-                fontWeight: "var(--font-weight-semibold)",
-                color: "var(--foreground)",
-              }}
-            >
-              Synced
-            </div>
-          </div>
-          <TinyText style={{ color: "var(--foreground)" }}>
-            GitOps status
-          </TinyText>
-          <div
-            className="mt-2 pt-2"
-            style={{ borderTop: "1px solid var(--border)" }}
-          >
-            <TinyText
-              style={{
-                color: "var(--foreground)",
-                fontWeight: "var(--font-weight-medium)",
-              }}
-            >
-              All repos in sync
-            </TinyText>
-          </div>
-        </div>
-
-        {/* Compliance Drift */}
-        <div
-          className="border rounded-lg p-4"
-          style={{
-            borderColor: "var(--border)",
-            borderRadius: "var(--radius)",
-            backgroundColor: "var(--card)",
-          }}
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <div
-              className="size-8 rounded flex items-center justify-center flex-shrink-0"
-              style={{
-                backgroundColor: "rgba(201, 25, 11, 0.1)",
-                borderRadius: "calc(var(--radius) - 2px)",
-              }}
-            >
-              <svg
-                className="size-5"
-                fill="none"
-                viewBox="0 0 20 20"
-                style={{ color: "#C9190B" }}
-              >
-                <path
-                  d="M10 6V11M10 14V14.01"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M10 3.5L16.5 16.5H3.5L10 3.5Z"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-          </div>
-          <div className="mb-1">
-            <div
-              style={{
-                fontFamily: "var(--font-family-display)",
-                fontSize: "var(--text-2xl)",
-                fontWeight: "var(--font-weight-semibold)",
-                color: "var(--foreground)",
-              }}
-            >
-              12
-            </div>
-          </div>
-          <TinyText style={{ color: "var(--foreground)" }}>
-            Compliance drift
-          </TinyText>
-          <div
-            className="mt-2 pt-2"
-            style={{ borderTop: "1px solid var(--border)" }}
-          >
-            <TinyText
-              style={{
-                color: "var(--foreground)",
-                fontWeight: "var(--font-weight-medium)",
-              }}
-            >
-              Action required
-            </TinyText>
-          </div>
-        </div>
-
-        {/* Add-ons */}
-        <div
-          className="border rounded-lg p-4"
-          style={{
-            borderColor: "var(--border)",
-            borderRadius: "var(--radius)",
-            backgroundColor: "var(--card)",
-          }}
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <div
-              className="size-8 rounded flex items-center justify-center flex-shrink-0"
-              style={{
-                backgroundColor: "rgba(138, 141, 144, 0.1)",
-                borderRadius: "calc(var(--radius) - 2px)",
-              }}
-            >
-              <svg
-                className="size-5"
-                fill="none"
-                viewBox="0 0 20 20"
-                style={{ color: "#8A8D90" }}
-              >
-                <rect
-                  x="3.5"
-                  y="3.5"
-                  width="6"
-                  height="6"
-                  rx="1"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                />
-                <rect
-                  x="10.5"
-                  y="3.5"
-                  width="6"
-                  height="6"
-                  rx="1"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                />
-                <rect
-                  x="3.5"
-                  y="10.5"
-                  width="6"
-                  height="6"
-                  rx="1"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                />
-                <rect
-                  x="10.5"
-                  y="10.5"
-                  width="6"
-                  height="6"
-                  rx="1"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                />
-              </svg>
-            </div>
-          </div>
-          <div className="mb-1">
-            <div
-              style={{
-                fontFamily: "var(--font-family-display)",
-                fontSize: "var(--text-2xl)",
-                fontWeight: "var(--font-weight-semibold)",
-                color: "var(--foreground)",
-              }}
-            >
-              18/20
-            </div>
-          </div>
-          <TinyText style={{ color: "var(--foreground)" }}>
-            Add-ons ready
-          </TinyText>
-          <div
-            className="mt-2 pt-2"
-            style={{ borderTop: "1px solid var(--border)" }}
-          >
-            <TinyText
-              style={{
-                color: "var(--foreground)",
-                fontWeight: "var(--font-weight-medium)",
-              }}
-            >
-              2 updating
-            </TinyText>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Action Buttons */}
@@ -1219,12 +1941,13 @@ export function ActivityStreamScreen({
                 <input
                   type="checkbox"
                   checked={
-                    selectedRows.length === activities.length
+                    sortedActivities.length > 0 &&
+                    selectedRows.length === sortedActivities.length
                   }
                   onChange={(e) => {
                     if (e.target.checked) {
                       setSelectedRows(
-                        activities.map((a) => a.id),
+                        sortedActivities.map((a) => a.id),
                       );
                     } else {
                       setSelectedRows([]);
@@ -1247,6 +1970,21 @@ export function ActivityStreamScreen({
                   }}
                 >
                   Action
+                </SmallText>
+              </th>
+              <th
+                className="text-left px-4 py-3"
+                style={{
+                  borderBottom: "1px solid var(--border)",
+                }}
+              >
+                <SmallText
+                  style={{
+                    fontWeight: "var(--font-weight-medium)",
+                    color: "var(--muted-foreground)",
+                  }}
+                >
+                  Source
                 </SmallText>
               </th>
               <th
@@ -1342,7 +2080,16 @@ export function ActivityStreamScreen({
             </tr>
           </thead>
           <tbody>
-            {sortedActivities.map((activity) => (
+            {sortedActivities.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="px-4 py-10 text-center">
+                  <TinyText muted>
+                    No deployments match the current list, filters, and sort.
+                  </TinyText>
+                </td>
+              </tr>
+            ) : (
+              sortedActivities.map((activity) => (
               <tr
                 key={activity.id}
                 onClick={() => handleRowClick(activity)}
@@ -1370,6 +2117,15 @@ export function ActivityStreamScreen({
                   >
                     {activity.action}
                   </SmallText>
+                </td>
+                <td className="px-4 py-3">
+                  {activity.gitopsSource === "gitops-sync" ? (
+                    <Badge variant="info">GitOps sync</Badge>
+                  ) : activity.gitopsSource === "wizard" ? (
+                    <TinyText muted>Wizard</TinyText>
+                  ) : (
+                    <TinyText muted>—</TinyText>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <SmallText
@@ -1442,7 +2198,8 @@ export function ActivityStreamScreen({
                   </SmallText>
                 </td>
               </tr>
-            ))}
+            ))
+            )}
           </tbody>
         </table>
       </div>

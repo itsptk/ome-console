@@ -197,6 +197,29 @@ export function SecondaryButton({ children, className = '', ...props }: Secondar
   );
 }
 
+interface TertiaryButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  children: ReactNode;
+}
+
+/** Low-priority action: no border, subtle hover (PatternFly-style tertiary). */
+export function TertiaryButton({ children, className = '', ...props }: TertiaryButtonProps) {
+  return (
+    <button
+      type="button"
+      className={`px-4 py-2 bg-transparent text-primary hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+      style={{
+        fontFamily: 'var(--font-family-text)',
+        fontSize: 'var(--text-sm)',
+        fontWeight: 'var(--font-weight-medium)',
+        borderRadius: 'var(--radius)',
+      }}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
 interface DangerButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
 }

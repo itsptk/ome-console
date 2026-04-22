@@ -1,10 +1,20 @@
-import { PrimaryButton, CardTitle, BodyText, SmallText } from '../../../imports/UIComponents';
+import { FastForward } from 'lucide-react';
+import { PrimaryButton, TertiaryButton, CardTitle, BodyText } from '../../../imports/UIComponents';
 
 interface EmptyStateScreenProps {
-  onCreateClick: () => void;
+  /** Placement-first: define scope, then actions (suited to ops triage). */
+  onCreateFromPlacement: () => void;
+  /** Action-first: pick what to run, then where it applies. */
+  onCreateFromAction: () => void;
+  /** Skip the create wizard and show the populated deployments view (prototype demo). */
+  onFastForwardToDeployments?: () => void;
 }
 
-export function EmptyStateScreen({ onCreateClick }: EmptyStateScreenProps) {
+export function EmptyStateScreen({
+  onCreateFromPlacement,
+  onCreateFromAction,
+  onFastForwardToDeployments,
+}: EmptyStateScreenProps) {
   return (
     <div className="flex items-center justify-center min-h-[500px]">
       <div className="text-center max-w-md">
@@ -40,15 +50,41 @@ export function EmptyStateScreen({ onCreateClick }: EmptyStateScreenProps) {
         </CardTitle>
 
         {/* Description */}
-        <BodyText muted className="mb-8">Monitor and manage fleet-wide changes. Learn more about how deployments work</BodyText>
+        <BodyText muted className="mb-4 text-left max-w-md mx-auto">
+          Monitor fleet-wide changes. Choose whether to start from{' '}
+          <span style={{ fontWeight: 'var(--font-weight-medium)' }}>
+            placement
+          </span>{' '}
+          (scope and suggested work) or from{' '}
+          <span style={{ fontWeight: 'var(--font-weight-medium)' }}>
+            action
+          </span>{' '}
+          (a specific change, then targeting).
+        </BodyText>
 
-        {/* Action */}
-        <PrimaryButton onClick={onCreateClick}>
-          Create deployment
-        </PrimaryButton>
-
-        {/* Helper text */}
-        <SmallText muted className="mt-6"></SmallText>
+        {/* Actions */}
+        <div className="flex flex-col items-center gap-3">
+          <PrimaryButton onClick={onCreateFromPlacement} className="w-full max-w-xs">
+            Create from placement
+          </PrimaryButton>
+          <TertiaryButton
+            type="button"
+            onClick={onCreateFromAction}
+            className="w-full max-w-xs"
+          >
+            Create from action
+          </TertiaryButton>
+          {onFastForwardToDeployments && (
+            <TertiaryButton
+              type="button"
+              onClick={onFastForwardToDeployments}
+              className="inline-flex items-center justify-center gap-2"
+            >
+              <FastForward className="size-4 shrink-0" aria-hidden />
+              Fast-forward to deployments list
+            </TertiaryButton>
+          )}
+        </div>
       </div>
     </div>
   );
