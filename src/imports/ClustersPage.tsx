@@ -1,6 +1,7 @@
 import { CardTitle, SmallText, TinyText, Badge, SecondaryButton, PrimaryButton, IconButton } from './UIComponents';
 import { Link, useSearchParams } from 'react-router';
 import { useState, useEffect } from 'react';
+import { persistClusterRunAsIndex } from '../app/cluster/clusterRunAsPrototype';
 import {
   CreateClusterWizard,
   RUN_AS_PLATFORM_VALUE,
@@ -25,7 +26,24 @@ export function ClustersPage() {
   const [pendingClusterData, setPendingClusterData] = useState<any>(null);
   const [requiresManualConfirmation, setRequiresManualConfirmation] = useState(false);
 
-  const [clusters, setClusters] = useState([
+  const [clusters, setClusters] = useState<
+    Array<{
+      id: string;
+      name: string;
+      type: string;
+      status: string;
+      version: string;
+      nodes: number;
+      cpu: number;
+      memory: string;
+      location: string;
+      region: string;
+      namespace: string;
+      ipAddress: string;
+      created: string;
+      runAs?: string;
+    }>
+  >([
     {
       id: '1',
       name: 'virt-prod-01',
@@ -162,6 +180,10 @@ export function ClustersPage() {
       created: 'Feb 10, 2026',
     },
   ]);
+
+  useEffect(() => {
+    persistClusterRunAsIndex(clusters);
+  }, [clusters]);
 
   // Filter clusters based on region
   const filteredClusters = clusters.filter(cluster => {
@@ -879,6 +901,7 @@ export function ClustersPage() {
                   <td className="p-3">
                     <Link 
                       to={`/clusters/${cluster.id}`}
+                      state={{ runAs: cluster.runAs }}
                       style={{
                         fontFamily: 'var(--font-family-text)',
                         fontSize: 'var(--text-sm)',
