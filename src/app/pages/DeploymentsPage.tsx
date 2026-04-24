@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { PageTitle, BodyText, Container } from '../../imports/UIComponents';
 import { EmptyStateScreen } from '../components/deployments/EmptyStateScreen';
-import { CreateDeploymentSplitButton } from '../components/deployments/CreateDeploymentSplitButton';
 import {
   DeploymentWizard,
   type DeploymentTabId,
@@ -21,8 +20,6 @@ export function DeploymentsPage() {
   const [wizardInitialLabel, setWizardInitialLabel] = useState<
     string | undefined
   >();
-  const [wizardUpgradeCorridor, setWizardUpgradeCorridor] =
-    useState(false);
   const [executionPolicy, setExecutionPolicy] = useState<{
     runAs: string;
     requireManualConfirmation: boolean;
@@ -33,18 +30,16 @@ export function DeploymentsPage() {
     mode?: WizardEntryMode;
     /** Overrides tab preset label (e.g. “Use search as placement”). */
     initialLabelSelector?: string;
-    upgradeCorridor?: boolean;
   };
 
   const applyWizardLaunch = (
-    { tab, mode, initialLabelSelector, upgradeCorridor }: OpenWizardOptions,
+    { tab, mode, initialLabelSelector }: OpenWizardOptions,
     alsoOpen: boolean,
   ) => {
     const preset = getWizardPresetForTab(tab);
     setWizardLaunchTab(tab);
     setWizardEntryMode(mode ?? preset.entryMode);
     setWizardInitialLabel(initialLabelSelector);
-    setWizardUpgradeCorridor(!!upgradeCorridor);
     setWizardSessionId((n) => n + 1);
     if (alsoOpen) {
       setIsWizardOpen(true);
@@ -62,7 +57,6 @@ export function DeploymentsPage() {
   const handleWizardComplete = (wizardFormData?: any) => {
     setIsWizardOpen(false);
     setWizardInitialLabel(undefined);
-    setWizardUpgradeCorridor(false);
     setWizardLaunchTab('all');
     setHasDeployments(true);
     if (wizardFormData) {
@@ -76,7 +70,6 @@ export function DeploymentsPage() {
   const handleWizardCancel = () => {
     setIsWizardOpen(false);
     setWizardInitialLabel(undefined);
-    setWizardUpgradeCorridor(false);
     setWizardLaunchTab('all');
   };
 
@@ -89,27 +82,17 @@ export function DeploymentsPage() {
       {/* Page title only when empty — populated view owns title + scope tabs */}
       {!hasDeployments && (
         <div className="mb-8">
-          <div className="flex flex-col items-end gap-3 min-[400px]:flex-row min-[400px]:items-start min-[400px]:justify-between min-[400px]:gap-4">
-            <div className="min-w-0 w-full min-[400px]:w-auto self-start min-[400px]:self-auto text-left">
-              <PageTitle className="!mb-0">Deployments</PageTitle>
-              <BodyText muted className="mt-1">
-                Monitor and manage fleet-wide changes
-              </BodyText>
-            </div>
-            <div className="shrink-0 min-[400px]:pt-0.5">
-              <CreateDeploymentSplitButton
-                scopeTab="all"
-                onCreate={openWizard}
-                showCorridorOption
-              />
-            </div>
-          </div>
+          <PageTitle className="!mb-0">Deployments</PageTitle>
+          <BodyText muted className="mt-1">
+            Monitor and manage fleet-wide changes
+          </BodyText>
         </div>
       )}
 
       {/* Content */}
       {!hasDeployments ? (
         <EmptyStateScreen
+          onCreateDeployment={openWizard}
           onFastForwardToDeployments={handleFastForwardToDeployments}
         />
       ) : (
@@ -122,11 +105,10 @@ export function DeploymentsPage() {
       {/* Wizard Modal */}
       {isWizardOpen && (
         <DeploymentWizard
-          key={`w-${wizardSessionId}-${wizardLaunchTab}-${wizardEntryMode}-${wizardInitialLabel ?? ''}-${wizardUpgradeCorridor ? 'c' : ''}`}
+          key={`w-${wizardSessionId}-${wizardLaunchTab}-${wizardEntryMode}-${wizardInitialLabel ?? ''}`}
           entryMode={wizardEntryMode}
           launchTab={wizardLaunchTab}
           initialLabelSelector={wizardInitialLabel}
-          upgradeCorridor={wizardUpgradeCorridor}
           onReconfigure={reconfigureWizard}
           onComplete={handleWizardComplete}
           onCancel={handleWizardCancel}

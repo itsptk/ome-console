@@ -13,6 +13,7 @@ import {
   Card,
   CompactCard,
 } from "../../imports/UIComponents";
+import { deploymentCopy } from "../components/deployments/deploymentPrototypeCopy";
 
 type EventCategory =
   | "infrastructure"
@@ -635,7 +636,7 @@ export function DeploymentDrilldownPage() {
 
       {/* Phase Status Cards - Optimized for Root Cause Analysis */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        {/* Phase 1 - Critical Info */}
+        {/* Canary rollout — critical status */}
         <div
           className="border rounded-lg p-4 col-span-2"
           style={{
@@ -652,7 +653,7 @@ export function DeploymentDrilldownPage() {
                   color: "#C9190B",
                 }}
               >
-                Phase 1: Canary - Failed
+                {deploymentCopy.rollout.canaryRolloutSectionTitle} — Failed
               </SmallText>
               <TinyText muted className="mt-0.5">
                 {formatDate(deployment.phase1.start)} -{" "}
@@ -795,11 +796,11 @@ export function DeploymentDrilldownPage() {
           <StatusLabel variant="cancelled">Cancelled</StatusLabel>
 
           <div className="mt-3">
-            <TinyText muted>Auto-cancelled due to Canary failure</TinyText>
+            <TinyText muted>Auto-cancelled due to Canary rollout failure</TinyText>
           </div>
         </div>
 
-        {/* Phase 2 */}
+        {/* Full rollout */}
         <div
           className="border rounded-lg p-4"
           style={{
@@ -816,7 +817,7 @@ export function DeploymentDrilldownPage() {
                 color: "var(--muted-foreground)",
               }}
             >
-              Phase 2: Full rollout
+              {deploymentCopy.rollout.fullRolloutSectionTitle}
             </SmallText>
             <TinyText muted className="mt-0.5">
               {deployment.phase2.totalCount} clusters
@@ -826,7 +827,7 @@ export function DeploymentDrilldownPage() {
           <StatusLabel variant="cancelled">Cancelled</StatusLabel>
 
           <div className="mt-3">
-            <TinyText muted>Auto-cancelled due to Canary failure</TinyText>
+            <TinyText muted>Auto-cancelled due to Canary rollout failure</TinyText>
           </div>
 
           <div
@@ -840,7 +841,7 @@ export function DeploymentDrilldownPage() {
               }}
             >
               0 of {deployment.phase2.totalCount} clusters were affected. Use Restart to
-              retry from Phase 1, or Cancel to abort entirely.
+              retry from Canary rollout, or Cancel to abort entirely.
             </TinyText>
           </div>
         </div>
@@ -873,9 +874,9 @@ export function DeploymentDrilldownPage() {
                   borderRadius: "var(--radius)",
                   color: "var(--muted-foreground)",
                 }}
-                title="Focus on Canary phase"
+                title={`Focus on ${deploymentCopy.rollout.canaryRolloutSectionTitle}`}
               >
-                Canary
+                {deploymentCopy.rollout.canaryRolloutSectionTitle}
               </button>
             )}
             {deployment.soak && deployment.soak.status !== "cancelled" && (
@@ -899,9 +900,9 @@ export function DeploymentDrilldownPage() {
                   borderRadius: "var(--radius)",
                   color: "var(--muted-foreground)",
                 }}
-                title="Focus on full rollout phase"
+                title={`Focus on ${deploymentCopy.rollout.fullRolloutSectionTitle}`}
               >
-                Rollout
+                {deploymentCopy.rollout.fullRolloutSectionTitle}
               </button>
             )}
             {deployment.safetyBrakeTime && (
@@ -1359,7 +1360,7 @@ export function DeploymentDrilldownPage() {
                 );
               })()}
 
-              {/* Phase 1 */}
+              {/* Canary rollout (timeline bar) */}
               {(() => {
                 const { start, end } = getVisibleTimeWindow();
                 const p1Start = deployment.phase1.start;
@@ -1418,7 +1419,7 @@ export function DeploymentDrilldownPage() {
                           fontSize: "10px",
                         }}
                       >
-                        Canary
+                        {deploymentCopy.rollout.canaryRolloutSectionTitle}
                       </TinyText>
                     </div>
                     {hoveredPhase === "phase1" && (
@@ -1436,7 +1437,7 @@ export function DeploymentDrilldownPage() {
                         }}
                       >
                         <TinyText style={{ fontWeight: 600, fontSize: "11px" }}>
-                          Canary Phase
+                          {deploymentCopy.rollout.canaryRolloutSectionTitle}
                         </TinyText>
                         <div className="flex flex-col gap-0.5 mt-1">
                           <TinyText muted style={{ fontSize: "10px" }}>
@@ -1550,7 +1551,7 @@ export function DeploymentDrilldownPage() {
                           </TinyText>
                           {isCancelled && (
                             <TinyText muted style={{ fontSize: "10px" }}>
-                              Reason: Canary phase failed
+                              Reason: Canary rollout failed
                             </TinyText>
                           )}
                         </div>
@@ -1560,7 +1561,7 @@ export function DeploymentDrilldownPage() {
                 );
               })()}
 
-              {/* Phase 2 - Cancelled */}
+              {/* Full rollout (timeline bar) */}
               {(() => {
                 const { start, end } = getVisibleTimeWindow();
                 const p2Start = deployment.phase2.start;
@@ -1623,7 +1624,9 @@ export function DeploymentDrilldownPage() {
                           fontSize: "10px",
                         }}
                       >
-                        {isCancelled ? "Cancelled" : "Rollout"}
+                        {isCancelled
+                          ? "Cancelled"
+                          : deploymentCopy.rollout.fullRolloutSectionTitle}
                       </TinyText>
                     </div>
                     {hoveredPhase === "phase2" && (
@@ -1641,7 +1644,7 @@ export function DeploymentDrilldownPage() {
                         }}
                       >
                         <TinyText style={{ fontWeight: 600, fontSize: "11px" }}>
-                          Full Rollout
+                          {deploymentCopy.rollout.fullRolloutSectionTitle}
                         </TinyText>
                         <div className="flex flex-col gap-0.5 mt-1">
                           <TinyText muted style={{ fontSize: "10px" }}>
@@ -1655,7 +1658,7 @@ export function DeploymentDrilldownPage() {
                           </TinyText>
                           {isCancelled && (
                             <TinyText muted style={{ fontSize: "10px" }}>
-                              Reason: Canary phase failed
+                              Reason: Canary rollout failed
                             </TinyText>
                           )}
                         </div>
@@ -2031,7 +2034,7 @@ export function DeploymentDrilldownPage() {
                   
                   return (
                     <>
-                      {/* Phase 1 */}
+                      {/* Canary rollout */}
                       <div
                         className="absolute rounded-sm"
                         style={{
@@ -2054,7 +2057,7 @@ export function DeploymentDrilldownPage() {
                           backgroundColor: deployment.soak.status === "cancelled" ? "rgba(106, 110, 115, 0.15)" : "rgba(0, 102, 204, 0.2)",
                         }}
                       />
-                      {/* Phase 2 */}
+                      {/* Full rollout */}
                       <div
                         className="absolute rounded-sm"
                         style={{

@@ -2,9 +2,9 @@
 export type WizardEntryMode = "action-first" | "placement-first";
 
 /**
- * Deployments scope tabs (four). Each is a *resource / layer* lens for platform
- * and cluster admins. Addressing the fleet (labels, regions, pools) lives under
- * **filters** on the list, not a fifth tab.
+ * **Area** = where in the stack the change lives: All, Platform, Workloads, or Virtualization.
+ * **Source** = how the run is driven (Console, GitOps, Governance)—not the same as area.
+ * `resourceCategory: "governance"` = policy / ACM-style work (filter with Source, not a layer tab).
  */
 export type DeploymentTabId =
   | "all"
@@ -21,25 +21,25 @@ export const DEPLOYMENT_TAB_ORDER: {
     id: "all",
     label: "All",
     description:
-      "Full workspace activity—incident triage, cross-scope search, and anything you have not narrowed yet.",
+      "All areas: triage the full list. The Create flow starts with an action you choose, then placement is scoped from that action (not the other way around).",
   },
   {
     id: "clusters",
     label: "Platform",
     description:
-      "Infrastructure you run as cluster admin: version paths, etcd, MachineConfig, cluster operators, CNI add-ons—change at the control plane or fleet scope, not tenant manifests.",
+      "Platform area: control plane, etcd, MachineConfig, operators, cluster-wide add-ons (cluster admin).",
   },
   {
     id: "applications",
     label: "Workloads",
     description:
-      "What runs in namespaces: charts, GitOps syncs, rollouts, and mesh/logging where app teams share ownership with you.",
+      "Workloads area: what runs in namespaces—charts, GitOps app syncs, app rollouts.",
   },
   {
     id: "virtual-machines",
     label: "Virtualization",
     description:
-      "KubeVirt, migration, and hypervisor-class steps—different blast radius and pacing from controllers and normal workloads.",
+      "Virtualization area: KubeVirt, VM migration, hypervisor-class change.",
   },
 ];
 
@@ -48,21 +48,19 @@ export type DeploymentResourceCategory =
   | "application"
   | "virtual_machine"
   | "cluster"
-  | "placement";
+  | "placement"
+  | "governance";
 
 export type WizardTabPreset = {
   entryMode: WizardEntryMode;
   /** Seed label selector on the placement step */
   initialLabelSelector: string;
-  /** Pre-select primary action by id (must exist in wizard catalog) */
-  primaryActionId?: string;
   /** Optional rollout default */
   rolloutMethod?: "immediate" | "canary" | "rolling";
 };
 
 /**
  * Default wizard args when users choose placement-first without a dedicated tab.
- * List scoping for placement-style work uses the **Placement-scoped only** filter.
  */
 export const PLACEMENT_FIRST_WIZARD_OPTS = {
   tab: "all" as DeploymentTabId,
@@ -79,37 +77,38 @@ export function getWizardPresetForTab(
       return {
         entryMode: "action-first",
         initialLabelSelector: "env=prod",
-        primaryActionId: "update-ocp-4.18",
         rolloutMethod: "canary",
       };
     case "clusters":
       return {
         entryMode: "action-first",
         initialLabelSelector: "env=prod,tier=platform",
-        primaryActionId: "update-ocp-4.18",
         rolloutMethod: "canary",
       };
     case "applications":
       return {
         entryMode: "action-first",
         initialLabelSelector: "app.kubernetes.io/part-of=storefront",
-        primaryActionId: "install-service-mesh",
         rolloutMethod: "rolling",
       };
     case "virtual-machines":
       return {
         entryMode: "action-first",
         initialLabelSelector: "kubevirt.io/schedulable=true,workload=vm",
-        primaryActionId: "vm-migration-hypervisor",
         rolloutMethod: "canary",
-      };
-    default:
-      return {
-        entryMode: "action-first",
-        initialLabelSelector: "env=prod",
       };
   }
 }
+
+/**
+ * Seeding Create when the entry point is Governance / policy (Source channel),
+ * not an “area” tab.
+ */
+export const GOVERNANCE_WIZARD_PRESET: WizardTabPreset = {
+  entryMode: "action-first",
+  initialLabelSelector: "open-cluster-management.io/governance=enabled",
+  rolloutMethod: "canary",
+};
 
 export function filterDeploymentsByTab<
   T extends { resourceCategory: DeploymentResourceCategory },

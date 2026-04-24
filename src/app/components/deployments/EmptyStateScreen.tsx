@@ -1,18 +1,25 @@
 import { FastForward } from "lucide-react";
 import { TertiaryButton, CardTitle, BodyText } from "../../../imports/UIComponents";
+import { deploymentCopy } from "./deploymentPrototypeCopy";
+import {
+  CreateDeploymentSplitButton,
+  type OpenDeploymentWizardOptions,
+} from "./CreateDeploymentSplitButton";
 
 interface EmptyStateScreenProps {
+  onCreateDeployment: (opts: OpenDeploymentWizardOptions) => void;
   /** Skip the create wizard and show the populated deployments view (prototype demo). */
   onFastForwardToDeployments?: () => void;
 }
 
 export function EmptyStateScreen({
+  onCreateDeployment,
   onFastForwardToDeployments,
 }: EmptyStateScreenProps) {
   return (
-    <div className="flex items-center justify-center min-h-[500px]">
-      <div className="text-center max-w-md w-full px-2">
-        <div className="mb-6 flex justify-center">
+    <div className="flex min-h-[500px] items-center justify-center px-3">
+      <div className="flex w-full max-w-md flex-col items-center text-center">
+        <div className="mb-6">
           <div
             className="p-6 rounded-full"
             style={{ backgroundColor: "var(--secondary)" }}
@@ -42,22 +49,26 @@ export function EmptyStateScreen({
           </div>
         </div>
 
-        <CardTitle className="mb-3">
-          Start by creating a deployment
+        <CardTitle className="mb-3 text-balance">
+          {deploymentCopy.emptyState.title}
         </CardTitle>
 
-        <BodyText muted className="mb-4 text-left max-w-md mx-auto">
-          Use <strong className="font-medium">Create deployment</strong> in the
-          top right. It opens a short chooser; the{" "}
-          <span className="whitespace-nowrap">▼</span> menu lists exact
-          action-first and placement-first options per tab.
+        <BodyText muted className="mb-6 max-w-sm text-balance">
+          {deploymentCopy.emptyState.description}
         </BodyText>
+
+        <div className="mb-6 flex w-full justify-center">
+          <CreateDeploymentSplitButton
+            areaTab="all"
+            onCreate={onCreateDeployment}
+          />
+        </div>
 
         {onFastForwardToDeployments && (
           <TertiaryButton
             type="button"
             onClick={onFastForwardToDeployments}
-            className="inline-flex items-center justify-center gap-2"
+            className="inline-flex max-w-full items-center justify-center gap-2 text-balance"
           >
             <FastForward className="size-4 shrink-0" aria-hidden />
             Fast-forward to deployments list

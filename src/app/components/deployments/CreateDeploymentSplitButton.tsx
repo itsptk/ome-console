@@ -15,85 +15,64 @@ import {
   type DeploymentTabId,
   type WizardEntryMode,
 } from "./deploymentTabPresets";
+import { deploymentCopy } from "./deploymentPrototypeCopy";
 
 /** Options passed to Deployments `openWizard` (same contract as the page). */
 export type OpenDeploymentWizardOptions = {
   tab: DeploymentTabId;
   mode?: WizardEntryMode;
   initialLabelSelector?: string;
-  upgradeCorridor?: boolean;
 };
 
 type CreateDeploymentMenuContentProps = {
   onPick: (opts: OpenDeploymentWizardOptions) => void;
-  /** Clusters-scoped multicluster corridor (and optional empty-state access). */
-  showCorridorOption: boolean;
 };
 
 export function CreateDeploymentMenuContent({
   onPick,
-  showCorridorOption,
 }: CreateDeploymentMenuContentProps) {
   return (
     <>
       <DropdownMenuLabel className="px-2 py-1.5 text-xs font-normal text-muted-foreground">
-        Action first
+        {deploymentCopy.wizard.narrowMenuActionFirstSection}
       </DropdownMenuLabel>
       {DEPLOYMENT_TAB_ORDER.map((t) => (
         <DropdownMenuItem
           key={`af-${t.id}`}
-          onClick={() => onPick({ tab: t.id, mode: "action-first" })}
+          onSelect={() => onPick({ tab: t.id, mode: "action-first" })}
         >
           {t.label}
         </DropdownMenuItem>
       ))}
       <DropdownMenuSeparator />
       <DropdownMenuLabel className="px-2 py-1.5 text-xs font-normal text-muted-foreground">
-        Placement first
+        {deploymentCopy.wizard.narrowMenuPlacementFirstSection}
       </DropdownMenuLabel>
       {DEPLOYMENT_TAB_ORDER.map((t) => (
         <DropdownMenuItem
           key={`pf-${t.id}`}
-          onClick={() => onPick({ tab: t.id, mode: "placement-first" })}
+          onSelect={() => onPick({ tab: t.id, mode: "placement-first" })}
         >
           {t.label}
         </DropdownMenuItem>
       ))}
-      {showCorridorOption && (
-        <>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() =>
-              onPick({
-                tab: "clusters",
-                mode: "action-first",
-                upgradeCorridor: true,
-              })
-            }
-          >
-            Multicluster upgrade corridor
-          </DropdownMenuItem>
-        </>
-      )}
     </>
   );
 }
 
 type CreateDeploymentSplitButtonProps = {
-  /** Tab used for the primary (left) one-click start. */
-  scopeTab: DeploymentTabId;
+  /** List area (All, Platform, Workloads, VM) for defaults when opening the narrow dialog. */
+  areaTab: DeploymentTabId;
   onCreate: (opts: OpenDeploymentWizardOptions) => void;
-  showCorridorOption: boolean;
   primaryLabel?: string;
   /** Full width for empty state layout. */
   layout?: "default" | "full";
 };
 
 export function CreateDeploymentSplitButton({
-  scopeTab,
+  areaTab,
   onCreate,
-  showCorridorOption,
-  primaryLabel = "Create deployment",
+  primaryLabel = deploymentCopy.wizard.createButton,
   layout = "default",
 }: CreateDeploymentSplitButtonProps) {
   const [narrowOpen, setNarrowOpen] = useState(false);
@@ -113,15 +92,14 @@ export function CreateDeploymentSplitButton({
           onCreate(opts);
           setNarrowOpen(false);
         }}
-        scopeTab={scopeTab}
-        showCorridorOption={showCorridorOption}
+        areaTab={areaTab}
       />
       <PrimaryButton
         type="button"
         className={
           layout === "full"
-            ? "min-w-0 flex-1 !rounded-r-none"
-            : "!rounded-r-none"
+            ? "min-w-0 flex-1 !rounded-r-none !py-2.5"
+            : "!rounded-r-none !py-2.5"
         }
         style={{
           borderTopRightRadius: 0,
@@ -135,14 +113,14 @@ export function CreateDeploymentSplitButton({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="inline-flex min-w-9 items-center justify-center border-l border-primary-foreground/20 px-2.5 text-primary-foreground transition-opacity outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex min-w-9 items-center justify-center border-l border-primary-foreground/20 px-2.5 py-2.5 text-primary-foreground transition-opacity outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
             style={{
               backgroundColor: "var(--primary)",
               borderTopRightRadius: "var(--radius)",
               borderBottomRightRadius: "var(--radius)",
               fontFamily: "var(--font-family-text)",
             }}
-            aria-label="More create options"
+            aria-label={deploymentCopy.wizard.narrowSplitChevronAria}
           >
             <ChevronDown className="size-4 opacity-90" aria-hidden />
           </button>
@@ -151,10 +129,7 @@ export function CreateDeploymentSplitButton({
           align="end"
           className="z-[200] max-h-72 w-56 overflow-y-auto"
         >
-          <CreateDeploymentMenuContent
-            onPick={onCreate}
-            showCorridorOption={showCorridorOption}
-          />
+          <CreateDeploymentMenuContent onPick={onCreate} />
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

@@ -1,4 +1,10 @@
-import { ReactNode, HTMLAttributes, ButtonHTMLAttributes, InputHTMLAttributes } from 'react';
+import {
+  ReactNode,
+  HTMLAttributes,
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  forwardRef,
+} from 'react';
 
 /**
  * UI Components Library
@@ -286,23 +292,26 @@ interface SearchInputProps extends InputHTMLAttributes<HTMLInputElement> {
   icon?: ReactNode;
 }
 
-export function SearchInput({ icon, className = '', ...props }: SearchInputProps) {
-  return (
-    <div className="relative">
-      {icon && <div className="absolute left-3 top-1/2 -translate-y-1/2">{icon}</div>}
-      <input
-        type="text"
-        className={`w-full h-10 ${icon ? 'pl-10' : 'pl-4'} pr-4 bg-input-background border border-border focus:outline-none focus:ring-2 focus:ring-ring transition-shadow ${className}`}
-        style={{
-          fontFamily: 'var(--font-family-text)',
-          fontSize: 'var(--text-sm)',
-          borderRadius: 'var(--radius)'
-        }}
-        {...props}
-      />
-    </div>
-  );
-}
+export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
+  function SearchInput({ icon, className = '', ...props }, ref) {
+    return (
+      <div className="relative">
+        {icon && <div className="absolute left-3 top-1/2 -translate-y-1/2">{icon}</div>}
+        <input
+          ref={ref}
+          type="text"
+          className={`w-full h-10 ${icon ? 'pl-10' : 'pl-4'} pr-4 bg-input-background border border-border focus:outline-none focus:ring-2 focus:ring-ring transition-shadow ${className}`}
+          style={{
+            fontFamily: 'var(--font-family-text)',
+            fontSize: 'var(--text-sm)',
+            borderRadius: 'var(--radius)',
+          }}
+          {...props}
+        />
+      </div>
+    );
+  },
+);
 
 interface TextInputProps extends InputHTMLAttributes<HTMLInputElement> {}
 
