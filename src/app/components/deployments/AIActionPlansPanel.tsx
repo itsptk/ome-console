@@ -16,13 +16,18 @@ import {
 } from "../../../imports/UIComponents";
 import "@patternfly/react-core/dist/styles/base-no-reset.css";
 import { deploymentCopy } from "./deploymentPrototypeCopy";
-import type { DeploymentTabId } from "./deploymentTabPresets";
+import type { DeploymentTabId, WizardEntryMode } from "./deploymentTabPresets";
 import {
   buildAIPrebuiltPlanMaintenanceTiles,
   formatAIPrebuiltPlanHowItRunsBody,
   formatRolloutMethodAndScheduleValues,
   mergeAIPrebuiltPlanRolloutSlice,
 } from "./rolloutStrategyPresets";
+import {
+  FLEET_MOCK_CLUSTERS,
+  filterFleetByProposalSelector,
+  type FleetClusterRow,
+} from "./deploymentFleetInventory";
 
 function HelpTip({ content, label }: { content: ReactNode; label: string }) {
   return (
@@ -87,149 +92,7 @@ export type AIUpdatePlan = {
   };
 };
 
-/** Same demo inventory shape as the wizard; includes illustrative OpenShift z-streams. */
-type DemoPlanCluster = {
-  name: string;
-  env: string;
-  region: string;
-  ocpVersion: string;
-  labels: string[];
-};
-
-const DEMO_PLAN_CLUSTERS: DemoPlanCluster[] = [
-  {
-    name: "virt-prod-01",
-    env: "prod",
-    region: "us-east-1",
-    ocpVersion: "4.17.8",
-    labels: ["env=prod", "tier=web", "update-window=weekend", "pilot=ocp-upgrade", "argocd.argoproj.io/managed=platform", "region=na"],
-  },
-  {
-    name: "virt-prod-02",
-    env: "prod",
-    region: "us-west-2",
-    ocpVersion: "4.17.8",
-    labels: ["env=prod", "tier=web", "update-window=weekend", "pilot=ocp-upgrade", "argocd.argoproj.io/managed=platform", "region=na"],
-  },
-  {
-    name: "virt-prod-03",
-    env: "prod",
-    region: "eu-west-1",
-    ocpVersion: "4.17.10",
-    labels: ["env=prod", "tier=web", "update-window=weekend", "argocd.argoproj.io/managed=platform"],
-  },
-  {
-    name: "virt-prod-04",
-    env: "prod",
-    region: "ap-south-1",
-    ocpVersion: "4.17.8",
-    labels: ["env=prod", "tier=web", "argocd.argoproj.io/managed=platform"],
-  },
-  {
-    name: "virt-prod-05",
-    env: "prod",
-    region: "ap-southeast-1",
-    ocpVersion: "4.17.8",
-    labels: ["env=prod", "tier=web"],
-  },
-  {
-    name: "data-prod-01",
-    env: "prod",
-    region: "us-east-1",
-    ocpVersion: "4.17.8",
-    labels: ["env=prod", "tier=data", "update-window=weekend", "argocd.argoproj.io/managed=platform", "region=na"],
-  },
-  {
-    name: "data-prod-02",
-    env: "prod",
-    region: "us-west-2",
-    ocpVersion: "4.17.10",
-    labels: ["env=prod", "tier=data", "update-window=weekend", "argocd.argoproj.io/managed=platform", "region=na"],
-  },
-  {
-    name: "data-prod-03",
-    env: "prod",
-    region: "eu-west-1",
-    ocpVersion: "4.17.8",
-    labels: ["env=prod", "tier=data", "argocd.argoproj.io/managed=platform"],
-  },
-  { name: "canary-us-east-01", env: "canary", region: "us-east-1", ocpVersion: "4.16.5", labels: ["env=canary", "tier=canary", "tier=web"] },
-  { name: "canary-us-west-01", env: "canary", region: "us-west-2", ocpVersion: "4.16.5", labels: ["env=canary", "tier=canary", "tier=web"] },
-  { name: "canary-eu-west-01", env: "canary", region: "eu-west-1", ocpVersion: "4.16.5", labels: ["env=canary", "tier=canary", "tier=web"] },
-  { name: "canary-ap-south-01", env: "canary", region: "ap-south-1", ocpVersion: "4.16.5", labels: ["env=canary", "tier=canary", "tier=web"] },
-  {
-    name: "virt-staging-01",
-    env: "staging",
-    region: "us-east-1",
-    ocpVersion: "4.16.2",
-    labels: ["env=staging", "env=stage", "tier=web"],
-  },
-  {
-    name: "virt-staging-02",
-    env: "staging",
-    region: "us-west-2",
-    ocpVersion: "4.16.2",
-    labels: ["env=staging", "env=stage", "tier=web"],
-  },
-  {
-    name: "data-staging-01",
-    env: "staging",
-    region: "us-east-1",
-    ocpVersion: "4.16.2",
-    labels: ["env=staging", "env=stage", "tier=data"],
-  },
-  {
-    name: "virt-preprod-01",
-    env: "preprod",
-    region: "us-east-1",
-    ocpVersion: "4.16.5",
-    labels: ["env=preprod", "tier=web"],
-  },
-  {
-    name: "virt-preprod-02",
-    env: "preprod",
-    region: "us-west-2",
-    ocpVersion: "4.16.5",
-    labels: ["env=preprod", "tier=web"],
-  },
-  { name: "virt-dev-01", env: "dev", region: "us-east-1", ocpVersion: "4.15.12", labels: ["env=dev", "tier=web"] },
-  { name: "virt-dev-02", env: "dev", region: "us-east-1", ocpVersion: "4.15.12", labels: ["env=dev", "tier=web"] },
-];
-
-function normalizeSelectorPart(raw: string): string {
-  return raw
-    .trim()
-    .toLowerCase()
-    .replace(/^\s*then\s+/i, "")
-    .trim();
-}
-
-/** Comma terms with OR semantics (any term matches), aligned with wizard `matchClustersBySelector` plus env/region/name. */
-function partMatchesCluster(part: string, cluster: DemoPlanCluster): boolean {
-  if (!part) return false;
-  if (part.startsWith("env=")) {
-    const v = part.slice("env=".length).trim();
-    const env = cluster.env.toLowerCase();
-    if (env === v) return true;
-    if (v === "stage" && env === "staging") return true;
-  }
-  if (part.startsWith("region=")) {
-    const v = part.slice("region=".length).trim();
-    const reg = cluster.region.toLowerCase();
-    if (reg === v) return true;
-    if (v === "na" && (reg === "us-east-1" || reg === "us-west-2")) return true;
-  }
-  return (
-    cluster.labels.some((label) => label.toLowerCase().includes(part)) ||
-    cluster.name.toLowerCase().includes(part)
-  );
-}
-
-function matchProposalClusters(selector: string): DemoPlanCluster[] {
-  if (!selector?.trim()) return [];
-  const selectorParts = selector.split(",").map((s) => normalizeSelectorPart(s)).filter(Boolean);
-  return DEMO_PLAN_CLUSTERS.filter((cluster) => selectorParts.some((part) => partMatchesCluster(part, cluster)));
-}
+type DemoPlanCluster = FleetClusterRow;
 
 function demoClusterRiskNote(env: string): string {
   const e = env.toLowerCase();
@@ -473,6 +336,14 @@ type AIActionPlansPanelProps = {
    * other catalog ids (including `update-ocp-4.17`) use expandable skeleton cards.
    */
   selectedCatalogActionId?: string | null;
+  /**
+   * Clusters in scope for AI sample tables (same engine as Placement). When null, the panel uses
+   * the full mock fleet; the wizard normally passes a non-null array.
+   */
+  placementScopeRows?: FleetClusterRow[] | null;
+  /** Trimmed label from the wizard Placement step — shown on cards and used for rollout preview when set. */
+  currentPlacementLabel?: string;
+  wizardEntryMode?: WizardEntryMode;
 };
 
 function isOpenshiftZStreamCatalogAction(id: string | null | undefined): boolean {
@@ -644,6 +515,10 @@ export function AIActionPlansPanel({
   embedded = false,
   launchTab = "all",
   selectedCatalogActionId = null,
+  placementScopeRows = null,
+  currentPlacementLabel = "",
+  /** Kept for future copy differences; pool + label now drive scoping. */
+  wizardEntryMode: _wizardEntryMode = "action-first",
 }: AIActionPlansPanelProps) {
   const initialZ = seedTargetZStream?.trim() || "4.18.5";
   const [targetVersion, setTargetVersion] = useState(initialZ);
@@ -707,22 +582,35 @@ export function AIActionPlansPanel({
     ? (visiblePlans.find((p) => p.id === detailPlanId) ?? null)
     : null;
 
+  const clusterMatchPool = useMemo((): DemoPlanCluster[] => {
+    if (placementScopeRows != null) {
+      return placementScopeRows;
+    }
+    return FLEET_MOCK_CLUSTERS;
+  }, [placementScopeRows]);
+
   const matchedClustersForPlan = useMemo(() => {
     if (!showOcpDemoPlans || !open?.suggestedLabelSelector?.trim()) return [];
-    return matchProposalClusters(open.suggestedLabelSelector);
-  }, [showOcpDemoPlans, open?.suggestedLabelSelector]);
+    return filterFleetByProposalSelector(
+      open.suggestedLabelSelector,
+      clusterMatchPool,
+    );
+  }, [showOcpDemoPlans, open, clusterMatchPool]);
 
   /** Same merged rollout fields the wizard applies so copy stays aligned with Step 3 + Review. */
   const openMergedRollout = useMemo(() => {
     if (!open) return null;
+    const effLabel =
+      (currentPlacementLabel && currentPlacementLabel.trim()) ||
+      open.suggestedLabelSelector;
     return mergeAIPrebuiltPlanRolloutSlice(
       {},
       {
-        suggestedLabelSelector: open.suggestedLabelSelector,
+        suggestedLabelSelector: effLabel,
         rollout: open.rollout,
       },
     );
-  }, [open]);
+  }, [open, currentPlacementLabel]);
 
   const openMaintenanceTiles = useMemo(
     () =>
@@ -960,6 +848,13 @@ export function AIActionPlansPanel({
         <LabelText className="!mb-2">
           {deploymentCopy.aiPlans.suggestedPlans}
         </LabelText>
+        {showOcpDemoPlans && (currentPlacementLabel || "").trim() ? (
+          <TinyText muted className="!mb-2 !block !text-[11px] leading-snug">
+            {deploymentCopy.aiPlans.aiPlanPlacementContext(
+              currentPlacementLabel.trim(),
+            )}
+          </TinyText>
+        ) : null}
         {!detailPlanId && (
           <TinyText muted className="!mb-2 !block !text-[11px] leading-snug">
             {showOcpDemoPlans
@@ -970,10 +865,13 @@ export function AIActionPlansPanel({
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {visiblePlans.map((plan) => {
             const isOpen = detailPlanId === plan.id;
+            const effLabelForRollout =
+              (currentPlacementLabel && currentPlacementLabel.trim()) ||
+              plan.suggestedLabelSelector;
             const planRolloutMerged = mergeAIPrebuiltPlanRolloutSlice(
               {},
               {
-                suggestedLabelSelector: plan.suggestedLabelSelector,
+                suggestedLabelSelector: effLabelForRollout,
                 rollout: plan.rollout,
               },
             );
@@ -1049,16 +947,34 @@ export function AIActionPlansPanel({
                       <TinyText muted className="!mt-1 !text-[9px]">
                         {plan.channel}
                       </TinyText>
-                      <code
-                        className="mt-1 block max-w-full truncate rounded px-1 py-0.5 text-left text-[8px] font-mono"
-                        style={{
-                          backgroundColor: "var(--secondary)",
-                          border: "1px solid var(--border)",
-                        }}
-                        title={plan.suggestedLabelSelector}
-                      >
-                        {plan.suggestedLabelSelector}
-                      </code>
+                      <div className="mt-1 w-full min-w-0 space-y-0.5">
+                        <TinyText muted className="!block !text-[7px] leading-tight">
+                          Your placement
+                        </TinyText>
+                        <code
+                          className="block max-w-full truncate rounded px-1 py-0.5 text-left text-[8px] font-mono"
+                          style={{
+                            backgroundColor: "var(--secondary)",
+                            border: "1px solid var(--border)",
+                          }}
+                          title={currentPlacementLabel || "—"}
+                        >
+                          {currentPlacementLabel || "—"}
+                        </code>
+                        <TinyText muted className="!mt-0.5 !block !text-[7px] leading-tight">
+                          Plan label proposal
+                        </TinyText>
+                        <code
+                          className="block max-w-full truncate rounded px-1 py-0.5 text-left text-[8px] font-mono"
+                          style={{
+                            backgroundColor: "var(--secondary)",
+                            border: "1px solid var(--border)",
+                          }}
+                          title={plan.suggestedLabelSelector}
+                        >
+                          {plan.suggestedLabelSelector}
+                        </code>
+                      </div>
                     </>
                   ) : (
                     <>
@@ -1244,11 +1160,29 @@ export function AIActionPlansPanel({
             <div>
               <div className="mb-0.5 flex items-center gap-0.5">
                 <TinyText muted className="!text-[10px]">
-                  Label selector (prefills Placement)
+                  Your current placement
+                </TinyText>
+                <HelpTip
+                  label="Current placement"
+                  content="The label (or search selection) in the wizard right now. Cluster samples in the table below are scoped to this, then each plan’s proposal."
+                />
+              </div>
+              <code
+                className="mb-2 block w-fit max-w-full rounded px-1 py-0.5 text-[9px] font-mono"
+                style={{
+                  backgroundColor: "var(--background)",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                {currentPlacementLabel || "—"}
+              </code>
+              <div className="mb-0.5 flex items-center gap-0.5">
+                <TinyText muted className="!text-[10px]">
+                  Plan label proposal (prefills Placement)
                 </TinyText>
                 <HelpTip
                   label="Suggested label selector"
-                  content="Pair-style or comma list that seeds Placement. You still own the final cluster set in the wizard."
+                  content="Pair-style or comma list that this plan can seed in Placement. You still own the final cluster set in the wizard."
                 />
               </div>
               <code
@@ -1274,7 +1208,11 @@ export function AIActionPlansPanel({
               </div>
               {matchedClustersForPlan.length === 0 ? (
                 <TinyText muted className="!text-[10px] leading-snug">
-                  {deploymentCopy.aiPlans.matchedClustersEmpty}
+                  {clusterMatchPool.length === 0
+                    ? deploymentCopy.aiPlans.matchedClustersNoPlacementInventory
+                    : (currentPlacementLabel && currentPlacementLabel.trim())
+                      ? deploymentCopy.aiPlans.matchedClustersNoPlanOverlap
+                      : deploymentCopy.aiPlans.matchedClustersEmpty}
                 </TinyText>
               ) : (
                 <div className="overflow-x-auto">
@@ -1297,7 +1235,7 @@ export function AIActionPlansPanel({
                           <td className="p-1 font-mono">{c.name}</td>
                           <td className="p-1">{c.env}</td>
                           <td className="p-1">{c.region}</td>
-                          <td className="p-1 font-mono">{c.ocpVersion}</td>
+                          <td className="p-1 font-mono">{c.ocpCurrent}</td>
                           <td className="p-1 leading-snug">{demoClusterRiskNote(c.env)}</td>
                         </tr>
                       ))}

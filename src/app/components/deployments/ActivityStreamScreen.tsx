@@ -6,7 +6,6 @@ import "@patternfly/react-core/dist/styles/base-no-reset.css";
 import {
   PageTitle,
   SectionTitle,
-  BodyText,
   SmallText,
   TinyText,
   Container,
@@ -26,6 +25,7 @@ import {
   CreateDeploymentSplitButton,
   type OpenDeploymentWizardOptions,
 } from "./CreateDeploymentSplitButton";
+import { deploymentCopy } from "./deploymentPrototypeCopy";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
 /** Stops tab / button activation so the help icon only opens the tooltip. */
@@ -767,10 +767,11 @@ export function ActivityStreamScreen({
       <header className="pb-2">
         <div className="flex flex-col items-end gap-3 min-[400px]:flex-row min-[400px]:items-start min-[400px]:justify-between min-[400px]:gap-4">
           <div className="min-w-0 w-full min-[400px]:w-auto self-start min-[400px]:self-auto text-left">
-            <PageTitle className="!mb-0">Deployments</PageTitle>
-            <BodyText muted className="mt-1 mb-0">
-              Monitor and manage fleet-wide changes
-            </BodyText>
+            <div className="flex min-w-0 items-baseline gap-2">
+              <PageTitle className="!mb-0">
+                {deploymentCopy.fleetPlan.pageTitle}
+              </PageTitle>
+            </div>
           </div>
           <div className="shrink-0 min-[400px]:pt-0.5">
             <CreateDeploymentSplitButton

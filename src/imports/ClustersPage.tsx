@@ -1,6 +1,8 @@
 import { CardTitle, SmallText, TinyText, Badge, SecondaryButton, PrimaryButton, IconButton } from './UIComponents';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useSearchParams, useNavigate } from 'react-router';
 import { useState, useEffect } from 'react';
+import { CLUSTERS_LIST_PAGE_INITIAL } from '../app/components/deployments/clustersListPageDemoData';
+import { deploymentCopy } from '../app/components/deployments/deploymentPrototypeCopy';
 import {
   CreateClusterWizard,
   RUN_AS_PLATFORM_VALUE,
@@ -11,6 +13,7 @@ import { SmartphoneAuth } from '../app/components/deployments/SmartphoneAuth';
 import { YamlConfirmationModal } from '../app/components/deployments/YamlConfirmationModal';
 
 export function ClustersPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedClusters, setSelectedClusters] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,143 +28,8 @@ export function ClustersPage() {
   const [pendingClusterData, setPendingClusterData] = useState<any>(null);
   const [requiresManualConfirmation, setRequiresManualConfirmation] = useState(false);
 
-  const [clusters, setClusters] = useState([
-    {
-      id: '1',
-      name: 'virt-prod-01',
-      type: 'Virtualization',
-      status: 'Healthy',
-      version: 'OpenShift 4.15.2',
-      nodes: 12,
-      cpu: 156,
-      memory: '1.2 TB',
-      location: 'US East',
-      region: 'us-east-1',
-      namespace: 'default',
-      ipAddress: '10.128.3.10',
-      created: 'Mar 10, 2026',
-    },
-    {
-      id: '2',
-      name: 'app-prod-us-east',
-      type: 'Application',
-      status: 'Healthy',
-      version: 'OpenShift 4.15.3',
-      nodes: 24,
-      cpu: 384,
-      memory: '2.8 TB',
-      location: 'US East (N. Virginia)',
-      region: 'us-east-1',
-      namespace: 'default',
-      ipAddress: '10.131.0.87',
-      created: 'Feb 15, 2026',
-    },
-    {
-      id: '3',
-      name: 'ml-gpu-cluster',
-      type: 'Machine Learning',
-      status: 'Healthy',
-      version: 'OpenShift 4.15.1',
-      nodes: 8,
-      cpu: 128,
-      memory: '1.5 TB',
-      location: 'US West (Oregon)',
-      region: 'us-west-2',
-      namespace: 'default',
-      ipAddress: '10.128.3.100',
-      created: 'Mar 05, 2026',
-    },
-    {
-      id: '4',
-      name: 'app-prod-eu',
-      type: 'Application',
-      status: 'Critical',
-      version: 'OpenShift 4.14.8',
-      nodes: 16,
-      cpu: 256,
-      memory: '1.8 TB',
-      location: 'EU (Ireland)',
-      region: 'eu-west-1',
-      namespace: 'default',
-      ipAddress: '10.131.1.7',
-      created: 'Jan 22, 2026',
-    },
-    {
-      id: '5',
-      name: 'data-eu-west',
-      type: 'Data Processing',
-      status: 'Healthy',
-      version: 'OpenShift 4.15.2',
-      nodes: 20,
-      cpu: 320,
-      memory: '2.4 TB',
-      location: 'EU (Ireland)',
-      region: 'eu-west-1',
-      namespace: 'default',
-      ipAddress: '10.131.1.50',
-      created: 'Feb 28, 2026',
-    },
-    {
-      id: '6',
-      name: 'app-prod-apac',
-      type: 'Application',
-      status: 'Healthy',
-      version: 'OpenShift 4.15.3',
-      nodes: 18,
-      cpu: 288,
-      memory: '2.0 TB',
-      location: 'Asia Pacific (Tokyo)',
-      region: 'ap-northeast-1',
-      namespace: 'default',
-      ipAddress: '10.132.0.10',
-      created: 'Mar 01, 2026',
-    },
-    {
-      id: '7',
-      name: 'web-prod-sg',
-      type: 'Web Services',
-      status: 'Healthy',
-      version: 'OpenShift 4.15.2',
-      nodes: 14,
-      cpu: 224,
-      memory: '1.6 TB',
-      location: 'Asia Pacific (Singapore)',
-      region: 'ap-southeast-1',
-      namespace: 'default',
-      ipAddress: '10.132.1.20',
-      created: 'Feb 20, 2026',
-    },
-    {
-      id: '8',
-      name: 'api-prod-sg',
-      type: 'API Gateway',
-      status: 'Healthy',
-      version: 'OpenShift 4.15.3',
-      nodes: 10,
-      cpu: 160,
-      memory: '1.2 TB',
-      location: 'Asia Pacific (Singapore)',
-      region: 'ap-southeast-1',
-      namespace: 'default',
-      ipAddress: '10.132.1.30',
-      created: 'Mar 12, 2026',
-    },
-    {
-      id: '9',
-      name: 'app-prod-sa',
-      type: 'Application',
-      status: 'Healthy',
-      version: 'OpenShift 4.15.1',
-      nodes: 12,
-      cpu: 192,
-      memory: '1.4 TB',
-      location: 'South America (São Paulo)',
-      region: 'sa-east-1',
-      namespace: 'default',
-      ipAddress: '10.133.0.10',
-      created: 'Feb 10, 2026',
-    },
-  ]);
+  /** Aligned to deployment fleet mock names so the fleet plan wizard can scope placement. */
+  const [clusters, setClusters] = useState(() => [...CLUSTERS_LIST_PAGE_INITIAL]);
 
   // Filter clusters based on region
   const filteredClusters = clusters.filter(cluster => {
@@ -195,6 +63,23 @@ export function ClustersPage() {
     } else {
       setSelectedClusters([...selectedClusters, id]);
     }
+  };
+
+  const handleCreateClusterUpgradeFleetPlan = () => {
+    const names = clusters
+      .filter((c) => selectedClusters.includes(c.id))
+      .map((c) => c.name);
+    if (names.length === 0) return;
+    navigate('/deployments', {
+      state: {
+        fleetPlanFromClusters: {
+          initialSelectedClusterNames: names,
+          initialPrimaryActionId: 'update-ocp-4.18',
+          tab: 'clusters',
+          mode: 'action-first',
+        },
+      },
+    });
   };
 
   const handleClusterCreation = (formData: any) => {
@@ -621,6 +506,14 @@ export function ClustersPage() {
                     <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>
+                <PrimaryButton
+                  type="button"
+                  title={deploymentCopy.clustersListPage.createClusterUpgradePlanTitle}
+                  onClick={handleCreateClusterUpgradeFleetPlan}
+                  className="!h-9 !px-3 !py-0 !text-sm"
+                >
+                  {deploymentCopy.clustersListPage.createClusterUpgradePlan}
+                </PrimaryButton>
                 <button
                   className="flex items-center gap-2 px-3 h-9 bg-secondary hover:bg-secondary/80 transition-colors"
                   style={{
@@ -892,7 +785,7 @@ export function ClustersPage() {
                     </Link>
                   </td>
                   <td className="p-3">
-                    <Badge variant="secondary">{cluster.type}</Badge>
+                    <Badge variant="default">{cluster.type}</Badge>
                   </td>
                   <td className="p-3">
                     <Link 

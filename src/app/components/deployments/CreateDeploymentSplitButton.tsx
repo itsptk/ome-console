@@ -22,6 +22,10 @@ export type OpenDeploymentWizardOptions = {
   tab: DeploymentTabId;
   mode?: WizardEntryMode;
   initialLabelSelector?: string;
+  /** When set, Placement opens in “search / pick clusters” with these names (must exist in fleet mock). */
+  initialSelectedClusterNames?: string[];
+  /** Pre-select a catalog action (e.g. `update-ocp-4.18` for OpenShift cluster upgrade). */
+  initialPrimaryActionId?: string;
 };
 
 type CreateDeploymentMenuContentProps = {

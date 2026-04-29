@@ -1,6 +1,7 @@
 import { FastForward } from "lucide-react";
 import { TertiaryButton, CardTitle, BodyText } from "../../../imports/UIComponents";
 import { deploymentCopy } from "./deploymentPrototypeCopy";
+import { PROTOTYPE_PINK } from "./prototypeChrome";
 import {
   CreateDeploymentSplitButton,
   type OpenDeploymentWizardOptions,
@@ -68,7 +69,8 @@ export function EmptyStateScreen({
           <TertiaryButton
             type="button"
             onClick={onFastForwardToDeployments}
-            className="inline-flex max-w-full items-center justify-center gap-2 text-balance"
+            className="inline-flex max-w-full items-center justify-center gap-2 text-balance border-2 bg-white text-foreground shadow-sm hover:bg-[#fff5fa]"
+            style={{ borderColor: PROTOTYPE_PINK }}
           >
             <FastForward className="size-4 shrink-0" aria-hidden />
             Fast-forward to deployments list

@@ -7,6 +7,7 @@ import { BottomPanel } from "../components/BottomPanel";
 import { IconButton, SearchInput } from "../../imports/UIComponents";
 import { ConceptualLabel } from "../../imports/ConceptualLabel-1";
 import { SigningKeyStatusBanner } from "../components/SigningKeyStatusBanner";
+import { deploymentCopy } from "../components/deployments/deploymentPrototypeCopy";
 
 // User type
 type User = {
@@ -304,7 +305,7 @@ function Navigation({ currentUser }: { currentUser: User }) {
       ),
     },
     {
-      label: 'Deployments',
+      label: deploymentCopy.fleetPlan.navLabel,
       path: '/deployments',
       icon: (
         <svg fill="none" viewBox="0 0 20 20" className="size-full">

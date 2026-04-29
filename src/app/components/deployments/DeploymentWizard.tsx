@@ -1,5 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, RefreshCw, Sparkles } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
+import { toast } from "sonner";
+import {
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  History,
+  ListChecks,
+  RefreshCw,
+  Share2,
+  Sparkles,
+  UserCheck,
+} from "lucide-react";
 import {
   ModalOverlay,
   CardTitle,
@@ -13,6 +31,11 @@ import {
   LinkButton,
   SearchInput,
 } from "../../../imports/UIComponents";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "../ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,11 +53,24 @@ import {
   type DeploymentTabId,
   type WizardEntryMode,
 } from "./deploymentTabPresets";
-import { deploymentCopy } from "./deploymentPrototypeCopy";
+import {
+  buildPlanChannelSnippets,
+  deploymentCopy,
+} from "./deploymentPrototypeCopy";
+import { GuidingTooltip } from "./GuidingTooltip";
+import { prototypeInteractionToastClassNames } from "./prototypeChrome";
 import {
   applyRolloutStrategyPreset,
   mergeAIPrebuiltPlanRolloutSlice,
 } from "./rolloutStrategyPresets";
+import {
+  FLEET_MOCK_CLUSTERS,
+  getClustersMatchingPlacementInput,
+  matchClustersByLabelFragment,
+  catalogActionFitsInventory,
+  inferInventoryCapabilities,
+  type FleetClusterRow,
+} from "./deploymentFleetInventory";
 
 export type { WizardEntryMode, DeploymentTabId } from "./deploymentTabPresets";
 
@@ -45,6 +81,10 @@ interface DeploymentWizardProps {
   entryMode?: WizardEntryMode;
   /** When opening from list search, seed label selector (e.g. env=prod). */
   initialLabelSelector?: string;
+  /** When set, Placement uses searchable mode with these cluster names (fleet inventory). */
+  initialSelectedClusterNames?: string[];
+  /** Pre-select primary catalog action (e.g. `update-ocp-4.18` for cluster upgrade). */
+  initialPrimaryActionId?: string;
   /** Which Deployments tab opened the wizard — drives default actions and labels. */
   launchTab?: DeploymentTabId;
   /** Change launch tab / entry mode without leaving the modal (restarts the wizard). */
@@ -819,18 +859,43 @@ function applyRolloutSnapshot(
   return next;
 }
 
+type InitialFormSeed = {
+  initialSelectedClusterNames?: string[];
+  initialPrimaryActionId?: string;
+};
+
 function buildInitialFormData(
   initialLabelSelector: string | undefined,
   launchTab: DeploymentTabId,
+  seed?: InitialFormSeed,
 ) {
   const preset = getWizardPresetForTab(launchTab);
-  const label =
-    initialLabelSelector?.trim() || preset.initialLabelSelector;
+  const fleetNames = new Set(FLEET_MOCK_CLUSTERS.map((c) => c.name));
+  const namesFromSeed = (seed?.initialSelectedClusterNames ?? []).filter((n) =>
+    fleetNames.has(n),
+  );
+  const useSearchable = namesFromSeed.length > 0;
+  const label = useSearchable
+    ? ""
+    : initialLabelSelector?.trim() || preset.initialLabelSelector;
+
+  let selectedActions: SelectedAction[] = [];
+  if (seed?.initialPrimaryActionId) {
+    const opt = ALL_CATALOG_ACTIONS.find(
+      (a) => a.id === seed.initialPrimaryActionId,
+    );
+    if (opt) {
+      selectedActions = [buildSelectedFromOption(opt)];
+    }
+  }
 
   return {
-    selectedActions: [] as SelectedAction[],
-    fleetSelection: "label",
+    selectedActions,
+    fleetSelection: (useSearchable ? "searchable" : "label") as
+      | "searchable"
+      | "label",
     labelSelector: label,
+    selectedClusters: useSearchable ? namesFromSeed : ([] as string[]),
     rolloutMethod: preset.rolloutMethod ?? "canary",
     scheduleType: "immediate",
     scheduledDate: "",
@@ -874,6 +939,8 @@ export function DeploymentWizard({
   onCancel,
   entryMode: entryModeProp = "action-first",
   initialLabelSelector,
+  initialSelectedClusterNames,
+  initialPrimaryActionId,
   launchTab: launchTabProp = "all",
   onReconfigure,
 }: DeploymentWizardProps) {
@@ -886,7 +953,10 @@ export function DeploymentWizard({
 
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState(() =>
-    buildInitialFormData(initialLabelSelector, launchTab),
+    buildInitialFormData(initialLabelSelector, launchTab, {
+      initialSelectedClusterNames,
+      initialPrimaryActionId,
+    }),
   );
   /** Prototype: user-saved rollout strategies (in-memory for this session). */
   const [userRolloutStrategies, setUserRolloutStrategies] = useState<
@@ -1021,10 +1091,9 @@ export function DeploymentWizard({
           >
             {/* Wizard Title */}
             <div className="mb-6">
-              <CardTitle>{deploymentCopy.wizard.title}</CardTitle>
-              <TinyText muted className="mt-2">
-                {deploymentCopy.wizard.subtitle}
-              </TinyText>
+              <CardTitle className="min-w-0 pr-1">
+                {deploymentCopy.wizard.title}
+              </CardTitle>
             </div>
 
             {/* Steps List */}
@@ -1228,6 +1297,7 @@ export function DeploymentWizard({
                   formData={formData}
                   setFormData={setFormData}
                   launchTab={launchTab}
+                  entryMode={entryMode}
                   onAIPlanApplied={handleAiPlanApplied}
                 />
               )}
@@ -1351,12 +1421,14 @@ function Step1Content({
   formData,
   setFormData,
   launchTab = "all",
+  entryMode = "action-first",
   onAIPlanApplied,
 }: {
   formData: any;
   setFormData: (data: any) => void;
   /** Deployments area tab that opened the wizard — filters catalog + detail fields. */
   launchTab?: DeploymentTabId;
+  entryMode?: WizardEntryMode;
   /** Called after “Use this plan” applies action + placement + rollout seed */
   onAIPlanApplied?: () => void;
 }) {
@@ -1408,13 +1480,40 @@ function Step1Content({
     [actionCatalog],
   );
 
+  const placementInventoryForAI = useMemo(() => {
+    const inv = getClustersMatchingPlacementInput(formData);
+    const hasPlacementInput =
+      formData.fleetSelection === "searchable"
+        ? (formData.selectedClusters?.length ?? 0) > 0
+        : Boolean((formData.labelSelector || "").trim());
+    if (!hasPlacementInput) {
+      return FLEET_MOCK_CLUSTERS;
+    }
+    return inv;
+  }, [formData.fleetSelection, formData.labelSelector, formData.selectedClusters]);
+  const currentPlacementLabel = (formData.labelSelector || "").trim();
+
   const recommendedActions = useMemo(() => {
     const ids = RECOMMENDED_ACTION_IDS[launchTab] ?? RECOMMENDED_ACTION_IDS.all;
     const map = new Map(actionCatalog.map((a) => [a.id, a]));
-    return ids
+    const chain = ids
       .map((id) => map.get(id))
       .filter((a): a is ActionOption => Boolean(a));
-  }, [actionCatalog, launchTab]);
+    if (entryMode !== "placement-first") {
+      return chain;
+    }
+    const inv = placementInventoryForAI;
+    if (inv.length === 0) {
+      return [] as ActionOption[];
+    }
+    const cap = inferInventoryCapabilities(inv);
+    return chain.filter((a) => catalogActionFitsInventory(a, cap));
+  }, [
+    actionCatalog,
+    launchTab,
+    entryMode,
+    placementInventoryForAI,
+  ]);
 
   const omniboxMatches = useMemo(() => {
     const q = catalogOmniboxQuery.trim().toLowerCase();
@@ -1786,7 +1885,12 @@ function Step1Content({
                 {recommendedActions.length === 0 ? (
                   <li className="px-3 py-2" role="presentation">
                     <TinyText muted>
-                      {deploymentCopy.actionCatalog.omniboxAreaPicksEmpty}
+                      {entryMode === "placement-first" &&
+                      getClustersMatchingPlacementInput(formData).length === 0
+                        ? deploymentCopy.actionCatalog.omniboxEmptyPlacementNoClusters
+                        : entryMode === "placement-first"
+                          ? deploymentCopy.actionCatalog.recommendedEmptyPlacementFirst
+                          : deploymentCopy.actionCatalog.omniboxAreaPicksEmpty}
                     </TinyText>
                   </li>
                 ) : (
@@ -1824,16 +1928,21 @@ function Step1Content({
         )}
       </div>
 
-      {recommendedActions.length > 0 && (
+      {(recommendedActions.length > 0 ||
+        (entryMode === "placement-first" &&
+          getClustersMatchingPlacementInput(formData).length > 0)) && (
         <div>
           <div className="mb-2 space-y-1">
             <LabelText className="!mb-0">
               {deploymentCopy.actionCatalog.recommendedTitle}
             </LabelText>
             <TinyText muted>
-              {deploymentCopy.actionCatalog.recommendedHint}
+              {entryMode === "placement-first"
+                ? deploymentCopy.actionCatalog.recommendedHintPlacementFirst
+                : deploymentCopy.actionCatalog.recommendedHint}
             </TinyText>
           </div>
+          {recommendedActions.length > 0 ? (
           <ul
             className="grid grid-cols-1 gap-2 sm:grid-cols-2"
             role="list"
@@ -1880,6 +1989,11 @@ function Step1Content({
               );
             })}
           </ul>
+          ) : (
+            <TinyText muted className="block text-[11px] leading-snug">
+              {deploymentCopy.actionCatalog.recommendedEmptyPlacementFirst}
+            </TinyText>
+          )}
         </div>
       )}
 
@@ -2121,6 +2235,9 @@ function Step1Content({
           >
             <AIActionPlansPanel
               embedded
+              wizardEntryMode={entryMode}
+              placementScopeRows={placementInventoryForAI}
+              currentPlacementLabel={currentPlacementLabel}
               launchTab={launchTab}
               selectedCatalogActionId={selectedActions[0]?.id ?? null}
               initialDetailPlanId={formData.aiPlanPrefill?.planId ?? null}
@@ -2705,43 +2822,8 @@ function Step1Content({
   );
 }
 
-// Mock cluster data (`ocpCurrent` = demo inventory z-stream for OpenShift readiness hints)
-const allClusters = [
-  // Production clusters (8 total)
-  { name: "virt-prod-01", env: "prod", region: "us-east-1", labels: ["env=prod", "tier=web"], ocpCurrent: "4.17.10" },
-  { name: "virt-prod-02", env: "prod", region: "us-west-2", labels: ["env=prod", "tier=web"], ocpCurrent: "4.17.10" },
-  { name: "virt-prod-03", env: "prod", region: "eu-west-1", labels: ["env=prod", "tier=web"], ocpCurrent: "4.17.8" },
-  { name: "virt-prod-04", env: "prod", region: "ap-south-1", labels: ["env=prod", "tier=web"], ocpCurrent: "4.17.8" },
-  { name: "virt-prod-05", env: "prod", region: "ap-southeast-1", labels: ["env=prod", "tier=web"], ocpCurrent: "4.17.10" },
-  { name: "data-prod-01", env: "prod", region: "us-east-1", labels: ["env=prod", "tier=data"], ocpCurrent: "4.16.10" },
-  { name: "data-prod-02", env: "prod", region: "us-west-2", labels: ["env=prod", "tier=data"], ocpCurrent: "4.16.10" },
-  { name: "data-prod-03", env: "prod", region: "eu-west-1", labels: ["env=prod", "tier=data"], ocpCurrent: "4.16.10" },
-  // Canary clusters (4 total) - these get updates first
-  { name: "canary-us-east-01", env: "canary", region: "us-east-1", labels: ["env=canary", "tier=canary", "tier=web"], ocpCurrent: "4.17.12" },
-  { name: "canary-us-west-01", env: "canary", region: "us-west-2", labels: ["env=canary", "tier=canary", "tier=web"], ocpCurrent: "4.17.12" },
-  { name: "canary-eu-west-01", env: "canary", region: "eu-west-1", labels: ["env=canary", "tier=canary", "tier=web"], ocpCurrent: "4.17.12" },
-  { name: "canary-ap-south-01", env: "canary", region: "ap-south-1", labels: ["env=canary", "tier=canary", "tier=web"], ocpCurrent: "4.17.12" },
-  // Staging clusters
-  { name: "virt-staging-01", env: "staging", region: "us-east-1", labels: ["env=staging", "tier=web"], ocpCurrent: "4.16.12" },
-  { name: "virt-staging-02", env: "staging", region: "us-west-2", labels: ["env=staging", "tier=web"], ocpCurrent: "4.16.12" },
-  { name: "data-staging-01", env: "staging", region: "us-east-1", labels: ["env=staging", "tier=data"], ocpCurrent: "4.16.12" },
-  // Dev clusters (virt-dev-02 already at target z-stream for demo “blocked” row)
-  { name: "virt-dev-01", env: "dev", region: "us-east-1", labels: ["env=dev", "tier=web"], ocpCurrent: "4.14.12" },
-  { name: "virt-dev-02", env: "dev", region: "us-east-1", labels: ["env=dev", "tier=web"], ocpCurrent: "4.18.5" },
-];
-
-// Helper function to match clusters by label selector
-const matchClustersBySelector = (selector: string) => {
-  if (!selector?.trim()) return [];
-  const selectorParts = selector.split(",").map((s) => s.trim().toLowerCase());
-  return allClusters.filter((cluster) =>
-    selectorParts.some((part) =>
-      cluster.labels.some((label) => label.toLowerCase().includes(part))
-    )
-  );
-};
-
-type ClusterInventoryRow = (typeof allClusters)[number];
+const allClusters = FLEET_MOCK_CLUSTERS;
+type ClusterInventoryRow = FleetClusterRow;
 
 function cmpOcpVersion(a: string, b: string): number {
   const pa = a.split(".").map((x) => parseInt(x, 10) || 0);
@@ -2806,7 +2888,7 @@ function buildPlacementSuggestionsForUpdate(
   ];
   return templates
     .map((t) => {
-      const matched = matchClustersBySelector(t.selector);
+      const matched = matchClustersByLabelFragment(t.selector);
       const ready = matched.filter(
         (c) => clusterUpdateReadiness(c, primary) === "ok",
       ).length;
@@ -2857,17 +2939,12 @@ function countClustersMatchingAllTerms(selector: string): number {
   ).length;
 }
 
-/** Label mode: comma-separated terms (same logic as canary/rollout cluster helpers). */
 function getClustersMatchingPlacement(fd: {
   fleetSelection: string;
   labelSelector?: string;
   selectedClusters?: string[];
 }): ClusterInventoryRow[] {
-  if (fd.fleetSelection === "searchable") {
-    const names = fd.selectedClusters || [];
-    return allClusters.filter((c) => names.includes(c.name));
-  }
-  return matchClustersBySelector(fd.labelSelector || "");
+  return getClustersMatchingPlacementInput(fd);
 }
 
 /**
@@ -5247,6 +5324,59 @@ function rolloutStrategyReviewName(
   return rs.presetBalancedCanary;
 }
 
+const planChannelCodeBlockStyle: CSSProperties = {
+  backgroundColor: "var(--background)",
+  boxShadow: "inset 0 0 0 1px var(--border)",
+};
+
+function PlanChannelPreWithCopy({
+  text,
+  rD,
+  maxHeight,
+  copySuccess,
+  copyFailed,
+  copyAria,
+}: {
+  text: string;
+  rD: string;
+  maxHeight: "max-h-32" | "max-h-36" | "max-h-40";
+  copySuccess: string;
+  copyFailed: string;
+  copyAria: string;
+}) {
+  return (
+    <div
+      className="relative mt-1 overflow-hidden rounded-md"
+      style={planChannelCodeBlockStyle}
+    >
+      <IconButton
+        type="button"
+        onClick={async (e) => {
+          e.preventDefault();
+          try {
+            await navigator.clipboard.writeText(text);
+            toast.success(copySuccess);
+          } catch {
+            toast.error(copyFailed);
+          }
+        }}
+        aria-label={copyAria}
+        title={copyAria}
+        className="absolute right-0.5 top-0.5 z-[1] !h-6 !w-6 !min-h-0 !p-0 hover:bg-secondary/80"
+        style={{ color: "var(--muted-foreground)" }}
+      >
+        <Copy className="size-3" aria-hidden />
+      </IconButton>
+      <pre
+        className={`m-0 max-w-full overflow-auto py-1.5 pl-2 pr-7 text-left font-mono ${maxHeight} ${rD}`}
+        style={{ fontFamily: "var(--font-family-mono)" }}
+      >
+        {text}
+      </pre>
+    </div>
+  );
+}
+
 function Step5Content({
   formData,
   wizardEntryMode = "action-first",
@@ -5256,6 +5386,10 @@ function Step5Content({
   wizardEntryMode?: WizardEntryMode;
   userRolloutStrategies?: UserRolloutStrategy[];
 }) {
+  const pr = deploymentCopy.planReview;
+  /** Review body / helper / source lines — one size (matches “Source · …”); `!` overrides TinyText/SmallText inline font-size */
+  const rD = "!text-[10px] !leading-snug";
+  const rDM = `${rD} text-muted-foreground`;
   const selectedActions: SelectedAction[] =
     formData.selectedActions || [];
 
@@ -5264,15 +5398,408 @@ function Step5Content({
     return value.charAt(0).toUpperCase() + value.slice(1);
   };
 
+  const planTitle =
+    selectedActions[0]?.name != null
+      ? `${selectedActions[0].name} — ${pr.planCardTitle.toLowerCase()}`
+      : pr.planCardTitle;
+  const planIdSuffix = (
+    (formData.labelSelector as string) ||
+    (selectedActions[0]?.id as string) ||
+    "draft"
+  )
+    .toString()
+    .replace(/[^a-z0-9]+/gi, "")
+    .slice(0, 8) || "draft";
+  const planId = pr.planIdDemo(planIdSuffix);
+  const channelSnippets = buildPlanChannelSnippets({
+    planId,
+    planTitle,
+    primaryActionId: String(selectedActions[0]?.id ?? "catalog-action"),
+    labelSelector: String((formData.labelSelector as string) || "").trim() || "env=prod",
+    rolloutMethod: String(formData.rolloutMethod ?? "canary"),
+    scheduleType: String(formData.scheduleType ?? "immediate"),
+  });
+  const pg = deploymentCopy.prototypeGuiding;
+  const planHeaderGuiding = [
+    pg.reviewEntryOrder,
+    wizardEntryMode === "placement-first"
+      ? "Placement-first order: scope → action → rollout → you are here (review plan)."
+      : "Action-first order: action → scope → rollout → you are here (review plan).",
+  ].join("\n\n");
+
   return (
     <div className="space-y-6">
       <AiPlanPrefillBanner formData={formData} />
-      <TinyText muted>
-        Flow:{" "}
-        {wizardEntryMode === "placement-first"
-          ? "Placement-first (scope → actions → rollout)"
-          : "Action-first (actions → placement → rollout)"}
-      </TinyText>
+      {/* Single review surface: header + divided body (less box-on-box) */}
+      <div
+        className="overflow-hidden rounded-xl border shadow-sm"
+        style={{
+          borderColor: "var(--border)",
+          backgroundColor: "var(--card)",
+        }}
+      >
+        <div
+          className="border-b px-4 py-4 sm:px-5 sm:py-5"
+          style={{
+            borderColor: "var(--border)",
+            background:
+              "linear-gradient(180deg, var(--secondary) 0%, var(--card) 100%)",
+          }}
+        >
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+            <TinyText
+              className="!m-0 uppercase tracking-wide"
+              style={{
+                fontSize: "10px",
+                letterSpacing: "0.08em",
+                color: "var(--muted-foreground)",
+              }}
+            >
+              {pr.reviewShellTitle}
+            </TinyText>
+            <div className="flex flex-wrap gap-1.5 sm:justify-end">
+              <SecondaryButton
+                type="button"
+                className="!inline-flex h-8 items-center gap-1.5 px-2.5 text-sm"
+                onClick={() =>
+                  toast.success(pr.toastShareTitle, {
+                    description: pr.toastShareDescription,
+                    classNames: prototypeInteractionToastClassNames,
+                    richColors: false,
+                    // Sonner defaults to a check icon for `success` — not meaningful for these prototype toasts
+                    icon: null,
+                  })
+                }
+              >
+                <Share2
+                  className="size-3.5 shrink-0 opacity-80"
+                  aria-hidden
+                />
+                {pr.quickShare}
+              </SecondaryButton>
+              <SecondaryButton
+                type="button"
+                className="!inline-flex h-8 items-center gap-1.5 px-2.5 text-sm"
+                onClick={() =>
+                  toast.success(pr.toastReviewTitle, {
+                    description: pr.toastReviewDescription,
+                    classNames: prototypeInteractionToastClassNames,
+                    richColors: false,
+                    icon: null,
+                  })
+                }
+              >
+                <UserCheck
+                  className="size-3.5 shrink-0 opacity-80"
+                  aria-hidden
+                />
+                {pr.quickRequestReview}
+              </SecondaryButton>
+            </div>
+          </div>
+          <div className="mt-2 flex flex-col gap-1 min-[480px]:flex-row min-[480px]:items-end min-[480px]:justify-between">
+            <div className="min-w-0">
+              <div className="flex max-w-full items-center gap-1.5">
+                <LabelText className="!mb-0">{pr.planCardTitle}</LabelText>
+                <GuidingTooltip
+                  text={planHeaderGuiding}
+                  topic="Fleet plan"
+                />
+              </div>
+              <CardTitle
+                className="!mt-0.5 !p-0 !text-base leading-snug"
+                style={{ fontWeight: "var(--font-weight-medium)" }}
+              >
+                {planTitle}
+              </CardTitle>
+              <TinyText
+                muted
+                className={`mt-1 block font-mono ${rDM}`}
+              >
+                {planId}
+              </TinyText>
+              <TinyText
+                muted
+                className={`mt-1.5 block ${rDM}`}
+              >
+                {pr.mockupSourcePlan}
+              </TinyText>
+            </div>
+          </div>
+        </div>
+
+        <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+          <div className="p-4 sm:p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <ListChecks
+                className="size-4 shrink-0"
+                style={{ color: "var(--primary)" }}
+                aria-hidden
+              />
+              <SmallText
+                className="!m-0"
+                style={{ fontWeight: "var(--font-weight-medium)" }}
+              >
+                {pr.preflightSectionLabel}
+              </SmallText>
+            </div>
+            <div className="grid gap-4 min-[900px]:grid-cols-2 min-[900px]:gap-5">
+              <div
+                className="flex min-h-0 min-w-0 flex-col rounded-lg p-3"
+                style={{
+                  backgroundColor: "var(--secondary)",
+                }}
+              >
+                <div className="mb-1 flex min-w-0 items-center gap-1.5">
+                  <TinyText
+                    className={`!m-0 ${rD} text-foreground`}
+                    style={{
+                      fontWeight: "var(--font-weight-medium)",
+                    }}
+                  >
+                    {pr.preflightChangeTitle}
+                  </TinyText>
+                  <GuidingTooltip
+                    text={pg.preflightChangePreview}
+                    topic="What would change"
+                  />
+                </div>
+                <TinyText
+                  muted
+                  className={`mb-2 block ${rDM}`}
+                >
+                  {pr.mockupSourceChange}
+                </TinyText>
+                <pre
+                  className={`mt-auto max-h-32 flex-1 overflow-auto rounded-md p-3 text-left leading-relaxed font-mono ${rD}`}
+                  style={{
+                    backgroundColor: "var(--background)",
+                    fontFamily: "var(--font-family-mono)",
+                    boxShadow: "inset 0 0 0 1px var(--border)",
+                  }}
+                >{`cluster: prod-east-1
+  - clusterversion.spec.desiredUpdate.version: 4.17.4 → 4.17.9
+  - machineconfigpool(master): new rendered revision (pending)
+cluster: stage-west-1
+  - (same) · channel stable-4.17
+  … +3 more clusters in scope`}</pre>
+              </div>
+
+              <div
+                className="flex min-h-0 min-w-0 flex-col rounded-lg p-3"
+                style={{
+                  backgroundColor: "var(--secondary)",
+                }}
+              >
+                <div className="mb-1 flex min-w-0 items-center gap-1.5">
+                  <TinyText
+                    className={`!m-0 ${rD} text-foreground`}
+                    style={{
+                      fontWeight: "var(--font-weight-medium)",
+                    }}
+                  >
+                    {pr.preflightReadinessTitle}
+                  </TinyText>
+                  <GuidingTooltip
+                    text={pg.preflightReadiness}
+                    topic="Readiness and risk"
+                  />
+                </div>
+                <TinyText
+                  muted
+                  className={`mb-2 block ${rDM}`}
+                >
+                  {pr.mockupSourceReadiness}
+                </TinyText>
+                <div
+                  className="flex flex-1 flex-col justify-center gap-1.5 rounded-md p-3"
+                  style={{
+                    backgroundColor: "var(--background)",
+                    boxShadow: "inset 0 0 0 1px var(--border)",
+                  }}
+                >
+                  <div className="inline-flex items-center gap-1.5">
+                    <TinyText
+                      className={`!m-0 ${rD} text-foreground`}
+                      style={{
+                        fontWeight: "var(--font-weight-medium)",
+                      }}
+                    >
+                      {pr.confidenceLabel}
+                    </TinyText>
+                    <GuidingTooltip
+                      text={pg.reviewConfidenceIllustrative}
+                      topic="Confidence"
+                    />
+                  </div>
+                  <TinyText muted className={`!m-0 leading-relaxed ${rD}`}>
+                    {pr.confidenceValue}
+                  </TinyText>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="p-4 sm:p-5"
+            style={{ backgroundColor: "var(--background)" }}
+          >
+            <div className="mb-2 flex items-center gap-2">
+              <History
+                className="size-4 shrink-0"
+                style={{ color: "var(--muted-foreground)" }}
+                aria-hidden
+              />
+              <SmallText
+                className="!m-0"
+                style={{ fontWeight: "var(--font-weight-medium)" }}
+              >
+                {pr.pastContextTitle}
+              </SmallText>
+              <GuidingTooltip
+                text={pr.pastContextTooltipMeta}
+                topic="Recent fleet context"
+              />
+            </div>
+            <TinyText
+              muted
+              className={`!m-0 !mb-3 !max-w-prose pl-6 ${rDM}`}
+            >
+              {pr.pastContextIntro}
+            </TinyText>
+            <ul
+              className={`m-0 list-disc space-y-1.5 pl-6 ${rD} text-foreground`}
+            >
+              {pr.pastContextPoints.map((line, i) => (
+                <li key={i} className="pl-0.5">
+                  {line}
+                </li>
+              ))}
+            </ul>
+            <TinyText
+              muted
+              className={`mt-3 block pl-6 ${rDM}`}
+            >
+              {pr.mockupSourcePastContext}
+            </TinyText>
+          </div>
+
+          <Collapsible
+            className="group"
+            defaultOpen={false}
+          >
+            <div
+              className="px-4 py-3 sm:px-5"
+              style={{
+                backgroundColor: "var(--secondary)",
+              }}
+            >
+              <div className="flex items-start gap-1.5">
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 gap-1.5 rounded text-left text-sm outline-offset-2 transition-colors hover:brightness-[0.98] focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                    style={{ color: "var(--foreground)" }}
+                    aria-label={`${pr.channelsTitle}. ${pr.channelsCollapseHint}`}
+                  >
+                    <ChevronRight
+                      className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-90"
+                      aria-hidden
+                    />
+                    <span className="min-w-0">
+                      <SmallText
+                        className="!m-0 !block"
+                        style={{
+                          fontWeight: "var(--font-weight-medium)",
+                          color: "var(--muted-foreground)",
+                        }}
+                      >
+                        {pr.channelsTitle}
+                      </SmallText>
+                      <TinyText
+                        muted
+                        className={`!mt-1.5 !block max-w-prose !leading-relaxed ${rDM}`}
+                      >
+                        {pr.channelsIntroProduct}
+                      </TinyText>
+                      <TinyText
+                        muted
+                        className={`!mt-1.5 !block ${rDM}`}
+                      >
+                        {pr.mockupSourceExport}
+                      </TinyText>
+                    </span>
+                  </button>
+                </CollapsibleTrigger>
+                <div className="shrink-0 pt-0.5">
+                  <GuidingTooltip
+                    text={pg.outsideConsoleChannels}
+                    topic="Outside the console"
+                  />
+                </div>
+              </div>
+              <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                <div className="mt-3 space-y-4 border-t pt-3" style={{ borderColor: "var(--border)" }}>
+                  <div>
+                    <TinyText
+                      className={`!m-0 block ${rD} text-foreground`}
+                      style={{ fontWeight: "var(--font-weight-medium)" }}
+                    >
+                      {pr.channelsApiLabel}
+                    </TinyText>
+                    <TinyText
+                      muted
+                      className={`mt-0.5 block font-mono leading-relaxed ${rDM}`}
+                    >
+                      {channelSnippets.apiEndpointLine}
+                    </TinyText>
+                    <PlanChannelPreWithCopy
+                      text={channelSnippets.apiJson}
+                      rD={rD}
+                      maxHeight="max-h-40"
+                      copySuccess={pr.channelsCopySuccess}
+                      copyFailed={pr.channelsCopyFailed}
+                      copyAria={pr.channelsCopyAria}
+                    />
+                  </div>
+                  <div>
+                    <TinyText
+                      className={`!m-0 block ${rD} text-foreground`}
+                      style={{ fontWeight: "var(--font-weight-medium)" }}
+                    >
+                      {pr.channelsCliLabel}
+                    </TinyText>
+                    <PlanChannelPreWithCopy
+                      text={channelSnippets.cli}
+                      rD={rD}
+                      maxHeight="max-h-36"
+                      copySuccess={pr.channelsCopySuccess}
+                      copyFailed={pr.channelsCopyFailed}
+                      copyAria={pr.channelsCopyAria}
+                    />
+                  </div>
+                  <div>
+                    <TinyText
+                      className={`!m-0 block ${rD} text-foreground`}
+                      style={{ fontWeight: "var(--font-weight-medium)" }}
+                    >
+                      {pr.channelsGitopsLabel}
+                    </TinyText>
+                    <PlanChannelPreWithCopy
+                      text={channelSnippets.gitopsYaml}
+                      rD={rD}
+                      maxHeight="max-h-40"
+                      copySuccess={pr.channelsCopySuccess}
+                      copyFailed={pr.channelsCopyFailed}
+                      copyAria={pr.channelsCopyAria}
+                    />
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
+        </div>
+      </div>
       {/* Action Section */}
       <div
         className="p-6 border rounded"
@@ -5304,7 +5831,7 @@ function Step5Content({
                   {action.sourceVersion &&
                     action.targetVersion &&
                     (isOpenshiftCatalogUpdateId(action.id) ? (
-                      <TinyText muted className="mt-0.5 block leading-snug">
+                      <TinyText muted className={`mt-0.5 block leading-snug ${rDM}`}>
                         {deploymentCopy.actionCatalog.reviewUpdateToOpenshiftPrefix}
                         {action.targetVersion}.{" "}
                         {
@@ -5313,12 +5840,12 @@ function Step5Content({
                         }
                       </TinyText>
                     ) : (
-                      <TinyText muted className="mt-0.5">
+                      <TinyText muted className={`mt-0.5 ${rDM}`}>
                         {action.sourceVersion} → {action.targetVersion}
                       </TinyText>
                     ))}
                   {action.description && (
-                    <TinyText muted className="mt-1">
+                    <TinyText muted className={`mt-1 ${rDM}`}>
                       {action.description}
                     </TinyText>
                   )}
@@ -5326,7 +5853,9 @@ function Step5Content({
               </div>
             ))
           ) : (
-            <TinyText muted>No actions selected</TinyText>
+            <TinyText muted className={rDM}>
+              No actions selected
+            </TinyText>
           )}
         </div>
       </div>
@@ -5347,20 +5876,24 @@ function Step5Content({
               backgroundColor: "var(--card)",
             }}
           >
-            <SmallText
-              style={{ fontWeight: "var(--font-weight-medium)" }}
-              className="mb-4"
-            >
-              Placement
-            </SmallText>
+            <div className="mb-3 flex items-center gap-1.5">
+              <SmallText
+                className="!mb-0"
+                style={{ fontWeight: "var(--font-weight-medium)" }}
+              >
+                Placement
+              </SmallText>
+            </div>
 
             <div className="space-y-3">
               <div
                 className="flex items-start justify-between py-2"
                 style={{ borderBottom: "1px solid var(--border)" }}
               >
-                <TinyText muted>Selection method</TinyText>
-                <SmallText className="text-right">
+                <TinyText muted className={rDM}>
+                  Selection method
+                </TinyText>
+                <SmallText className={`text-right ${rD}`}>
                   {formData.fleetSelection === "label"
                     ? `Label: ${formData.labelSelector}`
                     : "Manual selection"}
@@ -5371,8 +5904,10 @@ function Step5Content({
                 className="flex items-start justify-between py-2"
                 style={{ borderBottom: "1px solid var(--border)" }}
               >
-                <TinyText muted>Targets as of</TinyText>
-                <SmallText className="text-right">
+                <TinyText muted className={rDM}>
+                  Targets as of
+                </TinyText>
+                <SmallText className={`text-right ${rD}`}>
                   {formatTargetsSnapshotAt(
                     formData.targetsSnapshotAt,
                   )}
@@ -5383,9 +5918,11 @@ function Step5Content({
                 className="flex items-start justify-between py-2"
                 style={{ borderBottom: "1px solid var(--border)" }}
               >
-                <TinyText muted>Matched clusters</TinyText>
+                <TinyText muted className={rDM}>
+                  Matched clusters
+                </TinyText>
                 <SmallText
-                  className="text-right"
+                  className={`text-right ${rD}`}
                   style={{ fontWeight: "var(--font-weight-medium)" }}
                 >
                   {reviewMatchedClusters.length} clusters
@@ -5402,7 +5939,7 @@ function Step5Content({
                       borderColor: "var(--border)",
                     }}
                   >
-                    <table className="w-full text-sm">
+                    <table className={`w-full ${rD}`}>
                       <tbody>
                         {previewClusters.map((cluster, idx) => (
                           <tr
@@ -5415,13 +5952,17 @@ function Step5Content({
                             }}
                           >
                             <td className="px-3 py-1.5">
-                              <TinyText>{cluster.name}</TinyText>
+                              <TinyText className={rD}>{cluster.name}</TinyText>
                             </td>
                             <td className="px-3 py-1.5">
-                              <TinyText muted>{cluster.env}</TinyText>
+                              <TinyText muted className={rDM}>
+                                {cluster.env}
+                              </TinyText>
                             </td>
                             <td className="px-3 py-1.5">
-                              <TinyText muted>{cluster.region}</TinyText>
+                              <TinyText muted className={rDM}>
+                                {cluster.region}
+                              </TinyText>
                             </td>
                           </tr>
                         ))}
@@ -5435,7 +5976,9 @@ function Step5Content({
                           borderTop: "1px solid var(--border)",
                         }}
                       >
-                        <TinyText muted>+{remainingCount} more clusters</TinyText>
+                        <TinyText muted className={rDM}>
+                          +{remainingCount} more clusters
+                        </TinyText>
                       </div>
                     )}
                   </div>
@@ -5467,8 +6010,10 @@ function Step5Content({
             className="flex items-start justify-between py-2"
             style={{ borderBottom: "1px solid var(--border)" }}
           >
-            <TinyText muted>Rollout</TinyText>
-            <SmallText className="text-right capitalize">
+            <TinyText muted className={rDM}>
+              Rollout
+            </TinyText>
+            <SmallText className={`text-right capitalize ${rD}`}>
               {formData.rolloutMethod}
             </SmallText>
           </div>
@@ -5477,10 +6022,10 @@ function Step5Content({
             className="flex items-start justify-between py-2"
             style={{ borderBottom: "1px solid var(--border)" }}
           >
-            <TinyText muted>
+            <TinyText muted className={rDM}>
               {deploymentCopy.rolloutStrategy.reviewSource}
             </TinyText>
-            <SmallText className="text-right">
+            <SmallText className={`text-right ${rD}`}>
               {formData.rolloutStrategySource === "manual"
                 ? deploymentCopy.rolloutStrategy.configureManual
                 : deploymentCopy.rolloutStrategy.useSaved}
@@ -5491,10 +6036,10 @@ function Step5Content({
             className="flex items-start justify-between py-2"
             style={{ borderBottom: "1px solid var(--border)" }}
           >
-            <TinyText muted>
+            <TinyText muted className={rDM}>
               {deploymentCopy.rolloutStrategy.reviewSavedName}
             </TinyText>
-            <SmallText className="text-right">
+            <SmallText className={`text-right ${rD}`}>
               {rolloutStrategyReviewName(
                 formData,
                 userRolloutStrategies,
@@ -5506,10 +6051,10 @@ function Step5Content({
             className="flex items-start justify-between py-2"
             style={{ borderBottom: "1px solid var(--border)" }}
           >
-            <TinyText muted>
+            <TinyText muted className={rDM}>
               {deploymentCopy.rolloutStrategy.reviewWillSave}
             </TinyText>
-            <SmallText className="text-right">
+            <SmallText className={`text-right ${rD}`}>
               {formData.saveRolloutStrategyForReuse &&
               (formData.saveRolloutStrategyName || "").trim()
                 ? `Save as "${(formData.saveRolloutStrategyName as string).trim()}" for reuse`
@@ -5521,8 +6066,10 @@ function Step5Content({
             className="flex items-start justify-between py-2"
             style={{ borderBottom: "1px solid var(--border)" }}
           >
-            <TinyText muted>Schedule</TinyText>
-            <SmallText className="text-right">
+            <TinyText muted className={rDM}>
+              Schedule
+            </TinyText>
+            <SmallText className={`text-right ${rD}`}>
               {formData.scheduleType === "immediate"
                 ? "Now"
                 : formData.scheduleType === "delayed"
@@ -5537,8 +6084,10 @@ function Step5Content({
                 className="flex items-start justify-between py-2"
                 style={{ borderBottom: "1px solid var(--border)" }}
               >
-                <TinyText muted>Clusters per wave</TinyText>
-                <SmallText className="text-right">
+                <TinyText muted className={rDM}>
+                  Clusters per wave
+                </TinyText>
+                <SmallText className={`text-right ${rD}`}>
                   {formData.pacingBatchSize || "5"} clusters
                 </SmallText>
               </div>
@@ -5546,8 +6095,10 @@ function Step5Content({
                 className="flex items-start justify-between py-2"
                 style={{ borderBottom: "1px solid var(--border)" }}
               >
-                <TinyText muted>Soak time</TinyText>
-                <SmallText className="text-right">
+                <TinyText muted className={rDM}>
+                  Soak time
+                </TinyText>
+                <SmallText className={`text-right ${rD}`}>
                   {formData.pacingSoakTime === "0" || !formData.pacingSoakTime
                     ? "None (continuous)"
                     : formData.pacingSoakTime}
@@ -5556,8 +6107,10 @@ function Step5Content({
               <div
                 className="flex items-start justify-between py-2"
               >
-                <TinyText muted>Error threshold</TinyText>
-                <SmallText className="text-right">
+                <TinyText muted className={rDM}>
+                  Error threshold
+                </TinyText>
+                <SmallText className={`text-right ${rD}`}>
                   {formData.pacingErrorThreshold === "0"
                     ? "Stop on any failure"
                     : formData.pacingErrorThreshold === "100"
@@ -5598,10 +6151,10 @@ function Step5Content({
                   borderBottom: "1px solid var(--border)",
                 }}
               >
-                <TinyText muted>
+                <TinyText muted className={rDM}>
                   {deploymentCopy.rollout.canaryRolloutNarrowingLabel}
                 </TinyText>
-                <SmallText className="text-right font-mono text-xs">
+                <SmallText className={`text-right font-mono ${rD}`}>
                   {formData.canarySelector?.trim() ||
                     deploymentCopy.placement.placementEmpty}
                 </SmallText>
@@ -5613,11 +6166,11 @@ function Step5Content({
                   borderBottom: "1px solid var(--border)",
                 }}
               >
-                <TinyText muted>
+                <TinyText muted className={rDM}>
                   {deploymentCopy.rollout.canaryInScopeHeading}
                 </TinyText>
                 <SmallText
-                  className="text-right"
+                  className={`text-right ${rD}`}
                   style={{ fontWeight: "var(--font-weight-medium)" }}
                 >
                   {(() => {
@@ -5647,7 +6200,7 @@ function Step5Content({
                         borderColor: "var(--border)",
                       }}
                     >
-                      <table className="w-full text-sm">
+                      <table className={`w-full ${rD}`}>
                         <tbody>
                           {previewCanaryClusters.map((cluster, idx) => (
                             <tr
@@ -5660,13 +6213,17 @@ function Step5Content({
                               }}
                             >
                               <td className="px-3 py-1.5">
-                                <TinyText>{cluster.name}</TinyText>
+                                <TinyText className={rD}>{cluster.name}</TinyText>
                               </td>
                               <td className="px-3 py-1.5">
-                                <TinyText muted>{cluster.env}</TinyText>
+                                <TinyText muted className={rDM}>
+                                  {cluster.env}
+                                </TinyText>
                               </td>
                               <td className="px-3 py-1.5">
-                                <TinyText muted>{cluster.region}</TinyText>
+                                <TinyText muted className={rDM}>
+                                  {cluster.region}
+                                </TinyText>
                               </td>
                             </tr>
                           ))}
@@ -5680,7 +6237,9 @@ function Step5Content({
                             borderTop: "1px solid var(--border)",
                           }}
                         >
-                          <TinyText muted>+{remainingCanaryCount} more clusters</TinyText>
+                          <TinyText muted className={rDM}>
+                            +{remainingCanaryCount} more clusters
+                          </TinyText>
                         </div>
                       )}
                     </div>
@@ -5694,8 +6253,10 @@ function Step5Content({
                   borderBottom: "1px solid var(--border)",
                 }}
               >
-                <TinyText muted>Soak duration</TinyText>
-                <SmallText className="text-right">
+                <TinyText muted className={rDM}>
+                  Soak duration
+                </TinyText>
+                <SmallText className={`text-right ${rD}`}>
                   {formData.phase1Soak === "0" || !formData.phase1Soak
                     ? "None (immediate)"
                     : formData.phase1Soak}
@@ -5708,8 +6269,10 @@ function Step5Content({
                   borderBottom: "1px solid var(--border)",
                 }}
               >
-                <TinyText muted>Error threshold</TinyText>
-                <SmallText className="text-right">
+                <TinyText muted className={rDM}>
+                  Error threshold
+                </TinyText>
+                <SmallText className={`text-right ${rD}`}>
                   {formData.phase1ErrorThreshold === "0"
                     ? "Stop on any failure"
                     : formData.phase1ErrorThreshold === "100"
@@ -5719,8 +6282,10 @@ function Step5Content({
               </div>
 
               <div className="flex items-start justify-between py-2">
-                <TinyText muted>Approval</TinyText>
-                <SmallText className="text-right">
+                <TinyText muted className={rDM}>
+                  Approval
+                </TinyText>
+                <SmallText className={`text-right ${rD}`}>
                   {formData.requireApproval
                     ? deploymentCopy.rollout.requiredBeforeFullRollout
                     : "Auto-promote after soak"}
@@ -5754,8 +6319,10 @@ function Step5Content({
                   borderBottom: "1px solid var(--border)",
                 }}
               >
-                <TinyText muted>Clusters per wave</TinyText>
-                <SmallText className="text-right">
+                <TinyText muted className={rDM}>
+                  Clusters per wave
+                </TinyText>
+                <SmallText className={`text-right ${rD}`}>
                   {formData.phase2Batch || "3"} clusters
                 </SmallText>
               </div>
@@ -5766,8 +6333,10 @@ function Step5Content({
                   borderBottom: "1px solid var(--border)",
                 }}
               >
-                <TinyText muted>Soak time</TinyText>
-                <SmallText className="text-right">
+                <TinyText muted className={rDM}>
+                  Soak time
+                </TinyText>
+                <SmallText className={`text-right ${rD}`}>
                   {formData.phase2SoakTime === "0" || !formData.phase2SoakTime
                     ? "None (continuous)"
                     : formData.phase2SoakTime}
@@ -5775,8 +6344,10 @@ function Step5Content({
               </div>
 
               <div className="flex items-start justify-between py-2">
-                <TinyText muted>Error threshold</TinyText>
-                <SmallText className="text-right">
+                <TinyText muted className={rDM}>
+                  Error threshold
+                </TinyText>
+                <SmallText className={`text-right ${rD}`}>
                   {formData.phase2ErrorThreshold === "0"
                     ? "Stop on any failure"
                     : formData.phase2ErrorThreshold === "100"
@@ -5810,15 +6381,19 @@ function Step5Content({
             className="flex items-start justify-between py-2"
             style={{ borderBottom: "1px solid var(--border)" }}
           >
-            <TinyText muted>Run as</TinyText>
-            <SmallText className="text-right">
+            <TinyText muted className={rDM}>
+              Run as
+            </TinyText>
+            <SmallText className={`text-right ${rD}`}>
               {formData.runAs || "Personal (Adi Cluster Admin)"}
             </SmallText>
           </div>
 
           <div className="flex items-start justify-between py-2">
-            <TinyText muted>Manual confirmation</TinyText>
-            <SmallText className="text-right">
+            <TinyText muted className={rDM}>
+              Manual confirmation
+            </TinyText>
+            <SmallText className={`text-right ${rD}`}>
               {formData.requireManualConfirmation
                 ? "Required"
                 : "Not required"}
@@ -5858,11 +6433,12 @@ function Step5Content({
         </svg>
         <div>
           <TinyText
+            className={rD}
             style={{ fontWeight: "var(--font-weight-medium)" }}
           >
             Estimated completion
           </TinyText>
-          <TinyText muted className="mt-1">
+          <TinyText muted className={`mt-1 ${rDM}`}>
             {formData.rolloutMethod === "canary"
               ? deploymentCopy.rollout.durationSummaryAfterCanaryRollout(
                   formData.phase1Soak || "24h",
