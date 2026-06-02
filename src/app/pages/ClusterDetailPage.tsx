@@ -1,10 +1,69 @@
 import { SmallText, TinyText, Badge, SecondaryButton, PrimaryButton, IconButton } from '../../imports/UIComponents';
-import { Link, useParams } from 'react-router';
-import { useState } from 'react';
+import { Link, useParams, useLocation } from 'react-router';
+import { useMemo, useState } from 'react';
+import {
+  RUN_AS_PLATFORM_VALUE,
+  RUN_AS_YOU_VALUE,
+} from '../../imports/CreateClusterWizard';
+import { readRunAsForCluster } from '../cluster/clusterRunAsPrototype';
+
+const BASE_CLUSTER_LOGS: {
+  time: string;
+  level: string;
+  user: string;
+  message: string;
+  service: string;
+}[] = [
+  { time: '14:35:50', level: 'INFO', user: 'Adi Cluster Admin', message: 'Cluster is now healthy and ready', service: 'cluster-controller' },
+  { time: '14:35:45', level: 'INFO', user: 'system', message: 'All health checks passed', service: 'health-monitor' },
+  { time: '14:35:40', level: 'INFO', user: 'system', message: 'Cluster networking configured', service: 'network-operator' },
+  { time: '14:35:25', level: 'INFO', user: 'Adi Cluster Admin', message: 'Configuring cluster networking', service: 'network-operator' },
+  { time: '14:35:20', level: 'INFO', user: 'system', message: 'OpenShift Virtualization operator installed', service: 'olm' },
+  { time: '14:33:50', level: 'INFO', user: 'Adi Cluster Admin', message: 'Installing OpenShift components', service: 'cluster-installer' },
+  { time: '14:33:45', level: 'INFO', user: 'system', message: 'Control plane nodes provisioned successfully', service: 'machine-api' },
+  { time: '14:32:30', level: 'INFO', user: 'Adi Cluster Admin', message: 'Provisioning control plane nodes (3)', service: 'machine-api' },
+  { time: '14:32:25', level: 'INFO', user: 'system', message: 'Network validation successful', service: 'network-validator' },
+  { time: '14:32:20', level: 'WARN', user: 'system', message: 'Validating network settings - checking for conflicts', service: 'network-validator' },
+  { time: '14:32:15', level: 'INFO', user: 'Adi Cluster Admin', message: 'Loading configuration from cluster-config.yaml', service: 'config-loader' },
+  { time: '14:32:10', level: 'INFO', user: 'Adi Cluster Admin', message: 'Cluster initialization started', service: 'cluster-controller' },
+];
+
+function logInitiatorAndActor(
+  runAs: string | undefined,
+  rowUser: string,
+): { initiator: string; actor: string } {
+  if (rowUser === 'system') {
+    return { initiator: '—', actor: '—' };
+  }
+  const human = 'Adi Cluster Admin';
+  if (!runAs) {
+    return { initiator: human, actor: human };
+  }
+  if (runAs === RUN_AS_YOU_VALUE) {
+    return { initiator: human, actor: human };
+  }
+  if (runAs === RUN_AS_PLATFORM_VALUE) {
+    return { initiator: human, actor: 'Platform Service' };
+  }
+  if (runAs.startsWith('Service account:')) {
+    return {
+      initiator: human,
+      actor: runAs.replace(/^Service account:\s*/i, '').trim(),
+    };
+  }
+  return { initiator: human, actor: human };
+}
 
 export function ClusterDetailPage() {
   const { clusterId } = useParams();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<'overview' | 'logs'>('overview');
+
+  const runAs = useMemo(() => {
+    const fromNav = (location.state as { runAs?: string } | null | undefined)
+      ?.runAs;
+    return fromNav ?? readRunAsForCluster(clusterId);
+  }, [location.state, clusterId]);
 
   // Mock cluster data - in a real app this would come from an API based on clusterId
   const cluster = {
@@ -467,9 +526,14 @@ export function ClusterDetailPage() {
                   Level
                 </TinyText>
               </div>
-              <div className="w-[160px]">
+              <div className="w-[150px]">
                 <TinyText style={{ fontWeight: 'var(--font-weight-medium)' }}>
-                  User
+                  Initiator
+                </TinyText>
+              </div>
+              <div className="w-[150px]">
+                <TinyText style={{ fontWeight: 'var(--font-weight-medium)' }}>
+                  Actor
                 </TinyText>
               </div>
               <div className="flex-1">
@@ -481,20 +545,11 @@ export function ClusterDetailPage() {
 
             {/* Logs Body */}
             <div className="overflow-auto" style={{ maxHeight: '600px' }}>
-              {[
-                { time: '14:35:50', level: 'INFO', user: 'Adi Cluster Admin', message: 'Cluster is now healthy and ready', service: 'cluster-controller' },
-                { time: '14:35:45', level: 'INFO', user: 'system', message: 'All health checks passed', service: 'health-monitor' },
-                { time: '14:35:40', level: 'INFO', user: 'system', message: 'Cluster networking configured', service: 'network-operator' },
-                { time: '14:35:25', level: 'INFO', user: 'Adi Cluster Admin', message: 'Configuring cluster networking', service: 'network-operator' },
-                { time: '14:35:20', level: 'INFO', user: 'system', message: 'OpenShift Virtualization operator installed', service: 'olm' },
-                { time: '14:33:50', level: 'INFO', user: 'Adi Cluster Admin', message: 'Installing OpenShift components', service: 'cluster-installer' },
-                { time: '14:33:45', level: 'INFO', user: 'system', message: 'Control plane nodes provisioned successfully', service: 'machine-api' },
-                { time: '14:32:30', level: 'INFO', user: 'Adi Cluster Admin', message: 'Provisioning control plane nodes (3)', service: 'machine-api' },
-                { time: '14:32:25', level: 'INFO', user: 'system', message: 'Network validation successful', service: 'network-validator' },
-                { time: '14:32:20', level: 'WARN', user: 'system', message: 'Validating network settings - checking for conflicts', service: 'network-validator' },
-                { time: '14:32:15', level: 'INFO', user: 'Adi Cluster Admin', message: 'Loading configuration from cluster-config.yaml', service: 'config-loader' },
-                { time: '14:32:10', level: 'INFO', user: 'Adi Cluster Admin', message: 'Cluster initialization started', service: 'cluster-controller' },
-              ].map((log, index) => {
+              {BASE_CLUSTER_LOGS.map((log, index) => {
+                const { initiator, actor } = logInitiatorAndActor(
+                  runAs,
+                  log.user,
+                );
                 const getLevelColor = (level: string) => {
                   switch (level) {
                     case 'ERROR':
@@ -561,8 +616,8 @@ export function ClusterDetailPage() {
                       </span>
                     </div>
 
-                    {/* User */}
-                    <div className="w-[160px] flex-shrink-0">
+                    {/* Initiator */}
+                    <div className="w-[150px] flex-shrink-0">
                       <span
                         style={{
                           fontFamily: 'var(--font-family-text)',
@@ -571,7 +626,21 @@ export function ClusterDetailPage() {
                           fontWeight: 'var(--font-weight-medium)',
                         }}
                       >
-                        {log.user}
+                        {initiator}
+                      </span>
+                    </div>
+
+                    {/* Actor */}
+                    <div className="w-[150px] flex-shrink-0">
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-family-text)',
+                          fontSize: 'var(--text-xs)',
+                          color: 'var(--foreground)',
+                          fontWeight: 'var(--font-weight-medium)',
+                        }}
+                      >
+                        {actor}
                       </span>
                     </div>
 

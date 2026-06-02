@@ -306,8 +306,8 @@ export function DayOneConfigurationScreen({
                 <Radio
                   id="signing-platform"
                   name="signingKeyRegistry"
-                  label="Platform (internal)"
-                  description="Keys are managed and served by the OpenShift Management Engine platform."
+                  label="IdP / OIDC-hosted keys"
+                  description="Signing public keys are discovered through your OIDC identity provider—for example attributes or claims on IdP-issued tokens—not through a separate Git forge. Uses your existing IdP trust; distinct from console OAuth client configuration alone."
                   isChecked={signingKeyRegistry === "platform"}
                   onChange={() => setSigningKeyRegistry("platform")}
                 />
@@ -315,7 +315,7 @@ export function DayOneConfigurationScreen({
                   id="signing-external"
                   name="signingKeyRegistry"
                   label="External registry"
-                  description="Keys are published in an external system (for example GitHub, GitLab, or a custom URL). Expect coordination with your IdP or security team for key discovery, trust, and registry-specific setup."
+                  description="Keys are published in an external system (for example GitHub, GitLab, or a custom URL). Different trust path than IdP-hosted discovery above—coordinate with your IdP or security team for key discovery and registry-specific setup."
                   isChecked={signingKeyRegistry === "external"}
                   onChange={() => setSigningKeyRegistry("external")}
                 />
@@ -326,25 +326,25 @@ export function DayOneConfigurationScreen({
               <Form className="mt-4" maxWidth="40rem">
                 <FormGroup
                   fieldId="fake-signer-binding"
-                  label="Fake example field: signer binding"
+                  label="Fake example field: signing key claim mapping"
                 >
                   <TextInput
                     id="fake-signer-binding"
                     readOnly
                     readOnlyVariant="default"
-                    value="urn:example:signing:console"
+                    value="e.g. sshPublicKey / custom attribute name (maps to OIDC claims)"
                     onChange={() => {}}
                   />
                 </FormGroup>
                 <FormGroup
                   fieldId="fake-extra-idp"
-                  label="Fake example field: extra IdP knobs"
+                  label="Fake example field: IdP issuer alignment"
                 >
                   <TextInput
                     id="fake-extra-idp"
                     readOnly
                     readOnlyVariant="default"
-                    value="TBD — not every IdP exposes this"
+                    value="Same issuer trust as console OIDC — verification uses IdP JWKS"
                     onChange={() => {}}
                   />
                 </FormGroup>

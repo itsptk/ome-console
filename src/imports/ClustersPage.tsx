@@ -3,6 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router';
 import { useState, useEffect } from 'react';
 import { CLUSTERS_LIST_PAGE_INITIAL } from '../app/components/deployments/clustersListPageDemoData';
 import { deploymentCopy } from '../app/components/deployments/deploymentPrototypeCopy';
+import { persistClusterRunAsIndex } from '../app/cluster/clusterRunAsPrototype';
 import {
   CreateClusterWizard,
   RUN_AS_PLATFORM_VALUE,
@@ -30,6 +31,10 @@ export function ClustersPage() {
 
   /** Aligned to deployment fleet mock names so the fleet plan wizard can scope placement. */
   const [clusters, setClusters] = useState(() => [...CLUSTERS_LIST_PAGE_INITIAL]);
+
+  useEffect(() => {
+    persistClusterRunAsIndex(clusters);
+  }, [clusters]);
 
   // Filter clusters based on region
   const filteredClusters = clusters.filter(cluster => {
@@ -772,6 +777,7 @@ export function ClustersPage() {
                   <td className="p-3">
                     <Link 
                       to={`/clusters/${cluster.id}`}
+                      state={{ runAs: cluster.runAs }}
                       style={{
                         fontFamily: 'var(--font-family-text)',
                         fontSize: 'var(--text-sm)',

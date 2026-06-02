@@ -6,7 +6,7 @@ import { CONCEPTUAL_DESIGN_PINK } from '../conceptualDesignPink';
 const JIRA_URL = 'https://redhat.atlassian.net/browse/HPUX-1363';
 
 /** Set to the calendar day this file (or the prototype) was last meaningfully updated (YYYY-MM-DD). */
-const LAST_UPDATED_ISO = '2026-04-09';
+const LAST_UPDATED_ISO = '2026-04-23';
 
 function formatLastUpdated(iso: string) {
   const d = new Date(`${iso}T12:00:00`);

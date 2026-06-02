@@ -204,6 +204,19 @@ export function SettingsPage() {
         <BodyText muted>
           Configure system preferences and options
         </BodyText>
+        <p
+          className="mt-4 max-w-2xl text-muted-foreground"
+          style={{
+            fontFamily: "var(--font-family-text)",
+            fontSize: "var(--text-sm)",
+          }}
+        >
+          Some defaults apply at <strong className="font-medium text-foreground">workspace</strong>{" "}
+          or cloud-account scope. Signing enrollment is tied to{" "}
+          <strong className="font-medium text-foreground">your user account</strong> and{" "}
+          <strong className="font-medium text-foreground">device</strong>—for example a new laptop may
+          need new keys.
+        </p>
       </div>
 
       <section
@@ -214,12 +227,33 @@ export function SettingsPage() {
           className="mb-2"
           style={{
             fontFamily: "var(--font-family-display)",
+            fontSize: "var(--text-xl)",
+            fontWeight: "var(--font-weight-medium)",
+          }}
+        >
+          Workspace execution
+        </h2>
+        <p
+          className="mb-6 text-muted-foreground"
+          style={{
+            fontFamily: "var(--font-family-text)",
+            fontSize: "var(--text-sm)",
+          }}
+        >
+          Tenant-level choices for how cluster operations run by default. In this prototype, values
+          are stored in your browser session only.
+        </p>
+
+        <h3
+          className="mb-2"
+          style={{
+            fontFamily: "var(--font-family-display)",
             fontSize: "var(--text-lg)",
             fontWeight: "var(--font-weight-medium)",
           }}
         >
           Default execution identity
-        </h2>
+        </h3>
         <p
           className="mb-4 text-muted-foreground"
           style={{
@@ -257,15 +291,14 @@ export function SettingsPage() {
             </option>
           ))}
         </select>
-      </section>
 
-      <section
-        className="mb-8 max-w-2xl rounded-lg border p-6"
-        style={{ borderColor: "var(--border)" }}
-      >
+        <div
+          className="mt-8 border-t pt-8"
+          style={{ borderColor: "var(--border)" }}
+        >
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2
+            <h3
               className="mb-2"
               style={{
                 fontFamily: "var(--font-family-display)",
@@ -274,7 +307,7 @@ export function SettingsPage() {
               }}
             >
               Service accounts
-            </h2>
+            </h3>
             <p
               className="text-muted-foreground"
               style={{
@@ -282,7 +315,8 @@ export function SettingsPage() {
                 fontSize: "var(--text-sm)",
               }}
             >
-              Accounts that can appear as Run as options for cluster operations.
+              Managed at workspace or cloud-account scope in a full product. Accounts that can appear
+              as Run as options for cluster operations.
             </p>
           </div>
           <button
@@ -380,6 +414,7 @@ export function SettingsPage() {
             </tbody>
           </table>
         </div>
+        </div>
       </section>
 
       <section
@@ -390,11 +425,11 @@ export function SettingsPage() {
           className="mb-2"
           style={{
             fontFamily: "var(--font-family-display)",
-            fontSize: "var(--text-lg)",
+            fontSize: "var(--text-xl)",
             fontWeight: "var(--font-weight-medium)",
           }}
         >
-          Signing and keys
+          Your account: signing and keys
         </h2>
         <p
           className="mb-6 text-muted-foreground"
@@ -403,7 +438,8 @@ export function SettingsPage() {
             fontSize: "var(--text-sm)",
           }}
         >
-          Controls you might ship for how the engine manages keys used to sign
+          Personal enrollment—signing keys and passkeys are tied to your identity and device, not to
+          workspace defaults. Controls you might ship for how the engine manages keys used to sign
           policies and artifacts.
         </p>
 
