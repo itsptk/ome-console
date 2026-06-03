@@ -13,12 +13,14 @@ import {
   Card,
   CompactCard,
 } from "../../imports/UIComponents";
+import { deploymentCopy } from "../components/deployments/deploymentPrototypeCopy";
 
 type EventCategory =
   | "infrastructure"
   | "workload"
   | "network"
-  | "storage";
+  | "storage"
+  | "readiness";
 
 type TimelineEvent = {
   id: string;
@@ -46,7 +48,13 @@ export function DeploymentDrilldownPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<
     EventCategory[]
-  >(["infrastructure", "workload", "network", "storage"]);
+  >([
+    "infrastructure",
+    "workload",
+    "network",
+    "storage",
+    "readiness",
+  ]);
   const [hoveredEvent, setHoveredEvent] =
     useState<TimelineEvent | null>(null);
   const [popoverPosition, setPopoverPosition] = useState({
@@ -128,6 +136,39 @@ export function DeploymentDrilldownPage() {
   // Phase 1 processes 10 clusters from 22:05 to 00:20 (when threshold hit)
   // Mixed successes and failures, threshold triggers on 6th failure
   const allEvents: TimelineEvent[] = [
+    {
+      id: "rdy-0",
+      timestamp: new Date("2026-03-24T22:06:00Z"),
+      category: "readiness",
+      severity: "info",
+      title: "Pre-flight configuration validated",
+      description:
+        "MachineConfigPools synced; no pending reboots before canary start.",
+      affectedResources: ["mcp/worker"],
+      ranAs: ranAsValue,
+    },
+    {
+      id: "rdy-1",
+      timestamp: new Date("2026-03-24T22:10:00Z"),
+      category: "readiness",
+      severity: "warning",
+      title: "API server readiness probe slow",
+      description:
+        "kube-apiserver health checks exceeded SLO for 90s; rollout continued under watch.",
+      affectedResources: ["kube-apiserver"],
+      ranAs: ranAsValue,
+    },
+    {
+      id: "rdy-2",
+      timestamp: new Date("2026-03-24T22:18:00Z"),
+      category: "readiness",
+      severity: "info",
+      title: "Cluster operators healthy",
+      description:
+        "All required ClusterOperators Available=True before first cluster upgrade.",
+      affectedResources: ["clusterversion/version"],
+      ranAs: ranAsValue,
+    },
     // Early successes
     {
       id: "evt-1",
@@ -595,7 +636,7 @@ export function DeploymentDrilldownPage() {
 
       {/* Phase Status Cards - Optimized for Root Cause Analysis */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        {/* Phase 1 - Critical Info */}
+        {/* Canary rollout — critical status */}
         <div
           className="border rounded-lg p-4 col-span-2"
           style={{
@@ -612,7 +653,7 @@ export function DeploymentDrilldownPage() {
                   color: "#C9190B",
                 }}
               >
-                Phase 1: Canary - Failed
+                {deploymentCopy.rollout.canaryRolloutSectionTitle} — Failed
               </SmallText>
               <TinyText muted className="mt-0.5">
                 {formatDate(deployment.phase1.start)} -{" "}
@@ -755,11 +796,11 @@ export function DeploymentDrilldownPage() {
           <StatusLabel variant="cancelled">Cancelled</StatusLabel>
 
           <div className="mt-3">
-            <TinyText muted>Auto-cancelled due to Canary failure</TinyText>
+            <TinyText muted>Auto-cancelled due to Canary rollout failure</TinyText>
           </div>
         </div>
 
-        {/* Phase 2 */}
+        {/* Full rollout */}
         <div
           className="border rounded-lg p-4"
           style={{
@@ -776,7 +817,7 @@ export function DeploymentDrilldownPage() {
                 color: "var(--muted-foreground)",
               }}
             >
-              Phase 2: Full rollout
+              {deploymentCopy.rollout.fullRolloutSectionTitle}
             </SmallText>
             <TinyText muted className="mt-0.5">
               {deployment.phase2.totalCount} clusters
@@ -786,7 +827,7 @@ export function DeploymentDrilldownPage() {
           <StatusLabel variant="cancelled">Cancelled</StatusLabel>
 
           <div className="mt-3">
-            <TinyText muted>Auto-cancelled due to Canary failure</TinyText>
+            <TinyText muted>Auto-cancelled due to Canary rollout failure</TinyText>
           </div>
 
           <div
@@ -800,7 +841,7 @@ export function DeploymentDrilldownPage() {
               }}
             >
               0 of {deployment.phase2.totalCount} clusters were affected. Use Restart to
-              retry from Phase 1, or Cancel to abort entirely.
+              retry from Canary rollout, or Cancel to abort entirely.
             </TinyText>
           </div>
         </div>
@@ -833,9 +874,9 @@ export function DeploymentDrilldownPage() {
                   borderRadius: "var(--radius)",
                   color: "var(--muted-foreground)",
                 }}
-                title="Focus on Canary phase"
+                title={`Focus on ${deploymentCopy.rollout.canaryRolloutSectionTitle}`}
               >
-                Canary
+                {deploymentCopy.rollout.canaryRolloutSectionTitle}
               </button>
             )}
             {deployment.soak && deployment.soak.status !== "cancelled" && (
@@ -859,9 +900,9 @@ export function DeploymentDrilldownPage() {
                   borderRadius: "var(--radius)",
                   color: "var(--muted-foreground)",
                 }}
-                title="Focus on full rollout phase"
+                title={`Focus on ${deploymentCopy.rollout.fullRolloutSectionTitle}`}
               >
-                Rollout
+                {deploymentCopy.rollout.fullRolloutSectionTitle}
               </button>
             )}
             {deployment.safetyBrakeTime && (
@@ -967,6 +1008,7 @@ export function DeploymentDrilldownPage() {
                 "workload",
                 "network",
                 "storage",
+                "readiness",
               ] as EventCategory[]
             ).map((category) => {
               const isSelected = selectedCategories.includes(category);
@@ -1128,13 +1170,21 @@ export function DeploymentDrilldownPage() {
                 />
                 <TinyText muted style={{ fontSize: "11px" }}>Full rollout</TinyText>
               </div>
+              <div className="w-px h-3" style={{ backgroundColor: "var(--border)" }} />
+              <div className="flex items-center gap-1.5">
+                <div
+                  className="size-2.5 rotate-45"
+                  style={{ backgroundColor: "#40199A" }}
+                />
+                <TinyText muted style={{ fontSize: "11px" }}>Readiness</TinyText>
+              </div>
             </div>
 
             {/* Timeline Track - Swimlane Layout */}
             <div
               ref={timelineTrackRef}
               className="relative cursor-crosshair"
-              style={{ height: "120px", marginLeft: "65px" }}
+              style={{ height: "132px", marginLeft: "65px" }}
               onMouseMove={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const x = e.clientX - rect.left;
@@ -1192,7 +1242,19 @@ export function DeploymentDrilldownPage() {
                   muted
                   style={{
                     position: "absolute",
-                    top: "44px",
+                    top: "36px",
+                    right: "0",
+                    fontSize: "11px",
+                    textAlign: "right",
+                  }}
+                >
+                  Readiness
+                </TinyText>
+                <TinyText
+                  muted
+                  style={{
+                    position: "absolute",
+                    top: "52px",
                     right: "0",
                     fontSize: "11px",
                     textAlign: "right",
@@ -1204,7 +1266,7 @@ export function DeploymentDrilldownPage() {
                   muted
                   style={{
                     position: "absolute",
-                    top: "84px",
+                    top: "96px",
                     right: "0",
                     fontSize: "11px",
                     textAlign: "right",
@@ -1227,7 +1289,7 @@ export function DeploymentDrilldownPage() {
               <div
                 className="absolute w-full"
                 style={{
-                  top: "72px",
+                  top: "44px",
                   height: "1px",
                   backgroundColor: "var(--border)",
                   opacity: 0.5,
@@ -1236,7 +1298,16 @@ export function DeploymentDrilldownPage() {
               <div
                 className="absolute w-full"
                 style={{
-                  top: "112px",
+                  top: "80px",
+                  height: "1px",
+                  backgroundColor: "var(--border)",
+                  opacity: 0.5,
+                }}
+              />
+              <div
+                className="absolute w-full"
+                style={{
+                  top: "120px",
                   height: "1px",
                   backgroundColor: "var(--border)",
                   opacity: 0.5,
@@ -1289,7 +1360,7 @@ export function DeploymentDrilldownPage() {
                 );
               })()}
 
-              {/* Phase 1 */}
+              {/* Canary rollout (timeline bar) */}
               {(() => {
                 const { start, end } = getVisibleTimeWindow();
                 const p1Start = deployment.phase1.start;
@@ -1348,7 +1419,7 @@ export function DeploymentDrilldownPage() {
                           fontSize: "10px",
                         }}
                       >
-                        Canary
+                        {deploymentCopy.rollout.canaryRolloutSectionTitle}
                       </TinyText>
                     </div>
                     {hoveredPhase === "phase1" && (
@@ -1366,7 +1437,7 @@ export function DeploymentDrilldownPage() {
                         }}
                       >
                         <TinyText style={{ fontWeight: 600, fontSize: "11px" }}>
-                          Canary Phase
+                          {deploymentCopy.rollout.canaryRolloutSectionTitle}
                         </TinyText>
                         <div className="flex flex-col gap-0.5 mt-1">
                           <TinyText muted style={{ fontSize: "10px" }}>
@@ -1480,7 +1551,7 @@ export function DeploymentDrilldownPage() {
                           </TinyText>
                           {isCancelled && (
                             <TinyText muted style={{ fontSize: "10px" }}>
-                              Reason: Canary phase failed
+                              Reason: Canary rollout failed
                             </TinyText>
                           )}
                         </div>
@@ -1490,7 +1561,7 @@ export function DeploymentDrilldownPage() {
                 );
               })()}
 
-              {/* Phase 2 - Cancelled */}
+              {/* Full rollout (timeline bar) */}
               {(() => {
                 const { start, end } = getVisibleTimeWindow();
                 const p2Start = deployment.phase2.start;
@@ -1553,7 +1624,9 @@ export function DeploymentDrilldownPage() {
                           fontSize: "10px",
                         }}
                       >
-                        {isCancelled ? "Cancelled" : "Rollout"}
+                        {isCancelled
+                          ? "Cancelled"
+                          : deploymentCopy.rollout.fullRolloutSectionTitle}
                       </TinyText>
                     </div>
                     {hoveredPhase === "phase2" && (
@@ -1571,7 +1644,7 @@ export function DeploymentDrilldownPage() {
                         }}
                       >
                         <TinyText style={{ fontWeight: 600, fontSize: "11px" }}>
-                          Full Rollout
+                          {deploymentCopy.rollout.fullRolloutSectionTitle}
                         </TinyText>
                         <div className="flex flex-col gap-0.5 mt-1">
                           <TinyText muted style={{ fontSize: "10px" }}>
@@ -1585,7 +1658,7 @@ export function DeploymentDrilldownPage() {
                           </TinyText>
                           {isCancelled && (
                             <TinyText muted style={{ fontSize: "10px" }}>
-                              Reason: Canary phase failed
+                              Reason: Canary rollout failed
                             </TinyText>
                           )}
                         </div>
@@ -1598,7 +1671,10 @@ export function DeploymentDrilldownPage() {
               {/* Success Events - Green dots (middle swimlane) with clustering */}
               {(() => {
                 const successEvents = allEvents.filter(
-                  (e) => e.severity === "info" && isVisible(e.timestamp)
+                  (e) =>
+                    e.severity === "info" &&
+                    e.category !== "readiness" &&
+                    isVisible(e.timestamp),
                 );
                 
                 // Cluster events that are too close together (within 3% of visible width)
@@ -1628,7 +1704,7 @@ export function DeploymentDrilldownPage() {
                       className="absolute cursor-pointer transition-all"
                       style={{
                         left: `${cluster.position * 100}%`,
-                        top: "52px",
+                        top: "60px",
                         transform: `translate(-50%, -50%) ${isHighlighted ? "scale(1.5)" : "scale(1)"}`,
                         zIndex: isHighlighted ? 15 : 10,
                       }}
@@ -1711,7 +1787,7 @@ export function DeploymentDrilldownPage() {
                       className="absolute cursor-pointer transition-all"
                       style={{
                         left: `${cluster.position * 100}%`,
-                        top: "92px",
+                        top: "104px",
                         transform: `translate(-50%, -50%) ${isHighlighted ? "scale(1.5)" : "scale(1)"}`,
                         zIndex: isHighlighted ? 15 : 10,
                       }}
@@ -1757,6 +1833,64 @@ export function DeploymentDrilldownPage() {
                           </span>
                         )}
                       </div>
+                    </div>
+                  );
+                });
+              })()}
+
+              {/* Readiness & configuration signals */}
+              {(() => {
+                const readinessEvents = allEvents.filter(
+                  (e) =>
+                    e.category === "readiness" &&
+                    selectedCategories.includes("readiness") &&
+                    isVisible(e.timestamp),
+                );
+                return readinessEvents.map((event) => {
+                  const pos = getVisiblePosition(event.timestamp);
+                  const fill =
+                    event.severity === "warning" ? "#F0AB00" : "#40199A";
+                  return (
+                    <div
+                      key={event.id}
+                      className="absolute cursor-pointer transition-all"
+                      style={{
+                        left: `${pos * 100}%`,
+                        top: "34px",
+                        transform: "translate(-50%, -50%)",
+                        zIndex: 12,
+                      }}
+                      onMouseEnter={(e) => {
+                        setHoveredEvent(event);
+                        const rect =
+                          e.currentTarget.getBoundingClientRect();
+                        setPopoverPosition({
+                          x: rect.left,
+                          y: rect.top - 10,
+                        });
+                      }}
+                      onMouseLeave={() => setHoveredEvent(null)}
+                      onClick={() =>
+                        setSelectedTimeWindow({
+                          start: new Date(
+                            event.timestamp.getTime() - 10 * 60 * 1000,
+                          ),
+                          end: new Date(
+                            event.timestamp.getTime() + 10 * 60 * 1000,
+                          ),
+                        })
+                      }
+                    >
+                      <div
+                        className="size-2.5 rotate-45"
+                        style={{
+                          backgroundColor: fill,
+                          boxShadow:
+                            highlightedEventId === event.id
+                              ? "0 0 0 3px rgba(64, 25, 154, 0.25)"
+                              : "none",
+                        }}
+                      />
                     </div>
                   );
                 });
@@ -1900,7 +2034,7 @@ export function DeploymentDrilldownPage() {
                   
                   return (
                     <>
-                      {/* Phase 1 */}
+                      {/* Canary rollout */}
                       <div
                         className="absolute rounded-sm"
                         style={{
@@ -1923,7 +2057,7 @@ export function DeploymentDrilldownPage() {
                           backgroundColor: deployment.soak.status === "cancelled" ? "rgba(106, 110, 115, 0.15)" : "rgba(0, 102, 204, 0.2)",
                         }}
                       />
-                      {/* Phase 2 */}
+                      {/* Full rollout */}
                       <div
                         className="absolute rounded-sm"
                         style={{
