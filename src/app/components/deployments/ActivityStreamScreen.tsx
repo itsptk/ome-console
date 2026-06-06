@@ -26,7 +26,6 @@ import {
   type OpenDeploymentWizardOptions,
 } from "./CreateDeploymentSplitButton";
 import { deploymentCopy } from "./deploymentPrototypeCopy";
-import { buildDeploymentAuthContext } from "../security/r2SecurityUxCopy";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
 /** Stops tab / button activation so the help icon only opens the tooltip. */
@@ -2666,10 +2665,7 @@ export function ActivityStreamScreen({
 
       {/* Smartphone Authorization Modal */}
       {showSmartphoneAuth && (
-        <SmartphoneAuth
-          onAuthorize={handleAuthorize}
-          context={buildDeploymentAuthContext("OpenShift cluster update")}
-        />
+        <SmartphoneAuth onAuthorize={handleAuthorize} />
       )}
 
       {/* Yaml Confirmation Modal */}

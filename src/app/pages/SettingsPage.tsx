@@ -18,12 +18,10 @@ import {
   DEFAULT_RUN_AS_STORAGE_KEY,
   RUN_AS_PLATFORM_VALUE,
   RUN_AS_YOU_VALUE,
-  RUN_AS_LABELS,
 } from "../../imports/CreateClusterWizard";
 import {
   readDayOneConsoleConfig,
   writeDayOneConsoleConfig,
-  externalRegistryDisplayName,
 } from "./day-one/dayOneConsoleConfig";
 import { PasskeyEnrollmentMock } from "../components/signing/PasskeyEnrollmentMock";
 import {
@@ -51,8 +49,8 @@ function serviceAccountRunAsValue(name: string): string {
 }
 
 const RUN_AS_OPTIONS: { value: string; label: string }[] = [
-  { value: RUN_AS_PLATFORM_VALUE, label: RUN_AS_LABELS.platform },
-  { value: RUN_AS_YOU_VALUE, label: RUN_AS_LABELS.you },
+  { value: RUN_AS_PLATFORM_VALUE, label: "Platform" },
+  { value: RUN_AS_YOU_VALUE, label: "You (cluster admin)" },
   ...INITIAL_SERVICE_ACCOUNTS.map((sa) => ({
     value: serviceAccountRunAsValue(sa.name),
     label: serviceAccountRunAsValue(sa.name),
@@ -127,9 +125,6 @@ export function SettingsPage() {
   const external = config?.signingKeyRegistry === "external";
   const externalGithub =
     external && config?.externalRegistryProvider === "github";
-  const externalRegistryLabel = externalRegistryDisplayName(
-    config?.externalRegistryProvider,
-  );
 
   useEffect(() => {
     if (!externalGithub || typeof sessionStorage === "undefined") return;
@@ -513,7 +508,7 @@ export function SettingsPage() {
                 fontWeight: "var(--font-weight-medium)",
               }}
             >
-              {externalRegistryLabel}
+              GitHub
             </h4>
             <p
               className="mb-4 text-muted-foreground"
@@ -526,8 +521,7 @@ export function SettingsPage() {
               <strong className="font-medium text-foreground">
                 public key
               </strong>{" "}
-              to {externalRegistryLabel} as a signing key (GitHub, GitLab
-              cloud, or self-hosted GitLab), then register a passkey for console
+              to GitHub as a signing key, then register a passkey for console
               signing. Deployments only ask you to verify with your device after
               this one-time setup.
             </p>
@@ -559,7 +553,7 @@ export function SettingsPage() {
                     borderColor: "var(--border)",
                   }}
                 >
-                  Show public key and registry steps
+                  Show public key and GitHub steps
                 </button>
               )}
             </div>
@@ -597,7 +591,7 @@ export function SettingsPage() {
                     <DialogHeader>
                       <DialogTitle>Your SSH signing public key</DialogTitle>
                       <DialogDescription>
-                        Copy this entire line into {externalRegistryLabel} as a{" "}
+                        Copy this entire line into GitHub as a{" "}
                         <strong className="text-foreground">Signing Key</strong>.
                         Then continue to register a passkey for deployments.
                       </DialogDescription>

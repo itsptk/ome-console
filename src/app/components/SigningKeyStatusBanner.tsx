@@ -32,7 +32,7 @@ export function SigningKeyStatusBanner() {
           Signing keys use an external registry ({externalProviderLabel}). Until
           your public key is published and your passkey is registered in Settings,
           you can&apos;t choose{" "}
-          <strong className="font-semibold">Platform managed identity</strong> under{" "}
+          <strong className="font-semibold">Platform Service</strong> under{" "}
           <strong className="font-semibold">Run as</strong> for deployments.
         </span>
         <Popover>
@@ -40,7 +40,7 @@ export function SigningKeyStatusBanner() {
             <button
               type="button"
               className="inline-flex shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-              aria-label="Why platform managed identity is unavailable"
+              aria-label="Why Platform Service is unavailable"
             >
               <Info className="size-4" aria-hidden />
             </button>
@@ -52,8 +52,7 @@ export function SigningKeyStatusBanner() {
             className="z-[60] w-[min(22rem,calc(100vw-2rem))] text-pretty p-3 text-sm"
           >
             <p className="m-0 text-popover-foreground">
-              Choosing{" "}
-              <strong className="font-semibold">Platform managed identity</strong>{" "}
+              Choosing <strong className="font-semibold">Platform Service</strong>{" "}
               under <strong className="font-semibold">Run as</strong> for a
               deployment uses the platform&apos;s managed identity. You complete
               passkey registration in Settings alongside publishing your signing
