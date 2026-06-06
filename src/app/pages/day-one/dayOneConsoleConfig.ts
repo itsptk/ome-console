@@ -26,33 +26,6 @@ export const DAY_ONE_CONSOLE_CONFIG_KEY = "dayOneConsoleConfig";
 /** Dispatched on same-tab updates (storage event only covers other tabs). */
 export const DAY_ONE_CONSOLE_CONFIG_CHANGE = "ome-dayOneConsoleConfig-change";
 
-/**
- * Default prototype state: external GitHub signing registry, key not yet published.
- * Seeded on first load so the signing-setup banner is visible without running day-one.
- */
-export const PROTOTYPE_DEMO_CONSOLE_CONFIG: DayOneConsoleConfig = {
-  backingStore: "sqlite",
-  authProvider: "htpasswd",
-  authConfigType: "manual",
-  issuerUrl: "",
-  clientId: "",
-  signingKeyRegistry: "external",
-  externalRegistryProvider: "github",
-  externalRegistryRef: "https://github.com",
-  claimMappingMode: "default",
-  signingKeyPublished: false,
-};
-
-/** Writes demo config when sessionStorage is empty (research / hosted preview entry). */
-export function ensurePrototypeDemoConfig(): void {
-  if (readDayOneConsoleConfig()) return;
-  sessionStorage.setItem(
-    DAY_ONE_CONSOLE_CONFIG_KEY,
-    JSON.stringify(PROTOTYPE_DEMO_CONSOLE_CONFIG),
-  );
-  window.dispatchEvent(new CustomEvent(DAY_ONE_CONSOLE_CONFIG_CHANGE));
-}
-
 export function readDayOneConsoleConfig(): DayOneConsoleConfig | undefined {
   try {
     const raw = sessionStorage.getItem(DAY_ONE_CONSOLE_CONFIG_KEY);

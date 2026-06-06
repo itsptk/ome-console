@@ -8,7 +8,6 @@ import {
 import {
   DAY_ONE_CONSOLE_CONFIG_CHANGE,
   deriveReadOnlyMode,
-  ensurePrototypeDemoConfig,
   externalRegistryDisplayName,
   readDayOneConsoleConfig,
   type DayOneConsoleConfig,
@@ -21,7 +20,6 @@ export type ConsoleCapabilities = {
 };
 
 function computeCapabilities(): ConsoleCapabilities {
-  ensurePrototypeDemoConfig();
   const config = readDayOneConsoleConfig();
   const isReadOnlyMode = deriveReadOnlyMode(config);
   const externalProviderLabel = externalRegistryDisplayName(
