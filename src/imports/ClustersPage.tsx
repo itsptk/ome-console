@@ -9,6 +9,12 @@ import {
   RUN_AS_PLATFORM_VALUE,
   RUN_AS_YOU_VALUE,
 } from './CreateClusterWizard';
+import {
+  CLUSTER_STATUS_ACTION_REQUIRED,
+  CLUSTER_STATUS_FINISHING,
+  CLUSTER_STATUS_PROVISIONING,
+  buildClusterProvisionAuthContext,
+} from '../app/components/security/r2SecurityUxCopy';
 import { PlatformSigningFlow } from '../app/components/deployments/PlatformSigningFlow';
 import { SmartphoneAuth } from '../app/components/deployments/SmartphoneAuth';
 import { YamlConfirmationModal } from '../app/components/deployments/YamlConfirmationModal';
@@ -55,8 +61,11 @@ export function ClustersPage() {
         return '#F0AB00';
       case 'Critical':
         return '#C9190B';
-      case 'Provisioning':
+      case CLUSTER_STATUS_PROVISIONING:
+      case CLUSTER_STATUS_FINISHING:
         return '#0066CC';
+      case CLUSTER_STATUS_ACTION_REQUIRED:
+        return '#F0AB00';
       default:
         return 'var(--muted-foreground)';
     }
@@ -130,7 +139,7 @@ export function ClustersPage() {
       id: String(clusters.length + 1),
       name: formData.clusterName,
       type: 'Virtualization',
-      status: 'Provisioning',
+      status: CLUSTER_STATUS_PROVISIONING,
       version: 'Pending',
       nodes: 0,
       cpu: 0,
@@ -169,33 +178,50 @@ export function ClustersPage() {
     const needsPhoneAuthorization = top.runAs === RUN_AS_YOU_VALUE;
 
     if (fastForwardStage === 0) {
-      if (top.status !== 'Provisioning') return;
+      if (top.status !== CLUSTER_STATUS_PROVISIONING) return;
 
-      // Run as you: time advances until the cluster waits for out-of-band approval (phone).
+      // Complete the in-flight install step before asking for user approval (R2).
+      setClusters((prevClusters) => {
+        const updated = [...prevClusters];
+        if (updated[0]?.status === CLUSTER_STATUS_PROVISIONING) {
+          updated[0] = {
+            ...updated[0],
+            status: CLUSTER_STATUS_FINISHING,
+            version: 'Installing OpenShift 4.16.0',
+            nodes: 3,
+          };
+        }
+        return updated;
+      });
+      setFastForwardStage(1);
+      return;
+    }
+
+    if (fastForwardStage === 1) {
+      if (top.status !== CLUSTER_STATUS_FINISHING) return;
+
       if (needsPhoneAuthorization) {
         setClusters((prevClusters) => {
           const updated = [...prevClusters];
-          if (updated[0] && updated[0].status === 'Provisioning') {
+          if (updated[0]?.status === CLUSTER_STATUS_FINISHING) {
             updated[0] = {
               ...updated[0],
-              status: 'Paused - pending authorization',
+              status: CLUSTER_STATUS_ACTION_REQUIRED,
             };
           }
           return updated;
         });
-        setFastForwardStage(1);
+        setFastForwardStage(2);
         return;
       }
 
-      // Run as platform (or service account): user already satisfied auth; skip phone pause.
       setClusters((prevClusters) => {
         const updated = [...prevClusters];
-        if (updated[0] && updated[0].status === 'Provisioning') {
+        if (updated[0]?.status === CLUSTER_STATUS_FINISHING) {
           updated[0] = {
             ...updated[0],
             status: 'Healthy',
             version: 'OpenShift 4.16.0',
-            nodes: 3,
             cpu: 48,
             memory: '384 GB',
             location: 'US East',
@@ -207,27 +233,7 @@ export function ClustersPage() {
       });
       setFastForwardStage(3);
       setRequiresManualConfirmation(false);
-    } else if (fastForwardStage === 2) {
-      // After phone approval: provisioning completes.
-      setClusters((prevClusters) => {
-        const updated = [...prevClusters];
-        if (updated[0] && updated[0].status === 'Provisioning') {
-          updated[0] = {
-            ...updated[0],
-            status: 'Healthy',
-            version: 'OpenShift 4.16.0',
-            nodes: 3,
-            cpu: 48,
-            memory: '384 GB',
-            location: 'US East',
-            region: 'us-east-1',
-            ipAddress: '10.128.5.20',
-          };
-        }
-        return updated;
-      });
-      setFastForwardStage(3);
-      setRequiresManualConfirmation(false);
+      return;
     }
   };
 
@@ -238,24 +244,45 @@ export function ClustersPage() {
   const handleAuthorize = () => {
     setHasAuthorized(true);
     setShowSmartphoneAuth(false);
-    // Change back to "Provisioning" status
-    setClusters(prevClusters => {
+    setClusters((prevClusters) => {
       const updated = [...prevClusters];
-      if (updated[0] && updated[0].status === 'Paused - pending authorization') {
-        updated[0] = { ...updated[0], status: 'Provisioning' };
+      if (updated[0]?.status === CLUSTER_STATUS_ACTION_REQUIRED) {
+        updated[0] = {
+          ...updated[0],
+          status: 'Healthy',
+          version: 'OpenShift 4.16.0',
+          nodes: 3,
+          cpu: 48,
+          memory: '384 GB',
+          location: 'US East',
+          region: 'us-east-1',
+          ipAddress: '10.128.5.20',
+        };
       }
       return updated;
     });
-    setFastForwardStage(2);
+    setFastForwardStage(3);
+    setRequiresManualConfirmation(false);
   };
 
   // Check if we should show fast forward button
-  const hasProvisioningCluster = clusters.some(c => c.status === 'Provisioning' || c.status === 'Paused - pending authorization');
-  const showFastForwardButton = hasProvisioningCluster && fastForwardStage !== 3;
+  const hasProvisioningCluster = clusters.some(
+    (c) =>
+      c.status === CLUSTER_STATUS_PROVISIONING ||
+      c.status === CLUSTER_STATUS_FINISHING ||
+      c.status === CLUSTER_STATUS_ACTION_REQUIRED,
+  );
+  const showFastForwardButton =
+    hasProvisioningCluster &&
+    fastForwardStage !== 3 &&
+    clusters[0]?.status !== CLUSTER_STATUS_ACTION_REQUIRED;
   const showCheckPhoneButton =
-    fastForwardStage === 1 &&
-    clusters[0]?.status === 'Paused - pending authorization' &&
+    fastForwardStage === 2 &&
+    clusters[0]?.status === CLUSTER_STATUS_ACTION_REQUIRED &&
     clusters[0]?.runAs === RUN_AS_YOU_VALUE;
+  const phoneAuthContext = clusters[0]?.name
+    ? buildClusterProvisionAuthContext(clusters[0].name)
+    : undefined;
 
   return (
     <div className="p-8">
@@ -916,6 +943,7 @@ export function ClustersPage() {
       {showSmartphoneAuth && (
         <SmartphoneAuth
           onAuthorize={handleAuthorize}
+          context={phoneAuthContext}
         />
       )}
 

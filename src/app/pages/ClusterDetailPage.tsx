@@ -43,7 +43,7 @@ function logInitiatorAndActor(
     return { initiator: human, actor: human };
   }
   if (runAs === RUN_AS_PLATFORM_VALUE) {
-    return { initiator: human, actor: 'Platform Service' };
+    return { initiator: human, actor: 'Platform managed identity' };
   }
   if (runAs.startsWith('Service account:')) {
     return {

@@ -9,12 +9,20 @@ import {
   ModalOverlay,
   ModalContent,
 } from "./UIComponents";
+import {
+  RUN_AS_PLATFORM_VALUE,
+  RUN_AS_YOU_VALUE,
+  RUN_AS_LABELS,
+  runAsHelpIntro,
+  runAsHelpPersonal,
+  runAsHelpPlatform,
+} from "../app/components/security/r2SecurityUxCopy";
 
-/** Stored `runAs` value when the user selects Platform in Identity & Approval. */
-export const RUN_AS_PLATFORM_VALUE = "Platform Service";
-
-/** Stored `runAs` value for the logged-in user (“You”) in Identity & Approval. */
-export const RUN_AS_YOU_VALUE = "Personal (Adi Cluster Admin)";
+export {
+  RUN_AS_PLATFORM_VALUE,
+  RUN_AS_YOU_VALUE,
+  RUN_AS_LABELS,
+} from "../app/components/security/r2SecurityUxCopy";
 
 /** Session key shared with Settings default execution identity. */
 export const DEFAULT_RUN_AS_STORAGE_KEY = "ome-prototype-default-run-as";
@@ -683,6 +691,7 @@ function ExecutionPolicyStep({
                     "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
                 }}
               >
+                <SmallText className="mb-3 block max-w-md">{runAsHelpIntro}</SmallText>
                 {/* Table */}
                 <table className="w-full border-collapse">
                   <thead>
@@ -747,7 +756,7 @@ function ExecutionPolicyStep({
                           color: "var(--foreground)",
                         }}
                       >
-                        You
+                        You (your account)
                       </td>
                       <td
                         className="p-2"
@@ -831,7 +840,7 @@ function ExecutionPolicyStep({
                           color: "var(--foreground)",
                         }}
                       >
-                        Platform
+                        Platform managed identity
                       </td>
                       <td
                         className="p-2"
@@ -841,7 +850,7 @@ function ExecutionPolicyStep({
                           color: "var(--foreground)",
                         }}
                       >
-                        You
+                        You (initiator) → platform
                       </td>
                       <td
                         className="p-2"
@@ -851,7 +860,7 @@ function ExecutionPolicyStep({
                           color: "var(--foreground)",
                         }}
                       >
-                        Platform
+                        Platform managed identity
                       </td>
                       <td
                         className="p-2"
@@ -870,10 +879,7 @@ function ExecutionPolicyStep({
                   className="mt-3 block max-w-md"
                   style={{ color: "var(--muted-foreground)" }}
                 >
-                  Platform uses client-side signing (WebAuthn). Register your
-                  passkey in Settings when you set up external signing; deployment
-                  only asks you to verify (for example with a fingerprint). Not
-                  available on every environment (for example, not ROSA).
+                  {runAsHelpPlatform}
                 </SmallText>
               </div>
             )}
@@ -894,16 +900,14 @@ function ExecutionPolicyStep({
             color: "var(--foreground)",
           }}
         >
-          <option value={RUN_AS_YOU_VALUE}>
-            You: Adi Cluster Admin
-          </option>
+          <option value={RUN_AS_YOU_VALUE}>{RUN_AS_LABELS.you}</option>
           <option value="Service account: ome-system-manager-sa">
             Service account: ome-system-manager-sa
           </option>
           <option value="Service account: bulk-upgrade-worker-v4">
             Service account: bulk-upgrade-worker-v4
           </option>
-          <option value={RUN_AS_PLATFORM_VALUE}>Platform</option>
+          <option value={RUN_AS_PLATFORM_VALUE}>{RUN_AS_LABELS.platform}</option>
         </select>
         {formData.runAs === RUN_AS_YOU_VALUE && (
           <div
@@ -936,9 +940,7 @@ function ExecutionPolicyStep({
               />
             </svg>
             <SmallText style={{ color: "#151515" }}>
-              Your interactive session is short-lived (about 10 minutes).
-              Long-running work may pause and ask you to sign in again—for
-              example with a phone notification (CIBA)—before it can continue.
+              {runAsHelpPersonal}
             </SmallText>
           </div>
         )}

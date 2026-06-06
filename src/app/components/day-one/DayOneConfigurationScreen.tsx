@@ -28,6 +28,11 @@ import type {
   ExternalRegistryProvider,
   SigningKeyRegistry,
 } from "../../pages/day-one/dayOneConsoleConfig";
+import {
+  deferIdpDescription,
+  deferIdpLabel,
+  signingRegistrySectionHelp,
+} from "../security/r2SecurityUxCopy";
 
 interface DayOneConfigurationScreenProps {
   onComplete: (config: DayOneConsoleConfig) => void;
@@ -36,8 +41,9 @@ interface DayOneConfigurationScreenProps {
 export function DayOneConfigurationScreen({
   onComplete,
 }: DayOneConfigurationScreenProps) {
-  const [backingStore, setBackingStore] = useState("mysql");
+  const [backingStore, setBackingStore] = useState("sqlite");
   const [authProvider, setAuthProvider] = useState("htpasswd");
+  const [configureIdpLater, setConfigureIdpLater] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [issuerUrl, setIssuerUrl] = useState("");
   const [clientId, setClientId] = useState("");
@@ -61,10 +67,20 @@ export function DayOneConfigurationScreen({
       const t = prev.trim();
       if (t !== "") return prev;
       if (externalRegistryProvider === "github") return "https://github.com";
-      if (externalRegistryProvider === "gitlab") return "https://gitlab.com";
+      if (externalRegistryProvider === "gitlab")
+        return "https://gitlab.com";
       return prev;
     });
   }, [signingKeyRegistry, externalRegistryProvider]);
+
+  const signingRegistryHelp = (
+    <Popover
+      headerContent={<div>Signing public key registry</div>}
+      bodyContent={<div>{signingRegistrySectionHelp}</div>}
+    >
+      <FormGroupLabelHelp aria-label="More information for signing key registry" />
+    </Popover>
+  );
 
   const handleComplete = () => {
     onComplete({
@@ -163,18 +179,20 @@ export function DayOneConfigurationScreen({
             <Form>
               <FormGroup role="radiogroup" fieldId="backing-store" isStack>
                 <Radio
-                  id="backing-mysql"
+                  id="backing-sqlite"
                   name="backingStore"
-                  label="MySQL"
-                  isChecked={backingStore === "mysql"}
-                  onChange={() => setBackingStore("mysql")}
+                  label="SQLite"
+                  description="Embedded store for evaluation and laptop bootstrap."
+                  isChecked={backingStore === "sqlite"}
+                  onChange={() => setBackingStore("sqlite")}
                 />
                 <Radio
-                  id="backing-enterprisedb"
+                  id="backing-postgresql"
                   name="backingStore"
-                  label="Enterprise DB"
-                  isChecked={backingStore === "enterprisedb"}
-                  onChange={() => setBackingStore("enterprisedb")}
+                  label="PostgreSQL"
+                  description="Production-grade external database."
+                  isChecked={backingStore === "postgresql"}
+                  onChange={() => setBackingStore("postgresql")}
                 />
               </FormGroup>
             </Form>
@@ -197,6 +215,28 @@ export function DayOneConfigurationScreen({
                 for user sign-in (manual OIDC settings or automated setup).
               </p>
             </Content>
+            <Form className="mb-4" maxWidth="40rem">
+              <FormGroup fieldId="defer-idp">
+                <Radio
+                  id="defer-idp-false"
+                  name="configureIdpLater"
+                  label="Configure OIDC now"
+                  isChecked={!configureIdpLater}
+                  onChange={() => setConfigureIdpLater(false)}
+                />
+                <Radio
+                  id="defer-idp-true"
+                  name="configureIdpLater"
+                  label={deferIdpLabel}
+                  description={deferIdpDescription}
+                  isChecked={configureIdpLater}
+                  onChange={() => setConfigureIdpLater(true)}
+                />
+              </FormGroup>
+            </Form>
+
+            {!configureIdpLater && (
+              <>
             <ToggleGroup
               aria-label="Configuration type"
               className="mb-4"
@@ -278,23 +318,41 @@ export function DayOneConfigurationScreen({
                 Automated configuration options would appear here.
               </Alert>
             )}
+              </>
+            )}
+            {configureIdpLater && (
+              <Alert
+                variant="info"
+                isInline
+                title="Identity provider deferred"
+                className="mt-4"
+              >
+                You can connect Okta, Azure AD, Keycloak, or another OIDC
+                provider later from Administration. Bundled credentials apply
+                until then.
+              </Alert>
+            )}
           </section>
 
           <Divider className="my-10" />
 
           <section aria-labelledby="day-one-heading-signing-registry">
-            <Title
-              id="day-one-heading-signing-registry"
-              headingLevel="h2"
-              size="xl"
-              className="mb-2"
-            >
-              Signing public key registry
-            </Title>
+            <div className="mb-4 flex items-start gap-2">
+              <Title
+                id="day-one-heading-signing-registry"
+                headingLevel="h2"
+                size="xl"
+                className="mb-0"
+              >
+                Signing public key registry
+              </Title>
+              {signingRegistryHelp}
+            </div>
             <Content className="mb-4">
               <p className="text-sm text-muted-foreground">
                 Choose where verification public keys are stored for signed
-                artifacts and policies.
+                artifacts and policies. This is separate from console sign-in
+                (OIDC) above.
               </p>
             </Content>
             <Form>
@@ -307,7 +365,7 @@ export function DayOneConfigurationScreen({
                   id="signing-platform"
                   name="signingKeyRegistry"
                   label="IdP / OIDC-hosted keys"
-                  description="Signing public keys are discovered through your OIDC identity provider—for example attributes or claims on IdP-issued tokens—not through a separate Git forge. Uses your existing IdP trust; distinct from console OAuth client configuration alone."
+                  description="Keys discovered via OIDC token claims or IdP JWKS — not the same as registering an external Git signing key."
                   isChecked={signingKeyRegistry === "platform"}
                   onChange={() => setSigningKeyRegistry("platform")}
                 />
@@ -315,7 +373,7 @@ export function DayOneConfigurationScreen({
                   id="signing-external"
                   name="signingKeyRegistry"
                   label="External registry"
-                  description="Keys are published in an external system (for example GitHub, GitLab, or a custom URL). Different trust path than IdP-hosted discovery above—coordinate with your IdP or security team for key discovery and registry-specific setup."
+                  description="Keys published in GitHub, GitLab (cloud or self-hosted), or another registry URL."
                   isChecked={signingKeyRegistry === "external"}
                   onChange={() => setSigningKeyRegistry("external")}
                 />
@@ -388,7 +446,7 @@ export function DayOneConfigurationScreen({
                       externalRegistryProvider === "github"
                         ? "https://github.com"
                         : externalRegistryProvider === "gitlab"
-                          ? "https://gitlab.com"
+                          ? "https://gitlab.com or https://gitlab.yourcompany.com"
                           : "https://registry.example.com"
                     }
                   />
