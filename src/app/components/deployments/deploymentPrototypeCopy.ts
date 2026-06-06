@@ -81,17 +81,17 @@ export const deploymentCopy = {
     step1PathSwitchLabel: "Source",
   },
 
-  /** Fleet rollout terminology (R3 research — rollout as first-class object) */
-  fleetRollout: {
-    pageTitle: "Fleet rollout",
-    navLabel: "Fleet rollout",
+  /** Fleet plan terminology (Apr 24 prototype — “plan” as first-class object) */
+  fleetPlan: {
+    pageTitle: "Fleet plans",
+    navLabel: "Fleet plans",
   },
 
-  /** Clusters list — bulk selection → fleet rollout wizard */
+  /** Clusters list — bulk selection → fleet plan wizard */
   clustersListPage: {
-    createClusterUpgradePlan: "Create cluster upgrade rollout",
+    createClusterUpgradePlan: "Create cluster upgrade plan",
     createClusterUpgradePlanTitle:
-      "Create a fleet rollout to upgrade the selected OpenShift clusters",
+      "Create a fleet plan to upgrade the selected OpenShift clusters",
   },
 
   /**
@@ -100,7 +100,7 @@ export const deploymentCopy = {
    */
   prototypeGuiding: {
     reviewEntryOrder:
-      "You can start with an action or with cluster placement; only the order of the steps changes. Both paths end in the same kind of fleet rollout.",
+      "You can start with an action or with cluster placement; only the order of the steps changes. Both paths end in the same kind of fleet plan.",
     /** Left column = diff / change preview (not the same as “readiness” on the right) */
     preflightChangePreview:
       "A diff-style preview of the changes this plan would apply: versions, channels, and related resources. Different from the readiness check beside it.",
@@ -114,8 +114,8 @@ export const deploymentCopy = {
 
   wizard: {
     /** Primary entry (split button, empty state, wizard chrome) */
-    createButton: "Create fleet rollout",
-    title: "Create fleet rollout",
+    createButton: "Create fleet plan",
+    title: "Create fleet plan",
     subtitle: "",
     startDifferently: "Start differently",
     next: "Next",
@@ -256,14 +256,14 @@ export const deploymentCopy = {
   },
 
   emptyState: {
-    title: "Start by creating a fleet rollout",
+    title: "Start by creating a fleet plan",
     description:
-      "Monitor and manage fleet-wide rollouts — upgrades, staged changes, and related fleet operations.",
+      "Monitor and manage fleet-wide plans — upgrades, rollouts, and related change.",
   },
 
   /** Review step: labels and `GuidingTooltip` where needed */
   planReview: {
-    planCardTitle: "Fleet rollout",
+    planCardTitle: "Fleet plan",
     planIdDemo: (suffix: string) => `fp-demo-${suffix}`,
     quickShare: "Share",
     quickRequestReview: "Request review",

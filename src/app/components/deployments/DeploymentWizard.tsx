@@ -64,6 +64,14 @@ import {
   mergeAIPrebuiltPlanRolloutSlice,
 } from "./rolloutStrategyPresets";
 import {
+  RUN_AS_PLATFORM_VALUE,
+  RUN_AS_YOU_VALUE,
+  RUN_AS_LABELS,
+  runAsHelpIntro,
+  runAsHelpPersonal,
+  runAsHelpPlatform,
+} from "../security/r2SecurityUxCopy";
+import {
   FLEET_MOCK_CLUSTERS,
   getClustersMatchingPlacementInput,
   matchClustersByLabelFragment,
@@ -5149,26 +5157,24 @@ function Step4Content({
                     marginBottom: "8px",
                   }}
                 >
-                  Choose whether to execute this upgrade using your personal
-                  permissions or a managed platform identity.
+                  {runAsHelpIntro}
                 </SmallText>
                 <div className="space-y-3 mt-3">
                   <div>
                     <TinyText
                       style={{ fontWeight: "var(--font-weight-medium)" }}
                     >
-                      Personal:
+                      {RUN_AS_LABELS.you}:
                     </TinyText>
                     <TinyText muted className="mt-1">
-                      Uses your current login. The task may pause if your
-                      session expires or you disconnect.
+                      {runAsHelpPersonal}
                     </TinyText>
                   </div>
                   <div>
                     <TinyText
                       style={{ fontWeight: "var(--font-weight-medium)" }}
                     >
-                      Service Account:
+                      Service account:
                     </TinyText>
                     <TinyText muted className="mt-1">
                       Select a secure, persistent service account. The task
@@ -5179,11 +5185,10 @@ function Step4Content({
                     <TinyText
                       style={{ fontWeight: "var(--font-weight-medium)" }}
                     >
-                      Platform:
+                      {RUN_AS_LABELS.platform}:
                     </TinyText>
                     <TinyText muted className="mt-1">
-                      Uses a secure, persistent platform service account. The
-                      task will continue even if you sign out.
+                      {runAsHelpPlatform}
                     </TinyText>
                   </div>
                 </div>
@@ -5206,16 +5211,14 @@ function Step4Content({
             color: "var(--foreground)",
           }}
         >
-          <option value="Personal (Adi Cluster Admin)">
-            Personal (Adi Cluster Admin)
-          </option>
+          <option value={RUN_AS_YOU_VALUE}>{RUN_AS_LABELS.you}</option>
           <option value="Service account: ome-system-manager-sa">
             Service account: ome-system-manager-sa
           </option>
           <option value="Service account: bulk-upgrade-worker-v4">
             Service account: bulk-upgrade-worker-v4
           </option>
-          <option value="Platform Service">Platform Service</option>
+          <option value={RUN_AS_PLATFORM_VALUE}>{RUN_AS_LABELS.platform}</option>
         </select>
       </div>
 
@@ -5503,7 +5506,7 @@ function Step5Content({
                 <LabelText className="!mb-0">{pr.planCardTitle}</LabelText>
                 <GuidingTooltip
                   text={planHeaderGuiding}
-                  topic="Fleet rollout"
+                  topic="Fleet plan"
                 />
               </div>
               <CardTitle

@@ -26,8 +26,7 @@ import {
   type OpenDeploymentWizardOptions,
 } from "./CreateDeploymentSplitButton";
 import { deploymentCopy } from "./deploymentPrototypeCopy";
-import { R3_ROLLOUT } from "./fleetRolloutResearchDemo";
-import { PROTOTYPE_PINK } from "./prototypeChrome";
+import { buildDeploymentAuthContext } from "../security/r2SecurityUxCopy";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
 /** Stops tab / button activation so the help icon only opens the tooltip. */
@@ -771,7 +770,7 @@ export function ActivityStreamScreen({
           <div className="min-w-0 w-full min-[400px]:w-auto self-start min-[400px]:self-auto text-left">
             <div className="flex min-w-0 items-baseline gap-2">
               <PageTitle className="!mb-0">
-                {deploymentCopy.fleetRollout.pageTitle}
+                {deploymentCopy.fleetPlan.pageTitle}
               </PageTitle>
             </div>
           </div>
@@ -806,99 +805,6 @@ export function ActivityStreamScreen({
           </TabsList>
         </Tabs>
       </header>
-
-      {/* R3 research — fleet rollout mockups (UXDR-5929) */}
-      <Card
-        className="p-4"
-        style={{ borderColor: PROTOTYPE_PINK, borderWidth: 1 }}
-      >
-        <SectionTitle className="mb-1 !text-lg">
-          R3 research — fleet rollout scenarios
-        </SectionTitle>
-        <SmallText muted className="mb-4 block max-w-3xl">
-          Round 3 mockups for cluster upgrade rollouts (GitOps-triggered).
-          Conceptual only — not for implementation.
-        </SmallText>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead>
-              <tr className="border-b">
-                {[
-                  "Scenario",
-                  "Type",
-                  "Status",
-                  "Progress",
-                  "Initiated by",
-                ].map((h) => (
-                  <th key={h} className="px-3 py-2 font-medium">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {R3_ROLLOUT.listRows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="cursor-pointer border-b last:border-b-0 hover:bg-[var(--secondary)]"
-                  onClick={() => {
-                    if (row.researchView === "in-progress") {
-                      navigate("/deployments/r3/in-progress");
-                    } else if (row.researchView === "completed") {
-                      navigate("/deployments/r3/completed");
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key !== "Enter" && e.key !== " ") return;
-                    e.preventDefault();
-                    if (row.researchView === "in-progress") {
-                      navigate("/deployments/r3/in-progress");
-                    } else if (row.researchView === "completed") {
-                      navigate("/deployments/r3/completed");
-                    }
-                  }}
-                  tabIndex={row.researchView === "detected" ? -1 : 0}
-                  role={
-                    row.researchView === "detected" ? undefined : "button"
-                  }
-                  aria-disabled={row.researchView === "detected"}
-                  style={
-                    row.researchView === "detected"
-                      ? { opacity: 0.65, cursor: "default" }
-                      : undefined
-                  }
-                >
-                  <td className="px-3 py-3 font-medium">{row.name}</td>
-                  <td className="px-3 py-3">{row.type}</td>
-                  <td className="px-3 py-3">{row.status}</td>
-                  <td className="px-3 py-3">{row.progress}</td>
-                  <td className="px-3 py-3">{row.initiatedBy}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <SecondaryButton
-            type="button"
-            onClick={() => navigate("/deployments/r3/in-progress")}
-          >
-            Screen 1 — In progress
-          </SecondaryButton>
-          <SecondaryButton
-            type="button"
-            onClick={() => navigate("/deployments/r3/failures")}
-          >
-            Screen 2 — Failures
-          </SecondaryButton>
-          <SecondaryButton
-            type="button"
-            onClick={() => navigate("/deployments/r3/completed")}
-          >
-            Screen 3 — Morning after
-          </SecondaryButton>
-        </div>
-      </Card>
 
       {/* Search and Filter Bar */}
       <div
@@ -2760,7 +2666,10 @@ export function ActivityStreamScreen({
 
       {/* Smartphone Authorization Modal */}
       {showSmartphoneAuth && (
-        <SmartphoneAuth onAuthorize={handleAuthorize} />
+        <SmartphoneAuth
+          onAuthorize={handleAuthorize}
+          context={buildDeploymentAuthContext("OpenShift cluster update")}
+        />
       )}
 
       {/* Yaml Confirmation Modal */}

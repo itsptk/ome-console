@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Outlet, Link, useLocation, useSearchParams } from 'react-router';
+import { useState } from 'react';
+import { Outlet, Link, useLocation } from 'react-router';
 import svgPaths from "../../imports/svg-uh8wdes5mv";
 import imgImageRedHat from "@/assets/704f152a63b0b4badd89509f0db23ae863ffdf9b.png";
 import { AlertsPanel } from "../components/AlertsPanel";
@@ -21,12 +21,6 @@ const users: User[] = [
   { id: 'adi', name: 'Adi Cluster Admin', role: 'Cluster Admin', initials: 'AC' },
   { id: 'sara', name: 'Sara SecOps', role: 'Security Operations', initials: 'SS' }
 ];
-
-function userFromPersonaSearchParam(value: string | null): User | undefined {
-  const id = value?.trim().toLowerCase();
-  if (!id) return undefined;
-  return users.find((u) => u.id === id);
-}
 
 // Header Components
 function HamburgerIcon() {
@@ -311,7 +305,7 @@ function Navigation({ currentUser }: { currentUser: User }) {
       ),
     },
     {
-      label: deploymentCopy.fleetRollout.navLabel,
+      label: deploymentCopy.fleetPlan.navLabel,
       path: '/deployments',
       icon: (
         <svg fill="none" viewBox="0 0 20 20" className="size-full">
@@ -504,21 +498,11 @@ function Navigation({ currentUser }: { currentUser: User }) {
 
 export function RootLayout() {
   const location = useLocation();
-  const [searchParams] = useSearchParams();
-  /** Day-one flows use a simplified shell (no global nav); hub entry uses /overview, not TitlePage. */
-  const isTitlePage = location.pathname.startsWith('/day-one');
+  const isTitlePage =
+    location.pathname === '/' || location.pathname.startsWith('/day-one');
 
   const [isAlertsPanelOpen, setIsAlertsPanelOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User>(() => {
-    return userFromPersonaSearchParam(searchParams.get("persona")) ?? users[0];
-  });
-
-  useEffect(() => {
-    const next = userFromPersonaSearchParam(searchParams.get("persona"));
-    if (next) {
-      setCurrentUser(next);
-    }
-  }, [searchParams]);
+  const [currentUser, setCurrentUser] = useState(users[0]);
 
   if (isTitlePage) {
     return (

@@ -126,7 +126,7 @@ export function DeploymentsPage() {
       {!hasDeployments && (
         <div className="mb-8">
           <PageTitle className="!mb-0">
-            {deploymentCopy.fleetRollout.pageTitle}
+            {deploymentCopy.fleetPlan.pageTitle}
           </PageTitle>
         </div>
       )}
