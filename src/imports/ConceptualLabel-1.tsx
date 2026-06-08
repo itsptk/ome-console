@@ -1,6 +1,5 @@
 import { Home } from 'lucide-react';
 import { Link } from 'react-router';
-import { CONCEPTUAL_DESIGN_PINK } from '../app/conceptualDesignPink';
 
 export function ConceptualLabel() {
   return (
@@ -10,9 +9,9 @@ export function ConceptualLabel() {
         to="/"
         className="px-3 py-2 bg-background/80 backdrop-blur-sm border hover:opacity-80 transition-opacity flex items-center justify-center"
         style={{
-          borderColor: CONCEPTUAL_DESIGN_PINK,
+          borderColor: '#FF13F0',
           borderRadius: 'var(--radius)',
-          color: CONCEPTUAL_DESIGN_PINK,
+          color: '#FF13F0',
         }}
         aria-label="Return to prototype title page"
       >
@@ -23,12 +22,12 @@ export function ConceptualLabel() {
       <div 
         className="px-3 py-2 bg-background/80 backdrop-blur-sm border"
         style={{ 
-          borderColor: CONCEPTUAL_DESIGN_PINK,
+          borderColor: '#FF13F0',
           borderRadius: 'var(--radius)',
           fontFamily: 'var(--font-family-mono)',
           fontSize: 'var(--text-sm)',
           fontWeight: 700,
-          color: CONCEPTUAL_DESIGN_PINK
+          color: '#FF13F0'
         }}
       >
         Conceptual design - Not for Implementation

@@ -1,9 +1,10 @@
 import { Link } from 'react-router';
 import { SmallText } from '../../imports/UIComponents';
 import imgImageRedHat from '@/assets/704f152a63b0b4badd89509f0db23ae863ffdf9b.png';
-import { CONCEPTUAL_DESIGN_PINK } from '../conceptualDesignPink';
 
 const JIRA_URL = 'https://redhat.atlassian.net/browse/HPUX-1363';
+/** Matches the floating home button / conceptual label accent */
+const PROTOTYPE_PINK = '#FF13F0';
 
 /** Set to the calendar day this file (or the prototype) was last meaningfully updated (YYYY-MM-DD). */
 const LAST_UPDATED_ISO = '2026-04-23';
@@ -80,7 +81,7 @@ export function TitlePage() {
               fontFamily: 'var(--font-family-text)',
               fontSize: 'var(--text-sm)',
               lineHeight: 1.5,
-              color: CONCEPTUAL_DESIGN_PINK,
+              color: PROTOTYPE_PINK,
             }}
           >
             These designs are exploratory concepts only and are not intended for
