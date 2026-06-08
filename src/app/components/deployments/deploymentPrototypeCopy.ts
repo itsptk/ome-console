@@ -81,17 +81,17 @@ export const deploymentCopy = {
     step1PathSwitchLabel: "Source",
   },
 
-  /** Fleet plan terminology (Apr 24 prototype — “plan” as first-class object) */
-  fleetPlan: {
-    pageTitle: "Fleet plans",
-    navLabel: "Fleet plans",
+  /** Fleet rollout terminology — rollout as first-class object */
+  fleetRollout: {
+    pageTitle: "Fleet rollout",
+    navLabel: "Fleet rollout",
   },
 
-  /** Clusters list — bulk selection → fleet plan wizard */
+  /** Clusters list — bulk selection → fleet rollout wizard */
   clustersListPage: {
-    createClusterUpgradePlan: "Create cluster upgrade plan",
+    createClusterUpgradePlan: "Create cluster upgrade rollout",
     createClusterUpgradePlanTitle:
-      "Create a fleet plan to upgrade the selected OpenShift clusters",
+      "Create a fleet rollout to upgrade the selected OpenShift clusters",
   },
 
   /**
@@ -100,7 +100,7 @@ export const deploymentCopy = {
    */
   prototypeGuiding: {
     reviewEntryOrder:
-      "You can start with an action or with cluster placement; only the order of the steps changes. Both paths end in the same kind of fleet plan.",
+      "You can start with an action or with cluster placement; only the order of the steps changes. Both paths end in the same kind of fleet rollout.",
     /** Left column = diff / change preview (not the same as “readiness” on the right) */
     preflightChangePreview:
       "A diff-style preview of the changes this plan would apply: versions, channels, and related resources. Different from the readiness check beside it.",
@@ -114,14 +114,14 @@ export const deploymentCopy = {
 
   wizard: {
     /** Primary entry (split button, empty state, wizard chrome) */
-    createButton: "Create fleet plan",
-    title: "Create fleet plan",
+    createButton: "Create fleet rollout",
+    title: "Create fleet rollout",
     subtitle: "",
     startDifferently: "Start differently",
     next: "Next",
     back: "Back",
     cancel: "Cancel",
-    createDeploymentSubmit: "Save plan",
+    createDeploymentSubmit: "Save rollout",
     narrowSectionEntry: "Wizard entry",
     narrowSectionArea: "Area",
     narrowToggleActionFirst: "Action first",
@@ -138,16 +138,16 @@ export const deploymentCopy = {
     placement: "Placement",
     rollout: "Rollout",
     executionPolicy: "Execution policy",
-    reviewCreate: "Review plan",
+    reviewCreate: "Review rollout",
     hints: {
       action:
         "Choose an action: Update, Install, Apply, Delete, or Create",
-      placement: "Select clusters to include in this plan",
-      rollout: "Choose how the plan is sequenced across the fleet",
+      placement: "Select clusters to include in this rollout",
+      rollout: "Choose how the rollout is sequenced across the fleet",
       execution:
         "Choose execution permissions and confirmation settings",
       review:
-        "Pre-flight checks: change preview, readiness, and plan summary before you save",
+        "Pre-flight checks: change preview, readiness, and rollout summary before you save",
       placementFirstStep1:
         "Define scope first — suggested actions in the next step reflect inventory and risk signals for this placement",
     },
@@ -256,23 +256,24 @@ export const deploymentCopy = {
   },
 
   emptyState: {
-    title: "Start by creating a fleet plan",
+    title: "Start by creating a fleet rollout",
     description:
-      "Monitor and manage fleet-wide plans — upgrades, rollouts, and related change.",
+      "Monitor and manage fleet-wide rollouts — upgrades, staged changes, and related fleet operations.",
+    fastForwardToList: "Fast-forward to fleet rollout list",
   },
 
   /** Review step: labels and `GuidingTooltip` where needed */
   planReview: {
-    planCardTitle: "Fleet plan",
+    planCardTitle: "Fleet rollout",
     planIdDemo: (suffix: string) => `fp-demo-${suffix}`,
     quickShare: "Share",
     quickRequestReview: "Request review",
-    reviewShellTitle: "Plan summary",
+    reviewShellTitle: "Rollout summary",
     /**
      * Mockup / talk-track: one line each — where a live product would back the block.
      * Shown as small muted “Source · …” under the relevant heading.
      */
-    mockupSourcePlan: "Source · OME plan object (this draft, persisted after save)",
+    mockupSourcePlan: "Source · OME rollout object (this draft, persisted after save)",
     preflightSectionLabel: "Pre-flight checks",
     preflightChangeTitle: "What would change",
     /** Diff-style preview of material changes */
@@ -284,20 +285,20 @@ export const deploymentCopy = {
     mockupSourcePastContext:
       "Source · change + incident/ITSM · last upgrade/apply history · window overlap",
     /** Snippets: already labeled in outsideConsoleChannels tooltip; short line for the band */
-    mockupSourceExport: "Source · same plan object, serialized",
+    mockupSourceExport: "Source · same rollout object, serialized",
     confidenceLabel: "Confidence",
     confidenceValue: "Medium — 12/14 clusters green; 2 need credential refresh",
     pastContextTitle: "Recent fleet context",
     /** What the Recent fleet context section represents */
     pastContextIntro:
-      "Pulled in from change, ITSM, and run history for clusters in this plan’s scope.",
+      "Pulled in from change, ITSM, and run history for clusters in this rollout’s scope.",
     pastContextPoints: [
       "Cluster prod-east-2 — 30d: two failed attempts at z-stream 4.17.4 → 4.17.9; the network ClusterOperator never reached Available (change CHG-20418).",
       "Cluster prod-west-1 — last week: same z-stream completed without incident.",
-      "Change windows — no overlap between your planned Saturday 02:00–06:00 window and active blackouts for this plan’s placement.",
+      "Change windows — no overlap between your planned Saturday 02:00–06:00 window and active blackouts for this rollout’s placement.",
     ],
     pastContextTooltipMeta:
-      "How recent attempts, incidents, and maintenance windows line up with this plan’s scope.",
+      "How recent attempts, incidents, and maintenance windows line up with this rollout’s scope.",
     /** `buildPlanChannelSnippets` fills the code blocks; meta → `GuidingTooltip` (outsideConsoleChannels) */
     channelsTitle: "Create or apply outside the console",
     /** In-product: one line only; commentary in pink ? tooltip */
@@ -313,7 +314,7 @@ export const deploymentCopy = {
     /** Placeholder toasts when Share / Request review are clicked (prototype) */
     toastShareTitle: "Share (prototype)",
     toastShareDescription:
-      "A read-only plan link or export would be created for reviewers. Nothing was sent or stored.",
+      "A read-only rollout link or export would be created for reviewers. Nothing was sent or stored.",
     toastReviewTitle: "Request review (prototype)",
     toastReviewDescription:
       "Approvers would get a task, email, or ticket handoff. No approval workflow was started.",

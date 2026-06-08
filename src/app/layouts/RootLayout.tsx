@@ -305,7 +305,7 @@ function Navigation({ currentUser }: { currentUser: User }) {
       ),
     },
     {
-      label: deploymentCopy.fleetPlan.navLabel,
+      label: deploymentCopy.fleetRollout.navLabel,
       path: '/deployments',
       icon: (
         <svg fill="none" viewBox="0 0 20 20" className="size-full">

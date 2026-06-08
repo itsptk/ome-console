@@ -73,7 +73,7 @@ export function EmptyStateScreen({
             style={{ borderColor: PROTOTYPE_PINK }}
           >
             <FastForward className="size-4 shrink-0" aria-hidden />
-            Fast-forward to deployments list
+            {deploymentCopy.emptyState.fastForwardToList}
           </TertiaryButton>
         )}
       </div>

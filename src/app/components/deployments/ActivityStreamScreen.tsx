@@ -769,7 +769,7 @@ export function ActivityStreamScreen({
           <div className="min-w-0 w-full min-[400px]:w-auto self-start min-[400px]:self-auto text-left">
             <div className="flex min-w-0 items-baseline gap-2">
               <PageTitle className="!mb-0">
-                {deploymentCopy.fleetPlan.pageTitle}
+                {deploymentCopy.fleetRollout.pageTitle}
               </PageTitle>
             </div>
           </div>

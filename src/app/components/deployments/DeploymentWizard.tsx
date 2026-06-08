@@ -5423,8 +5423,8 @@ function Step5Content({
   const planHeaderGuiding = [
     pg.reviewEntryOrder,
     wizardEntryMode === "placement-first"
-      ? "Placement-first order: scope → action → rollout → you are here (review plan)."
-      : "Action-first order: action → scope → rollout → you are here (review plan).",
+      ? "Placement-first order: scope → action → rollout → you are here (review rollout)."
+      : "Action-first order: action → scope → rollout → you are here (review rollout).",
   ].join("\n\n");
 
   return (
@@ -5503,7 +5503,7 @@ function Step5Content({
                 <LabelText className="!mb-0">{pr.planCardTitle}</LabelText>
                 <GuidingTooltip
                   text={planHeaderGuiding}
-                  topic="Fleet plan"
+                  topic="Fleet rollout"
                 />
               </div>
               <CardTitle
