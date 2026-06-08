@@ -1,54 +1,81 @@
-import { PrimaryButton, CardTitle, BodyText, SmallText } from '../../../imports/UIComponents';
+import { FastForward } from "lucide-react";
+import { TertiaryButton, CardTitle, BodyText } from "../../../imports/UIComponents";
+import { deploymentCopy } from "./deploymentPrototypeCopy";
+import { PROTOTYPE_PINK } from "./prototypeChrome";
+import {
+  CreateDeploymentSplitButton,
+  type OpenDeploymentWizardOptions,
+} from "./CreateDeploymentSplitButton";
 
 interface EmptyStateScreenProps {
-  onCreateClick: () => void;
+  onCreateDeployment: (opts: OpenDeploymentWizardOptions) => void;
+  /** Skip the create wizard and show the populated deployments view (prototype demo). */
+  onFastForwardToDeployments?: () => void;
 }
 
-export function EmptyStateScreen({ onCreateClick }: EmptyStateScreenProps) {
+export function EmptyStateScreen({
+  onCreateDeployment,
+  onFastForwardToDeployments,
+}: EmptyStateScreenProps) {
   return (
-    <div className="flex items-center justify-center min-h-[500px]">
-      <div className="text-center max-w-md">
-        {/* Icon */}
-        <div className="mb-6 flex justify-center">
-          <div 
+    <div className="flex min-h-[500px] items-center justify-center px-3">
+      <div className="flex w-full max-w-md flex-col items-center text-center">
+        <div className="mb-6">
+          <div
             className="p-6 rounded-full"
-            style={{ backgroundColor: 'var(--secondary)' }}
+            style={{ backgroundColor: "var(--secondary)" }}
           >
-            <svg className="size-16" fill="none" viewBox="0 0 64 64" style={{ color: 'var(--muted-foreground)' }}>
-              <path 
-                d="M32 8L48 24H40V48H24V24H16L32 8Z" 
-                stroke="currentColor" 
-                strokeWidth="3" 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
+            <svg
+              className="size-16"
+              fill="none"
+              viewBox="0 0 64 64"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              <path
+                d="M32 8L48 24H40V48H24V24H16L32 8Z"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 fill="none"
               />
-              <path 
-                d="M12 54H52" 
-                stroke="currentColor" 
-                strokeWidth="3" 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
+              <path
+                d="M12 54H52"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
             </svg>
           </div>
         </div>
 
-        {/* Title */}
-        <CardTitle className="mb-3">
-          Start by creating a deployment
+        <CardTitle className="mb-3 text-balance">
+          {deploymentCopy.emptyState.title}
         </CardTitle>
 
-        {/* Description */}
-        <BodyText muted className="mb-8">Monitor and manage fleet-wide changes. Learn more about how deployments work</BodyText>
+        <BodyText muted className="mb-6 max-w-sm text-balance">
+          {deploymentCopy.emptyState.description}
+        </BodyText>
 
-        {/* Action */}
-        <PrimaryButton onClick={onCreateClick}>
-          Create deployment
-        </PrimaryButton>
+        <div className="mb-6 flex w-full justify-center">
+          <CreateDeploymentSplitButton
+            areaTab="all"
+            onCreate={onCreateDeployment}
+          />
+        </div>
 
-        {/* Helper text */}
-        <SmallText muted className="mt-6"></SmallText>
+        {onFastForwardToDeployments && (
+          <TertiaryButton
+            type="button"
+            onClick={onFastForwardToDeployments}
+            className="inline-flex max-w-full items-center justify-center gap-2 text-balance border-2 bg-white text-foreground shadow-sm hover:bg-[#fff5fa]"
+            style={{ borderColor: PROTOTYPE_PINK }}
+          >
+            <FastForward className="size-4 shrink-0" aria-hidden />
+            Fast-forward to deployments list
+          </TertiaryButton>
+        )}
       </div>
     </div>
   );
