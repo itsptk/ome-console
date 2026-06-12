@@ -1,14 +1,11 @@
-import { PageTitle, BodyText, Container } from '../../imports/UIComponents';
+import { Container } from "../../imports/UIComponents";
+import { CORE_ADDONS } from "../addons/coreAddons";
+import { AddonNotInstalledLanding } from "../components/AddonNotInstalledLanding";
 
 export function ApplicationsPage() {
   return (
     <Container className="p-8">
-      <div className="mb-8">
-        <PageTitle>Applications</PageTitle>
-        <BodyText muted>
-          Deploy and manage applications across clusters
-        </BodyText>
-      </div>
+      <AddonNotInstalledLanding addon={CORE_ADDONS.configuration} />
     </Container>
   );
 }

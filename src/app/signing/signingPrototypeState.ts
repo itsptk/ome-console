@@ -3,7 +3,8 @@
 export const GITHUB_SIGNING_PUB_KEY_STORAGE =
   "ome-prototype-github-signing-public-key";
 
-const PASSKEY_ENROLLMENT_STORAGE = "ome-prototype-passkey-enrollment-complete";
+export const PASSKEY_ENROLLMENT_STORAGE =
+  "ome-prototype-passkey-enrollment-complete";
 
 export function isPasskeyEnrollmentComplete(): boolean {
   if (typeof sessionStorage === "undefined") return false;
