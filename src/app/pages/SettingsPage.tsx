@@ -30,7 +30,6 @@ import {
   isPasskeyEnrollmentComplete,
   setPasskeyEnrollmentComplete,
 } from "../signing/signingPrototypeState";
-import { NavigationGlobalSettingsSection } from "../components/NavigationGlobalSettings";
 
 const ROTATION_OPTIONS = [
   { value: "manual", label: "Manual only (rotate when initiated)" },
@@ -219,8 +218,6 @@ export function SettingsPage() {
           need new keys.
         </p>
       </div>
-
-      <NavigationGlobalSettingsSection />
 
       <section
         className="mb-8 max-w-2xl rounded-lg border p-6"
