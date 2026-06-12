@@ -1,14 +1,13 @@
 import { Link } from 'react-router';
 import { SmallText } from '../../imports/UIComponents';
 import imgImageRedHat from '@/assets/704f152a63b0b4badd89509f0db23ae863ffdf9b.png';
-import { resetPrototypeState } from '../prototype/resetPrototypeState';
 
 const JIRA_URL = 'https://redhat.atlassian.net/browse/HPUX-1363';
 /** Matches the floating home button / conceptual label accent */
 const PROTOTYPE_PINK = '#FF13F0';
 
 /** Set to the calendar day this file (or the prototype) was last meaningfully updated (YYYY-MM-DD). */
-const LAST_UPDATED_ISO = '2026-06-09';
+const LAST_UPDATED_ISO = '2026-04-23';
 
 function formatLastUpdated(iso: string) {
   const d = new Date(`${iso}T12:00:00`);
@@ -118,27 +117,6 @@ export function TitlePage() {
           >
             View day 1 interactions
           </Link>
-          <button
-            type="button"
-            className="flex justify-center px-5 py-2.5 border border-border bg-background text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors whitespace-nowrap"
-            style={{
-              fontFamily: 'var(--font-family-text)',
-              fontSize: 'var(--text-sm)',
-              fontWeight: 'var(--font-weight-medium)',
-              borderRadius: 'var(--radius)',
-            }}
-            onClick={() => {
-              if (
-                window.confirm(
-                  "Reset all prototype data for Adi and Sara? This clears favorites, navigation settings, day-one choices, and other saved session state.",
-                )
-              ) {
-                resetPrototypeState();
-              }
-            }}
-          >
-            Reset prototype data
-          </button>
           </div>
         </div>
       </div>

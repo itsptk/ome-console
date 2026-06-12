@@ -1,11 +1,14 @@
-import { Container } from "../../imports/UIComponents";
-import { CORE_ADDONS } from "../addons/coreAddons";
-import { AddonNotInstalledLanding } from "../components/AddonNotInstalledLanding";
+import { PageTitle, BodyText, Container } from '../../imports/UIComponents';
 
 export function ObservabilityPage() {
   return (
     <Container className="p-8">
-      <AddonNotInstalledLanding addon={CORE_ADDONS.observability} />
+      <div className="mb-8">
+        <PageTitle>Observability</PageTitle>
+        <BodyText muted>
+          Monitor and analyze cluster metrics and logs
+        </BodyText>
+      </div>
     </Container>
   );
 }

@@ -1,5 +1,5 @@
-import { Container } from "../../imports/UIComponents";
+import { ClusterOverview } from "../components/ClusterOverview";
 
 export function OverviewPage() {
-  return <Container className="p-8" />;
+  return <ClusterOverview />;
 }
